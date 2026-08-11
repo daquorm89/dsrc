@@ -1955,27 +1955,43 @@ public class debugger extends script.base_script
     }
     public int handleGrantAllSkills(obj_id self, dictionary params) throws InterruptedException
     {
-        sendSystemMessageTestingOnly(self, "handleGrantAllSkills entered...");
         if (params == null || params.isEmpty())
         {
             return SCRIPT_CONTINUE;
         }
         String[] skillList = params.getStringArray("skills");
-        int idx = params.getInt("idx");
-        for (int i = idx; i < 5; i++)
+        if (skillList == null || skillList.length == 0)
         {
-            if (i < skillList.length)
-            {
-                sendSystemMessageTestingOnly(self, "attempting to grant: " + skillList[i]);
-                grantSkill(self, skillList[i]);
-            }
-            else 
-            {
-                return SCRIPT_CONTINUE;
-            }
+            sendSystemMessageTestingOnly(self, "grantAllSkills: no skills in table");
+            return SCRIPT_CONTINUE;
         }
-        params.put("idx", idx + 5);
-        messageTo(self, "handleGrantAllSkills", params, 3.0f, false);
+        int idx = params.getInt("idx");
+        // BUGFIX: original loop was for (i = idx; i < 5; i++) which only granted
+        // the first 5 skills, then rescheduled forever with idx=5,10,15...
+        if (idx >= skillList.length)
+        {
+            sendSystemMessageTestingOnly(self, "grantAllSkills complete (" + skillList.length + " skills)");
+            return SCRIPT_CONTINUE;
+        }
+        int end = idx + 5;
+        if (end > skillList.length)
+        {
+            end = skillList.length;
+        }
+        for (int i = idx; i < end; i++)
+        {
+            sendSystemMessageTestingOnly(self, "attempting to grant: " + skillList[i]);
+            grantSkill(self, skillList[i]);
+        }
+        if (end < skillList.length)
+        {
+            params.put("idx", end);
+            messageTo(self, "handleGrantAllSkills", params, 3.0f, false);
+        }
+        else
+        {
+            sendSystemMessageTestingOnly(self, "grantAllSkills complete (" + skillList.length + " skills)");
+        }
         return SCRIPT_CONTINUE;
     }
 }
