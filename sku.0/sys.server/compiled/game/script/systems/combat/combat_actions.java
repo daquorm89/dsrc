@@ -12776,7 +12776,7 @@ public class combat_actions extends script.systems.combat.combat_base {
     }
 
     public int fireAcidCone1(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
-        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1)) {
+        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1, "acid")) {
             return SCRIPT_OVERRIDE;
         }
         if (!combatStandardAction("fireAcidCone1", self, target, params, "", "")) {
@@ -12786,7 +12786,7 @@ public class combat_actions extends script.systems.combat.combat_base {
     }
 
     public int fireAcidCone2(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
-        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1)) {
+        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1, "acid")) {
             return SCRIPT_OVERRIDE;
         }
         if (!combatStandardAction("fireAcidCone2", self, target, params, "", "")) {
@@ -12796,7 +12796,7 @@ public class combat_actions extends script.systems.combat.combat_base {
     }
 
     public int fireAcidSingle1(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
-        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1)) {
+        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1, "acid")) {
             return SCRIPT_OVERRIDE;
         }
         if (!combatStandardAction("fireAcidSingle1", self, target, params, "", "")) {
@@ -12806,7 +12806,7 @@ public class combat_actions extends script.systems.combat.combat_base {
     }
 
     public int fireAcidSingle2(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
-        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1)) {
+        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1, "acid")) {
             return SCRIPT_OVERRIDE;
         }
         if (!combatStandardAction("fireAcidSingle2", self, target, params, "", "")) {
@@ -12816,7 +12816,7 @@ public class combat_actions extends script.systems.combat.combat_base {
     }
 
     public int fireLightningCone1(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
-        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1)) {
+        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1, "lightning")) {
             return SCRIPT_OVERRIDE;
         }
         if (!combatStandardAction("fireLightningCone1", self, target, params, "", "")) {
@@ -12826,7 +12826,7 @@ public class combat_actions extends script.systems.combat.combat_base {
     }
 
     public int fireLightningCone2(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
-        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1)) {
+        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1, "lightning")) {
             return SCRIPT_OVERRIDE;
         }
         if (!combatStandardAction("fireLightningCone2", self, target, params, "", "")) {
@@ -12836,7 +12836,7 @@ public class combat_actions extends script.systems.combat.combat_base {
     }
 
     public int fireLightningSingle1(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
-        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1)) {
+        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1, "lightning")) {
             return SCRIPT_OVERRIDE;
         }
         if (!combatStandardAction("fireLightningSingle1", self, target, params, "", "")) {
@@ -12846,7 +12846,7 @@ public class combat_actions extends script.systems.combat.combat_base {
     }
 
     public int fireLightningSingle2(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
-        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1)) {
+        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1, "lightning")) {
             return SCRIPT_OVERRIDE;
         }
         if (!combatStandardAction("fireLightningSingle2", self, target, params, "", "")) {
@@ -12856,7 +12856,7 @@ public class combat_actions extends script.systems.combat.combat_base {
     }
 
     public int flameCone1(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
-        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1)) {
+        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1, "flame")) {
             return SCRIPT_OVERRIDE;
         }
         if (!combatStandardAction("flameCone1", self, target, params, "", "")) {
@@ -12866,7 +12866,7 @@ public class combat_actions extends script.systems.combat.combat_base {
     }
 
     public int flameCone2(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
-        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1)) {
+        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1, "flame")) {
             return SCRIPT_OVERRIDE;
         }
         if (!combatStandardAction("flameCone2", self, target, params, "", "")) {
@@ -12876,7 +12876,7 @@ public class combat_actions extends script.systems.combat.combat_base {
     }
 
     public int flameSingle1(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
-        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1)) {
+        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1, "flame")) {
             return SCRIPT_OVERRIDE;
         }
         if (!combatStandardAction("flameSingle1", self, target, params, "", "")) {
@@ -12886,7 +12886,7 @@ public class combat_actions extends script.systems.combat.combat_base {
     }
 
     public int flameSingle2(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
-        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1)) {
+        if (!precuWeaponOk(self, WEAPON_TYPE_HEAVY, -1, "flame")) {
             return SCRIPT_OVERRIDE;
         }
         if (!combatStandardAction("flameSingle2", self, target, params, "", "")) {
@@ -15210,6 +15210,14 @@ public class combat_actions extends script.systems.combat.combat_base {
     // requiredCategory: combat.RANGED_WEAPON / combat.MELEE_WEAPON, or -1 to skip
     // -------------------------------------------------------------------------
     public boolean precuWeaponOk(obj_id self, int requiredType, int requiredCategory) throws InterruptedException {
+        return precuWeaponOk(self, requiredType, requiredCategory, null);
+    }
+
+    /**
+     * @param weaponFamily optional: "flame", "acid", "lightning" — further restricts heavy weapons
+     *        by template name and/or damage/elemental type (heat/acid/electric).
+     */
+    public boolean precuWeaponOk(obj_id self, int requiredType, int requiredCategory, String weaponFamily) throws InterruptedException {
         obj_id weapon = getCurrentWeapon(self);
         int wt = -1;
         if (isIdValid(weapon)) {
@@ -15220,8 +15228,7 @@ public class combat_actions extends script.systems.combat.combat_base {
 
         boolean ok = true;
         if (requiredType >= 0) {
-            // Heavy weapons include plain HEAVY (3), GROUND_TARGETTING (12), and DIRECTIONAL (13).
-            // Flamethrowers / acid / lightning are often directional or ground-target, not type==3.
+            // Heavy includes plain HEAVY (3), GROUND_TARGETTING (12), DIRECTIONAL (13).
             if (requiredType == WEAPON_TYPE_HEAVY) {
                 if (!combat.isHeavyWeapon(wt)) {
                     ok = false;
@@ -15236,12 +15243,60 @@ public class combat_actions extends script.systems.combat.combat_base {
             }
         }
 
+        if (ok && weaponFamily != null && weaponFamily.length() > 0 && isIdValid(weapon)) {
+            if (!precuWeaponMatchesFamily(weapon, weaponFamily)) {
+                ok = false;
+            }
+        }
+
         if (!ok) {
-            // Match combat_base.checkWeaponData messaging. clearQueue flushes combat command
-            // groups so a rejected special is less likely to finish a client-predicted swing/fire.
             string_id strSpam = new string_id("cbt_spam", "no_attack_wrong_weapon");
             sendSystemMessage(self, strSpam);
             clearQueue(self);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Family match: template path keywords and/or primary/elemental damage type.
+     * Heat alone is not enough without heavy (caller already required heavy for HW specials).
+     */
+    public boolean precuWeaponMatchesFamily(obj_id weapon, String family) throws InterruptedException {
+        String t = getTemplateName(weapon);
+        if (t == null) {
+            t = "";
+        }
+        t = t.toLowerCase();
+        int dmg = getWeaponDamageType(weapon);
+        int elem = getWeaponElementalType(weapon);
+
+        if (family.equals("flame")) {
+            if (t.indexOf("flame") >= 0 || t.indexOf("flamer") >= 0) {
+                return true;
+            }
+            // heat primary or elemental heat (NGE flamers)
+            if (dmg == DAMAGE_ELEMENTAL_HEAT || elem == DAMAGE_ELEMENTAL_HEAT) {
+                return true;
+            }
+            return false;
+        }
+        if (family.equals("acid")) {
+            if (t.indexOf("acid") >= 0) {
+                return true;
+            }
+            if (dmg == DAMAGE_ELEMENTAL_ACID || elem == DAMAGE_ELEMENTAL_ACID) {
+                return true;
+            }
+            return false;
+        }
+        if (family.equals("lightning")) {
+            if (t.indexOf("lightning") >= 0 || t.indexOf("electric") >= 0) {
+                return true;
+            }
+            if (dmg == DAMAGE_ELEMENTAL_ELECTRICAL || elem == DAMAGE_ELEMENTAL_ELECTRICAL) {
+                return true;
+            }
             return false;
         }
         return true;
