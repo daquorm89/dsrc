@@ -15215,7 +15215,9 @@ public class combat_actions extends script.systems.combat.combat_base {
 
     /**
      * @param weaponFamily optional: "flame", "acid", "lightning" — further restricts heavy weapons
-     *        by template name and/or damage/elemental type (heat/acid/electric).
+     *        by template name, weapon subtype (directional vs free-target), and/or damage type.
+     *        Flame requires a flamer template or a DIRECTIONAL heavy with heat — free-target
+     *        heavies such as particle beam are rejected even if they deal heat.
      */
     public boolean precuWeaponOk(obj_id self, int requiredType, int requiredCategory, String weaponFamily) throws InterruptedException {
         obj_id weapon = getCurrentWeapon(self);
@@ -15252,7 +15254,12 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!ok) {
             string_id strSpam = new string_id("cbt_spam", "no_attack_wrong_weapon");
             sendSystemMessage(self, strSpam);
+            // Drop queued combat specials and the full command queue so the client
+            // does not finish a predicted swing/fire for a rejected ability.
             clearQueue(self);
+            queueClear(self);
+            // Interrupt any client-predicted attack anim already in flight.
+            doAnimationAction(self, "stop");
             return false;
         }
         return true;
@@ -15272,11 +15279,18 @@ public class combat_actions extends script.systems.combat.combat_base {
         int elem = getWeaponElementalType(weapon);
 
         if (family.equals("flame")) {
+            // Explicit flamer templates always match (covers rifle + heavy flamers).
             if (t.indexOf("flame") >= 0 || t.indexOf("flamer") >= 0) {
                 return true;
             }
-            // heat primary or elemental heat (NGE flamers)
-            if (dmg == DAMAGE_ELEMENTAL_HEAT || elem == DAMAGE_ELEMENTAL_HEAT) {
+            // Free-target heavies (e.g. particle beam, rocket launcher) must never
+            // pass on heat alone — only directional cone/stream weapons may.
+            if (t.indexOf("particle") >= 0) {
+                return false;
+            }
+            int wt = getWeaponType(weapon);
+            if (wt == WEAPON_TYPE_DIRECTIONAL
+                && (dmg == DAMAGE_ELEMENTAL_HEAT || elem == DAMAGE_ELEMENTAL_HEAT)) {
                 return true;
             }
             return false;
