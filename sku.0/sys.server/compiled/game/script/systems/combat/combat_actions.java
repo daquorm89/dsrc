@@ -216,6 +216,7 @@ public class combat_actions extends script.systems.combat.combat_base {
         }
         if (!isIncapacitated(self) && !isDead(self)) {
             setPosture(self, POSTURE_UPRIGHT);
+            setPostureClientImmediate(self, POSTURE_UPRIGHT);
         }
         return SCRIPT_CONTINUE;
     }
@@ -232,6 +233,7 @@ public class combat_actions extends script.systems.combat.combat_base {
     public int kneel(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
         if (!isIncapacitated(self) && !isDead(self)) {
             setPosture(self, POSTURE_CROUCHED);
+            setPostureClientImmediate(self, POSTURE_CROUCHED);
         }
         return SCRIPT_CONTINUE;
     }
@@ -243,6 +245,7 @@ public class combat_actions extends script.systems.combat.combat_base {
     public int prone(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
         if (!isIncapacitated(self) && !isDead(self)) {
             setPosture(self, POSTURE_PRONE);
+            setPostureClientImmediate(self, POSTURE_PRONE);
         }
         return SCRIPT_CONTINUE;
     }
@@ -12477,6 +12480,55 @@ public class combat_actions extends script.systems.combat.combat_base {
         return SCRIPT_CONTINUE;
     }
 
+
+    // Pre-CU posture helpers (Core3 stateEffects reference — implemented on NGE via setPosture)
+    private void precuForceAttackerPosture(obj_id self, int posture) throws InterruptedException {
+        if (!isIdValid(self) || isIncapacitated(self) || isDead(self)) {
+            return;
+        }
+        setPosture(self, posture);
+        setPostureClientImmediate(self, posture);
+    }
+
+    private void precuApplyDefenderPostureDown(obj_id target) throws InterruptedException {
+        if (!isIdValid(target) || isIncapacitated(target) || isDead(target)) {
+            return;
+        }
+        int p = getPosture(target);
+        if (p == POSTURE_UPRIGHT) {
+            setPosture(target, POSTURE_CROUCHED);
+            setPostureClientImmediate(target, POSTURE_CROUCHED);
+        } else if (p == POSTURE_CROUCHED) {
+            setPosture(target, POSTURE_PRONE);
+            setPostureClientImmediate(target, POSTURE_PRONE);
+        } else if (p != POSTURE_PRONE && p != POSTURE_KNOCKED_DOWN) {
+            setPosture(target, POSTURE_PRONE);
+            setPostureClientImmediate(target, POSTURE_PRONE);
+        }
+    }
+
+    private void precuApplyDefenderPostureUp(obj_id target) throws InterruptedException {
+        if (!isIdValid(target) || isIncapacitated(target) || isDead(target)) {
+            return;
+        }
+        int p = getPosture(target);
+        if (p == POSTURE_PRONE || p == POSTURE_KNOCKED_DOWN) {
+            setPosture(target, POSTURE_CROUCHED);
+            setPostureClientImmediate(target, POSTURE_CROUCHED);
+        } else if (p == POSTURE_CROUCHED) {
+            setPosture(target, POSTURE_UPRIGHT);
+            setPostureClientImmediate(target, POSTURE_UPRIGHT);
+        }
+    }
+
+    private void precuApplyDefenderKnockdown(obj_id target) throws InterruptedException {
+        if (!isIdValid(target) || isIncapacitated(target) || isDead(target)) {
+            return;
+        }
+        setPosture(target, POSTURE_KNOCKED_DOWN);
+        setPostureClientImmediate(target, POSTURE_KNOCKED_DOWN);
+    }
+
 // Auto-generated Pre-CU combat entry points (hybrid)
 
     public int actionShot1(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
@@ -12486,6 +12538,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("actionShot1", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -12496,6 +12551,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("actionShot2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -12618,6 +12676,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("chargeShot1", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -12628,6 +12689,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("chargeShot2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -12715,10 +12779,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("diveShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
-        // Pre-CU (Core3 ref): ATTACKER_FORCE_PRONE — dive into prone after the shot
-        if (!isIncapacitated(self) && !isDead(self)) {
-            setPosture(self, POSTURE_PRONE);
-        }
+        // Pre-CU (Core3 ref): attacker posture after successful special
+        precuForceAttackerPosture(self, POSTURE_PRONE);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -12926,6 +12989,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("flushingShot1", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREUP on defender
+        precuApplyDefenderPostureUp(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -12936,6 +13002,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("flushingShot2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREUP on defender
+        precuApplyDefenderPostureUp(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -13533,10 +13602,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("kipUpShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
-        // Pre-CU (Core3 ref): ATTACKER_FORCE_STANDING — kip up to upright
-        if (!isIncapacitated(self) && !isDead(self)) {
-            setPosture(self, POSTURE_UPRIGHT);
-        }
+        // Pre-CU (Core3 ref): attacker posture after successful special
+        precuForceAttackerPosture(self, POSTURE_UPRIGHT);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -13544,6 +13612,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("knockdownAttack", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -13554,6 +13625,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("knockdownFire", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -13601,6 +13675,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("lowBlow", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -13745,6 +13822,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("melee1hLunge1", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -13755,6 +13835,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("melee1hLunge2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -13805,6 +13888,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("melee2hArea1", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -13815,6 +13901,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("melee2hArea2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -13825,6 +13914,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("melee2hArea3", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -13895,6 +13987,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("melee2hLunge1", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -13905,6 +14000,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("melee2hLunge2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -13955,6 +14053,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("melee2hSweep1", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -13965,6 +14066,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("melee2hSweep2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14066,6 +14170,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("pistolMeleeDefense1", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14076,6 +14183,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("pistolMeleeDefense2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14186,6 +14296,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("polearmHit3", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14226,6 +14339,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("polearmLunge1", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14236,6 +14352,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("polearmLunge2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14286,6 +14405,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("polearmSweep1", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14296,6 +14418,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("polearmSweep2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14303,6 +14428,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("postureDownAttack", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14310,6 +14438,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("postureUpAttack", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREUP on defender
+        precuApplyDefenderPostureUp(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14327,10 +14458,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("rollShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
-        // Pre-CU (Core3 ref): ATTACKER_FORCE_CROUCH — roll into crouched
-        if (!isIncapacitated(self) && !isDead(self)) {
-            setPosture(self, POSTURE_CROUCHED);
-        }
+        // Pre-CU (Core3 ref): attacker posture after successful special
+        precuForceAttackerPosture(self, POSTURE_CROUCHED);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14351,6 +14481,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("saber1hComboHit2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14361,6 +14494,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("saber1hComboHit3", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14531,6 +14667,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("saber2hSweep1", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14541,6 +14680,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("saber2hSweep2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14551,6 +14693,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("saber2hSweep3", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14651,6 +14796,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("saberPolearmSpinAttack2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14661,6 +14809,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("saberPolearmSpinAttack3", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14671,6 +14822,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("saberSlash1", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14681,6 +14835,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("saberSlash2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14701,6 +14858,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("saberThrow2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14711,6 +14871,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("saberThrow3", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14761,6 +14924,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("startleShot1", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREUP on defender
+        precuApplyDefenderPostureUp(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14771,6 +14937,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("startleShot2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREUP on defender
+        precuApplyDefenderPostureUp(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14839,6 +15008,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("suppressionFire1", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -14849,6 +15021,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("suppressionFire2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -15007,6 +15182,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("unarmedKnockdown1", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -15017,6 +15195,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("unarmedKnockdown2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -15037,6 +15218,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("unarmedLunge1", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): POSTUREDOWN on defender
+        precuApplyDefenderPostureDown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -15047,6 +15231,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("unarmedLunge2", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
@@ -15087,6 +15274,9 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("underHandShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): KNOCKDOWN on defender
+        precuApplyDefenderKnockdown(target);
+
         return SCRIPT_CONTINUE;
     }
 
