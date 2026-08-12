@@ -12715,6 +12715,10 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("diveShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): ATTACKER_FORCE_PRONE — dive into prone after the shot
+        if (!isIncapacitated(self) && !isDead(self)) {
+            setPosture(self, POSTURE_PRONE);
+        }
         return SCRIPT_CONTINUE;
     }
 
@@ -13529,6 +13533,10 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!combatStandardAction("kipUpShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): ATTACKER_FORCE_STANDING — kip up to upright
+        if (!isIncapacitated(self) && !isDead(self)) {
+            setPosture(self, POSTURE_UPRIGHT);
+        }
         return SCRIPT_CONTINUE;
     }
 
@@ -14318,6 +14326,10 @@ public class combat_actions extends script.systems.combat.combat_base {
         }
         if (!combatStandardAction("rollShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
+        }
+        // Pre-CU (Core3 ref): ATTACKER_FORCE_CROUCH — roll into crouched
+        if (!isIncapacitated(self) && !isDead(self)) {
+            setPosture(self, POSTURE_CROUCHED);
         }
         return SCRIPT_CONTINUE;
     }
