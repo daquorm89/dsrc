@@ -820,7 +820,7 @@ joinGame		normal	cmdJoinGame				0																								0	1												1							
 kick		immediate		failAdmin	admin_kick			admin																				1	1		0	1												1																														optional	0				0		40	csr	0										
 kill		immediate	cmdKill	failAdmin				admin																				1	1		0	1												1																												gm.cmd		required	0				0		40	csr	0										
 killPlayer		immediate	cmdKillPlayer	failAdmin				admin																				1	1		0	1												1																												gm.cmd		required	0				0		40	csr	0										
-kneel		immediate	kneel	kneelFail	setPosture	setPosture	2		1	1	1	1	1	1	1	1	1	1	1	0	0	0	1	0	0	0	1			1	0	1	1	1	1		1	1	1	1	1	1	1	0	1	1	1	1	0	0									0		0	0	0	0										optional		3		posture	0				1										
+kneel		immediate	kneel	kneelFail	setPosture	setPosture	0.5		1	1	1	1	1	1	1	1	1	1	1	0	0	0	1	0	0	0	1			1	0	1	1	1	1		1	1	1	1	1	1	1	0	1	1	1	1	0	0									0		0	0	0	0										optional		3		posture	0				0										
 lag		immediate			lag			admin																				1	1		0	1												0																														optional					0		40	csr	0										
 laserShow		normal	cmdLaserShow					laserShow	1	0	1	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0			0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0									0		0	0	0	0								player.skill.performcommands		none	0	2		performance	0				1										
 launchFirework		normal	cmdLaunchFirework				1.5		1	0	1	1	1	0	1	0	0	0	0	0	0	0	0	0	0	0	0			0	0	0	0		0	0	0	0	0	0	0	0	1	0	0	0	0	0	0	0	0	0		1	1	1	1	0	0		0	0	0	0								player.cmd.misc		required		1			0				1										
@@ -890,7 +890,7 @@ planetsay		immediate			planetChat																							1	1		0	1																
 planetwarp		immediate		failAdmin	admin_planetwarp			admin																				1	1		0	1																																										none	0				0		5	csr	0										
 planetwarpTarget		immediate		failAdmin	admin_planetwarp			admin																				1	1		0	1												1																														required	0				0		5	csr	0										
 powerBoost		normal	cmdPowerBoost	cmdPowerBoostFail			1.5	powerBoost	0	0	0	0	0	0	0	0	1	0	0	0	0	0	1	0	0	0	0			0	0	0	0		0		0	0	0	0	0	0	1	0	0	0	0	0	0	0	0	0		1	1	1	1	0	0		0	0	0	0								player.skill.teraskasi		none		2			0				1			power_boost	5	1	300				
-prone		immediate	prone	proneFail	setPosture	setPosture	2		1	1	1	1	1	1	1	1	1	1	1	0	0	0	1	0	0	0	1			1	0	1	1	1	1		1	1	1	1	1	1	1	0	1	1	1	1	0	0									0		0	0	0	0		0								optional		3		posture	0				0										
+prone		immediate	prone	proneFail	setPosture	setPosture	0.5		1	1	1	1	1	1	1	1	1	1	1	0	0	0	1	0	0	0	1			1	0	1	1	1	1		1	1	1	1	1	1	1	0	1	1	1	1	0	0									0		0	0	0	0		0								optional		3		posture	0				0										
 purchaseReinforcement		immediate	purchaseReinforcement				0		1	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0			0	0	0	0	1	0		0	0	1	1	1	0	0	0	0	0	0	0	0	0									0		0	0	0	0										optional		1			0				0										
 purchaseTicket		immediate			purchaseTicket		0		1	1	1			0				0	0	0	0				0	0	0			0	0	1	0	1	0	0	0	0	1	1	1	1	0	1	0	0	0	0	0	0									0		0	0	0	0										none		1			0				0										
 qatool		immediate	cmdQaTool					admin																				1	1		0	1												1																														optional							40	csr											
@@ -1009,7 +1009,7 @@ spatialChatInternal		immediate			spatialChatInternal																										0	
 spawnStatus		immediate	spawnStatus	failAdmin			0	admin																				1	1		0	1												1																														none					0		40	csr	0										
 splitCreditsWithGroup		immediate	cmdSplitCreditsWithGroup																												0	1												1																														none									0										
 spotlight		normal	cmdSpotLight					spotlight	1	0	1	0	0	0	0	0	0	0	0	0	0	0	0	1	0	0	0			0	0	0	0	1	0		0	0	1	1	1	0	0	0	0	0	0	0	0	0									0		0	0	0	0								player.skill.performcommands		none	0	2		performance	0				1										
-stand		immediate	stand	standFail	setPosture	setPosture	2		1	1	1	1	1	1	1	1	1	1	1	0	0	1	1	1	0	0	1			1	0	1	1	1	1		1	1	1	1	1	1	1	0	1	1	1	1	0	1									0		0	0	0	0										optional		3		posture	0				1										
+stand		immediate	stand	standFail	setPosture	setPosture	0.5		1	1	1	1	1	1	1	1	1	1	1	0	0	1	1	1	0	0	1			1	0	1	1	1	1		1	1	1	1	1	1	1	0	1	1	1	1	0	1									0		0	0	0	0										optional		3		posture	0				0										
 startBand		normal	cmdStartBand	failMusic					1	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0			0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0									0		0	0	0	0		0						player.skill.performcommands		none	0			performance	0				1										
 startCitySpawner		immediate	startCitySpawner	failAdmin			0	admin																				1	1		0	1												1																														none					0		40	csr	0										
 startDance		normal	cmdStartDance	failDance					1	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0			0	0	0	0	1	0	0	0	0	1	1	1	0	0	0	0	0	0	0	0	0									0		0	0	0	0		1						player.skill.performcommands		none	0	3		performance	0				1										

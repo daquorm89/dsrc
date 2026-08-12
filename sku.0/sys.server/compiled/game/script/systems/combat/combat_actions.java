@@ -216,12 +216,10 @@ public class combat_actions extends script.systems.combat.combat_base {
             return SCRIPT_CONTINUE;
         }
         if (!isIncapacitated(self) && !isDead(self)) {
-            if (combat.isInCombat(self)) {
-                precuPlayChangePosture(self, POSTURE_UPRIGHT);
-            } else {
-                setPosture(self, POSTURE_UPRIGHT);
-                setPostureClientImmediate(self, POSTURE_UPRIGHT);
-            }
+            // Voluntary posture: setPosture + ClientImmediate (responsive). defaultTime
+            // on the command is the main delay knob (kept low in command_table).
+            setPosture(self, POSTURE_UPRIGHT);
+            setPostureClientImmediate(self, POSTURE_UPRIGHT);
         }
         return SCRIPT_CONTINUE;
     }
@@ -237,13 +235,8 @@ public class combat_actions extends script.systems.combat.combat_base {
 
     public int kneel(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
         if (!isIncapacitated(self) && !isDead(self)) {
-            // Out of combat: snap client; in combat: change_posture playback
-            if (combat.isInCombat(self)) {
-                precuPlayChangePosture(self, POSTURE_CROUCHED);
-            } else {
-                setPosture(self, POSTURE_CROUCHED);
-                setPostureClientImmediate(self, POSTURE_CROUCHED);
-            }
+            setPosture(self, POSTURE_CROUCHED);
+            setPostureClientImmediate(self, POSTURE_CROUCHED);
         }
         return SCRIPT_CONTINUE;
     }
@@ -254,12 +247,8 @@ public class combat_actions extends script.systems.combat.combat_base {
 
     public int prone(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
         if (!isIncapacitated(self) && !isDead(self)) {
-            if (combat.isInCombat(self)) {
-                precuPlayChangePosture(self, POSTURE_PRONE);
-            } else {
-                setPosture(self, POSTURE_PRONE);
-                setPostureClientImmediate(self, POSTURE_PRONE);
-            }
+            setPosture(self, POSTURE_PRONE);
+            setPostureClientImmediate(self, POSTURE_PRONE);
         }
         return SCRIPT_CONTINUE;
     }
