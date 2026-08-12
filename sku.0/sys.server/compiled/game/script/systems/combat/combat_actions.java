@@ -1,6 +1,7 @@
 package script.systems.combat;
 
 import script.*;
+import script.combat_engine.attacker_results;
 import script.combat_engine.combat_data;
 import script.combat_engine.weapon_data;
 import script.library.*;
@@ -215,8 +216,12 @@ public class combat_actions extends script.systems.combat.combat_base {
             return SCRIPT_CONTINUE;
         }
         if (!isIncapacitated(self) && !isDead(self)) {
-            setPosture(self, POSTURE_UPRIGHT);
-            setPostureClientImmediate(self, POSTURE_UPRIGHT);
+            if (combat.isInCombat(self)) {
+                precuPlayChangePosture(self, POSTURE_UPRIGHT);
+            } else {
+                setPosture(self, POSTURE_UPRIGHT);
+                setPostureClientImmediate(self, POSTURE_UPRIGHT);
+            }
         }
         return SCRIPT_CONTINUE;
     }
@@ -232,8 +237,13 @@ public class combat_actions extends script.systems.combat.combat_base {
 
     public int kneel(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
         if (!isIncapacitated(self) && !isDead(self)) {
-            setPosture(self, POSTURE_CROUCHED);
-            setPostureClientImmediate(self, POSTURE_CROUCHED);
+            // Out of combat: snap client; in combat: change_posture playback
+            if (combat.isInCombat(self)) {
+                precuPlayChangePosture(self, POSTURE_CROUCHED);
+            } else {
+                setPosture(self, POSTURE_CROUCHED);
+                setPostureClientImmediate(self, POSTURE_CROUCHED);
+            }
         }
         return SCRIPT_CONTINUE;
     }
@@ -244,8 +254,12 @@ public class combat_actions extends script.systems.combat.combat_base {
 
     public int prone(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
         if (!isIncapacitated(self) && !isDead(self)) {
-            setPosture(self, POSTURE_PRONE);
-            setPostureClientImmediate(self, POSTURE_PRONE);
+            if (combat.isInCombat(self)) {
+                precuPlayChangePosture(self, POSTURE_PRONE);
+            } else {
+                setPosture(self, POSTURE_PRONE);
+                setPostureClientImmediate(self, POSTURE_PRONE);
+            }
         }
         return SCRIPT_CONTINUE;
     }
@@ -12481,13 +12495,25 @@ public class combat_actions extends script.systems.combat.combat_base {
     }
 
 
-    // Pre-CU posture helpers (Core3 stateEffects reference — implemented on NGE via setPosture)
-    private void precuForceAttackerPosture(obj_id self, int posture) throws InterruptedException {
-        if (!isIdValid(self) || isIncapacitated(self) || isDead(self)) {
+    // Pre-CU posture helpers (Core3 stateEffects reference).
+    // Combat: setPosture + doCombatResults("change_posture") so the client plays the
+    // transition. Do NOT use setPostureClientImmediate in combat — engine docs say it
+    // snaps visuals and disturbs combat anims (use ClientImmediate only out of combat).
+    private void precuPlayChangePosture(obj_id who, int endPosture) throws InterruptedException {
+        if (!isIdValid(who) || isIncapacitated(who) || isDead(who)) {
             return;
         }
-        setPosture(self, posture);
-        setPostureClientImmediate(self, posture);
+        setPosture(who, endPosture);
+        attacker_results anim = new attacker_results();
+        anim.id = who;
+        anim.endPosture = endPosture;
+        doCombatResults("change_posture", anim, null);
+    }
+
+    private void precuForceAttackerPosture(obj_id self, int posture) throws InterruptedException {
+        // After combatStandardAction already played the attack anim (e.g. fire_acrobatic).
+        // Logical posture + change_posture playback so dive/roll/kip settle correctly.
+        precuPlayChangePosture(self, posture);
     }
 
     private void precuApplyDefenderPostureDown(obj_id target) throws InterruptedException {
@@ -12495,16 +12521,17 @@ public class combat_actions extends script.systems.combat.combat_base {
             return;
         }
         int p = getPosture(target);
+        int next;
         if (p == POSTURE_UPRIGHT) {
-            setPosture(target, POSTURE_CROUCHED);
-            setPostureClientImmediate(target, POSTURE_CROUCHED);
+            next = POSTURE_CROUCHED;
         } else if (p == POSTURE_CROUCHED) {
-            setPosture(target, POSTURE_PRONE);
-            setPostureClientImmediate(target, POSTURE_PRONE);
-        } else if (p != POSTURE_PRONE && p != POSTURE_KNOCKED_DOWN) {
-            setPosture(target, POSTURE_PRONE);
-            setPostureClientImmediate(target, POSTURE_PRONE);
+            next = POSTURE_PRONE;
+        } else if (p == POSTURE_PRONE || p == POSTURE_KNOCKED_DOWN) {
+            return;
+        } else {
+            next = POSTURE_PRONE;
         }
+        precuPlayChangePosture(target, next);
     }
 
     private void precuApplyDefenderPostureUp(obj_id target) throws InterruptedException {
@@ -12512,21 +12539,19 @@ public class combat_actions extends script.systems.combat.combat_base {
             return;
         }
         int p = getPosture(target);
+        int next;
         if (p == POSTURE_PRONE || p == POSTURE_KNOCKED_DOWN) {
-            setPosture(target, POSTURE_CROUCHED);
-            setPostureClientImmediate(target, POSTURE_CROUCHED);
+            next = POSTURE_CROUCHED;
         } else if (p == POSTURE_CROUCHED) {
-            setPosture(target, POSTURE_UPRIGHT);
-            setPostureClientImmediate(target, POSTURE_UPRIGHT);
+            next = POSTURE_UPRIGHT;
+        } else {
+            return;
         }
+        precuPlayChangePosture(target, next);
     }
 
     private void precuApplyDefenderKnockdown(obj_id target) throws InterruptedException {
-        if (!isIdValid(target) || isIncapacitated(target) || isDead(target)) {
-            return;
-        }
-        setPosture(target, POSTURE_KNOCKED_DOWN);
-        setPostureClientImmediate(target, POSTURE_KNOCKED_DOWN);
+        precuPlayChangePosture(target, POSTURE_KNOCKED_DOWN);
     }
 
 // Auto-generated Pre-CU combat entry points (hybrid)
