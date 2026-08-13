@@ -2359,7 +2359,9 @@ public class combat extends script.base_script
             }
         }
         String classTemplate = getSkillTemplate(objPlayer);
-        if (isLightsaberWeapon(objWeapon) && !utils.isProfession(objPlayer, utils.FORCE_SENSITIVE))
+        // NGE class FS OR Pre-CU Jedi skill path may wield lightsabers
+        if (isLightsaberWeapon(objWeapon) && !utils.isProfession(objPlayer, utils.FORCE_SENSITIVE)
+            && !isJedi(objPlayer) && !hasSkill(objPlayer, "jedi_padawan_novice"))
         {
             hasCert = false;
         }
