@@ -22,6 +22,20 @@ public class nomove_base extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
+        // Pre-CU / god: do not block equipping a lightsaber onto a player.
+        // GM-spawned sabers often have unset/wrong owner; the owner check below
+        // would OVERRIDE and show "a script has blocked that container transfer".
+        if (isPlayer(dest))
+        {
+            String tmpl = getTemplateName(self);
+            if (tmpl != null && (tmpl.indexOf("lightsaber") >= 0 || tmpl.indexOf("crafted_saber") >= 0))
+            {
+                if (isGod(transferer) || isGod(dest) || dest == transferer)
+                {
+                    return SCRIPT_CONTINUE;
+                }
+            }
+        }
         obj_id owner = getOwner(self);
         if (!isIdValid(owner) || !isPlayer(owner))
         {

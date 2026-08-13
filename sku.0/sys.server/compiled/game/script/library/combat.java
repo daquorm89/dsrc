@@ -2311,6 +2311,57 @@ public class combat extends script.base_script
         }
         return true;
     }
+    /**
+     * Template path looks like a lightsaber / crafted saber object.
+     */
+    public static boolean isLightsaberTemplate(String template) throws InterruptedException
+    {
+        if (template == null || template.equals(""))
+        {
+            return false;
+        }
+        return template.indexOf("lightsaber") >= 0 || template.indexOf("crafted_saber") >= 0;
+    }
+
+    /**
+     * Pre-CU Jedi wielder: native Jedi state, Padawan novice, or any jedi_* skill box.
+     * (isJedi() is false until setJediState is applied; skill check covers grant-before-relog.)
+     */
+    public static boolean isPreCuJediWielder(obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(player))
+        {
+            return false;
+        }
+        if (isJedi(player))
+        {
+            return true;
+        }
+        if (getJediState(player) != JEDI_STATE_NONE)
+        {
+            return true;
+        }
+        if (hasSkill(player, "jedi_padawan_novice")
+            || hasSkill(player, "force_title_jedi_novice")
+            || hasSkill(player, "force_title_jedi_rank_01"))
+        {
+            return true;
+        }
+        // Any trained Pre-CU jedi_* box (covers partial trees / GM grants)
+        String[] skills = getSkillListingForPlayer(player);
+        if (skills != null)
+        {
+            for (String s : skills)
+            {
+                if (s != null && s.startsWith("jedi_"))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     public static boolean hasCertification(obj_id objPlayer, obj_id objWeapon) throws InterruptedException
     {
         return hasCertification(objPlayer, objWeapon, true);
@@ -2335,16 +2386,8 @@ public class combat extends script.base_script
         {
             return true;
         }
-        // Pre-CU Jedi: allow any lightsaber template without NGE level/class checks
-        final boolean precuJediEarly = isJedi(objPlayer) || hasSkill(objPlayer, "jedi_padawan_novice");
-        if (precuJediEarly && template != null
-            && (template.indexOf("lightsaber") >= 0 || template.indexOf("crafted_saber") >= 0))
-        {
-            utils.setScriptVar(objPlayer, "combat.weaponCertified", objWeapon);
-            return true;
-        }
-        if (isGod(objPlayer) && template != null
-            && (template.indexOf("lightsaber") >= 0 || template.indexOf("crafted_saber") >= 0))
+        // Pre-CU Jedi or god: allow any lightsaber template without NGE level/class checks
+        if (isLightsaberTemplate(template) && (isGod(objPlayer) || isPreCuJediWielder(objPlayer)))
         {
             utils.setScriptVar(objPlayer, "combat.weaponCertified", objWeapon);
             return true;
@@ -2373,7 +2416,7 @@ public class combat extends script.base_script
             }
         }
         String classTemplate = getSkillTemplate(objPlayer);
-        final boolean precuJedi = isJedi(objPlayer) || hasSkill(objPlayer, "jedi_padawan_novice");
+        final boolean precuJedi = isPreCuJediWielder(objPlayer);
         final boolean ngeFs = utils.isProfession(objPlayer, utils.FORCE_SENSITIVE);
         // NGE class FS OR Pre-CU Jedi skill path may wield lightsabers
         if (isLightsaberWeapon(objWeapon) && !ngeFs && !precuJedi)
