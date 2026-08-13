@@ -12531,6 +12531,28 @@ public class combat_actions extends script.systems.combat.combat_base {
         precuApplyPostureVisualFirst(self, target, posture, true);
     }
 
+    // Offensive specials (dive/kip/roll) must not change posture when the shot cannot run.
+    // combatStandardAction rejects missing/invalid targets; posture-first must use the same gate.
+    private boolean precuHasValidCombatTarget(obj_id self, obj_id target) throws InterruptedException {
+        if (!isIdValid(target)) {
+            target = getIntendedTarget(self);
+        }
+        if (!isIdValid(target) || target == self) {
+            return false;
+        }
+        if (isDead(target) || isIncapacitated(target)) {
+            return false;
+        }
+        return true;
+    }
+
+    private obj_id precuResolveCombatTarget(obj_id self, obj_id target) throws InterruptedException {
+        if (!isIdValid(target)) {
+            target = getIntendedTarget(self);
+        }
+        return target;
+    }
+
     private void precuApplyDefenderPostureDown(obj_id target) throws InterruptedException {
         if (!isIdValid(target) || isIncapacitated(target) || isDead(target)) {
             return;
@@ -12842,10 +12864,14 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!precuWeaponOk(self, WEAPON_TYPE_PISTOL, -1)) {
             return SCRIPT_OVERRIDE;
         }
-        // 1) Posture visual first — not behind combat queue / combat anim hold
+        target = precuResolveCombatTarget(self, target);
+        // No posture change without a target — combatStandardAction would not fire either.
+        if (!precuHasValidCombatTarget(self, target)) {
+            return SCRIPT_OVERRIDE;
+        }
+        // 1) Posture visual first (only when the shot can proceed past target gate)
         precuApplyPostureVisualFirst(self, target, POSTURE_PRONE, true);
-        // 2) Then the actual combat action (damage). combat_data doClientAnim=0 so the
-        //    shot does not re-lock client visual posture for seconds.
+        // 2) Damage action (doClientAnim=0 so shot does not re-lock visual posture)
         if (!combatStandardAction("diveShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
@@ -13666,10 +13692,14 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!precuWeaponOk(self, WEAPON_TYPE_PISTOL, -1)) {
             return SCRIPT_OVERRIDE;
         }
-        // 1) Posture visual first — not behind combat queue / combat anim hold
+        target = precuResolveCombatTarget(self, target);
+        // No posture change without a target — combatStandardAction would not fire either.
+        if (!precuHasValidCombatTarget(self, target)) {
+            return SCRIPT_OVERRIDE;
+        }
+        // 1) Posture visual first (only when the shot can proceed past target gate)
         precuApplyPostureVisualFirst(self, target, POSTURE_UPRIGHT, true);
-        // 2) Then the actual combat action (damage). combat_data doClientAnim=0 so the
-        //    shot does not re-lock client visual posture for seconds.
+        // 2) Damage action (doClientAnim=0 so shot does not re-lock visual posture)
         if (!combatStandardAction("kipUpShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
@@ -14523,10 +14553,14 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!precuWeaponOk(self, WEAPON_TYPE_PISTOL, -1)) {
             return SCRIPT_OVERRIDE;
         }
-        // 1) Posture visual first — not behind combat queue / combat anim hold
+        target = precuResolveCombatTarget(self, target);
+        // No posture change without a target — combatStandardAction would not fire either.
+        if (!precuHasValidCombatTarget(self, target)) {
+            return SCRIPT_OVERRIDE;
+        }
+        // 1) Posture visual first (only when the shot can proceed past target gate)
         precuApplyPostureVisualFirst(self, target, POSTURE_CROUCHED, true);
-        // 2) Then the actual combat action (damage). combat_data doClientAnim=0 so the
-        //    shot does not re-lock client visual posture for seconds.
+        // 2) Damage action (doClientAnim=0 so shot does not re-lock visual posture)
         if (!combatStandardAction("rollShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
