@@ -12485,23 +12485,23 @@ public class combat_actions extends script.systems.combat.combat_base {
 
 
     // Pre-CU posture helpers (Core3 stateEffects reference).
-    // Combat: setPosture + doCombatResults("change_posture") so the client plays the
-    // transition. Do NOT use setPostureClientImmediate in combat — engine docs say it
-    // snaps visuals and disturbs combat anims (use ClientImmediate only out of combat).
+    //
+    // combatStandardAction() sends combat results with endPosture = posture *at shot time*
+    // (still upright for diveShot). Server setPosture() then updates logical posture and
+    // locomotion immediately (crawl speed) but the client keeps the combat visual until
+    // combat migrates posture or ~5s timeout — classic "slow walk while standing, then
+    // snap prone". Engine: setPostureClientImmediate drops in-progress combat visuals and
+    // applies the new visual posture now (CreatureObject::setPosture isClientImmediate).
     private void precuPlayChangePosture(obj_id who, int endPosture) throws InterruptedException {
         if (!isIdValid(who) || isIncapacitated(who) || isDead(who)) {
             return;
         }
         setPosture(who, endPosture);
-        attacker_results anim = new attacker_results();
-        anim.id = who;
-        anim.endPosture = endPosture;
-        doCombatResults("change_posture", anim, null);
+        setPostureClientImmediate(who, endPosture);
     }
 
     private void precuForceAttackerPosture(obj_id self, int posture) throws InterruptedException {
-        // After combatStandardAction already played the attack anim (e.g. fire_acrobatic).
-        // Logical posture + change_posture playback so dive/roll/kip settle correctly.
+        // After combatStandardAction: force visual posture to match server locomotion now.
         precuPlayChangePosture(self, posture);
     }
 
