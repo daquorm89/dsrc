@@ -1,7 +1,6 @@
 package script.systems.combat;
 
 import script.*;
-import script.combat_engine.attacker_results;
 import script.combat_engine.combat_data;
 import script.combat_engine.weapon_data;
 import script.library.*;
