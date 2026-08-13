@@ -230,6 +230,12 @@ public class combat_weapon extends script.base_script
     {
         if (isPlayer(destContainer) && !combat.hasCertification(destContainer, self))
         {
+            // God mode still blocked previously when hasCertification returned false before isGod
+            // was evaluated in edge cases; allow explicit god override here too.
+            if (isGod(destContainer) || (isIdValid(transferer) && isGod(transferer)))
+            {
+                return SCRIPT_CONTINUE;
+            }
             prose_package pp = new prose_package();
             pp = prose.setStringId(pp, new string_id("spam", "weapon_no_cert"));
             pp = prose.setTT(pp, self);

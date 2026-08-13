@@ -2359,9 +2359,10 @@ public class combat extends script.base_script
             }
         }
         String classTemplate = getSkillTemplate(objPlayer);
+        final boolean precuJedi = isJedi(objPlayer) || hasSkill(objPlayer, "jedi_padawan_novice");
+        final boolean ngeFs = utils.isProfession(objPlayer, utils.FORCE_SENSITIVE);
         // NGE class FS OR Pre-CU Jedi skill path may wield lightsabers
-        if (isLightsaberWeapon(objWeapon) && !utils.isProfession(objPlayer, utils.FORCE_SENSITIVE)
-            && !isJedi(objPlayer) && !hasSkill(objPlayer, "jedi_padawan_novice"))
+        if (isLightsaberWeapon(objWeapon) && !ngeFs && !precuJedi)
         {
             hasCert = false;
         }
@@ -2400,12 +2401,20 @@ public class combat extends script.base_script
             String skillRequired = dataTableGetString(WEAPON_LEVEL_TABLE, template, "secondary_restriction");
             if (skillRequired != null && !skillRequired.equals(""))
             {
-                if (classTemplate != null && !classTemplate.equals(""))
+                boolean skillOk = (classTemplate != null && !classTemplate.equals("")
+                    && classTemplate.startsWith(skillRequired));
+                // Pre-CU Jedi satisfies NGE "force_sensitive" secondary restriction on sabers
+                if (!skillOk && skillRequired.equals("force_sensitive") && (ngeFs || precuJedi))
                 {
-                    if (!classTemplate.startsWith(skillRequired))
-                    {
-                        hasCert = false;
-                    }
+                    skillOk = true;
+                }
+                if (!skillOk && skillRequired.equals("force_sensitive") && !(ngeFs || precuJedi))
+                {
+                    hasCert = false;
+                }
+                else if (!skillOk && classTemplate != null && !classTemplate.equals(""))
+                {
+                    hasCert = false;
                 }
             }
             int levelRequired = -1;
@@ -2422,6 +2431,11 @@ public class combat extends script.base_script
             {
                 hasCert = false;
             }
+        }
+        // Pre-CU Jedi: ignore NGE weapon_level gate on lightsabers (levels are NGE balancing)
+        if (!hasCert && isLightsaberWeapon(objWeapon) && precuJedi)
+        {
+            hasCert = true;
         }
         if (!hasCert && isGod(objPlayer))
         {
