@@ -255,11 +255,6 @@ artisan	easy	object/draft_schematic/item/item_fishing_pole.iff	object/tangible/f
 artisan	easy	object/draft_schematic/item/item_food_tool.iff	object/tangible/crafting/station/food_tool.iff
 artisan	easy	object/draft_schematic/item/item_generic_tool.iff	object/tangible/crafting/station/generic_tool.iff
 artisan	easy	object/draft_schematic/item/item_hundred_sided_dice.iff	object/tangible/dice/eqp_one_hundred_sided_dice_set.iff
-artisan	easy	object/draft_schematic/item/item_powerup_weapon_melee_generic.iff	object/tangible/powerup/weapon/melee_generic.iff
-artisan	easy	object/draft_schematic/item/item_powerup_weapon_ranged_four.iff	object/tangible/powerup/weapon/ranged_power.iff
-artisan	easy	object/draft_schematic/item/item_powerup_weapon_ranged_one.iff	object/tangible/powerup/weapon/ranged_barrel.iff
-artisan	easy	object/draft_schematic/item/item_powerup_weapon_ranged_three.iff	object/tangible/powerup/weapon/ranged_muzzle.iff
-artisan	easy	object/draft_schematic/item/item_powerup_weapon_ranged_two.iff	object/tangible/powerup/weapon/ranged_grip.iff
 artisan	easy	object/draft_schematic/item/item_repairkit_clothing.iff	object/tangible/crafting/station/clothing_repair.iff
 artisan	easy	object/draft_schematic/item/item_six_sided_dice.iff	object/tangible/dice/eqp_six_sided_dice_set.iff
 artisan	easy	object/draft_schematic/item/item_structure_tool.iff	object/tangible/crafting/station/structure_tool.iff
@@ -300,8 +295,6 @@ artisan	hard	object/draft_schematic/item/component/item_electronics_memory_modul
 artisan	hard	object/draft_schematic/item/component/item_micro_sensor_suite.iff	object/tangible/component/item/micro_sensor_suite.iff
 artisan	hard	object/draft_schematic/item/item_firework_eighteen.iff	object/tangible/firework/firework_s18.iff
 artisan	hard	object/draft_schematic/item/item_parrot_cage.iff	object/tangible/parrot_cage/parrot_cage.iff
-artisan	hard	object/draft_schematic/item/item_powerup_weapon_ranged_six.iff	object/tangible/powerup/weapon/ranged_stock.iff
-artisan	hard	object/draft_schematic/item/item_powerup_weapon_thrown_explosive.iff	object/tangible/powerup/weapon/thrown_explosive.iff
 artisan	hard	object/draft_schematic/structure/installation_mining_gas_light.iff	object/tangible/deed/harvester_deed/gas_harvester_deed.iff
 artisan	hard	object/draft_schematic/structure/installation_mining_liquid_light.iff	object/tangible/deed/harvester_deed/liquid_harvester_deed.iff
 artisan	hard	object/draft_schematic/structure/installation_mining_liquid_vapor_light.iff	object/tangible/deed/harvester_deed/moisture_harvester_deed.iff
@@ -337,9 +330,6 @@ artisan	medium	object/draft_schematic/item/item_configurable_sided_dice.iff	obje
 artisan	medium	object/draft_schematic/item/item_firework_eleven.iff	object/tangible/firework/firework_s11.iff
 artisan	medium	object/draft_schematic/item/item_firework_show.iff	object/tangible/firework/show.iff
 artisan	medium	object/draft_schematic/item/item_firework_ten.iff	object/tangible/firework/firework_s10.iff
-artisan	medium	object/draft_schematic/item/item_powerup_weapon_mine_explosive.iff	object/tangible/powerup/weapon/mine_explosive.iff
-artisan	medium	object/draft_schematic/item/item_powerup_weapon_ranged_five.iff	object/tangible/powerup/weapon/ranged_scope.iff
-artisan	medium	object/draft_schematic/item/item_powerup_weapon_thrown_wiring.iff	object/tangible/powerup/weapon/thrown_wiring.iff
 artisan	medium	object/draft_schematic/item/item_repairkit_armor.iff	object/tangible/crafting/station/armor_repair.iff
 artisan	medium	object/draft_schematic/item/item_repairkit_weapon.iff	object/tangible/crafting/station/weapon_repair.iff
 artisan	medium	object/draft_schematic/structure/installation_generator_wind.iff	object/tangible/deed/generator_deed/power_generator_wind_deed.iff
