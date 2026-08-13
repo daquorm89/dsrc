@@ -1968,7 +1968,6 @@ craftGcwToolsA	object/draft_schematic/item/gcw_spawner_tool.iff
 craftGcwToolsA	object/draft_schematic/item/gcw_tower_tool.iff
 craftGcwToolsA	object/draft_schematic/item/gcw_turret_tool.iff
 craftGcwToolsA	object/draft_schematic/item/gcw_vehicle_tool.iff
-end	end
 craftAdvancedTissueGroup	object/draft_schematic/bio_engineer/utilities/pet_stimpack_d.iff
 craftApplyDiseaseAreaGroupA	object/draft_schematic/chemistry/medpack_disease_area_action_a.iff
 craftApplyDiseaseAreaGroupA	object/draft_schematic/chemistry/medpack_disease_area_constitution_a.iff
@@ -2436,3 +2435,12 @@ craftdroidgenmodGroupD	object/draft_schematic/droid/component/medic_module_4.iff
 craftdroidgenmodGroupE	object/draft_schematic/droid/component/medic_module_5.iff
 craftdroidgenmodGroupF	object/draft_schematic/droid/component/medic_module_6.iff
 craftdroidgenmodGroupF	object/draft_schematic/droid/component/detonation_module.iff
+craftSaberOneHand1	object/draft_schematic/weapon/lightsaber/lightsaber_one_hand_gen1.iff
+craftSaberOneHand4	object/draft_schematic/weapon/lightsaber/lightsaber_one_hand_gen4.iff
+craftSaberTwoHand1	object/draft_schematic/weapon/lightsaber/lightsaber_two_hand_gen1.iff
+craftSaberTwoHand4	object/draft_schematic/weapon/lightsaber/lightsaber_two_hand_gen4.iff
+craftSaberPolearm1	object/draft_schematic/weapon/lightsaber/lightsaber_polearm_gen1.iff
+craftSaberPolearm2	object/draft_schematic/weapon/lightsaber/lightsaber_polearm_gen2.iff
+craftSaberPolearm3	object/draft_schematic/weapon/lightsaber/lightsaber_polearm_gen3.iff
+craftSaberPolearm4	object/draft_schematic/weapon/lightsaber/lightsaber_polearm_gen4.iff
+craftSaberPolearm5	object/draft_schematic/weapon/lightsaber/lightsaber_polearm_gen5.iff
