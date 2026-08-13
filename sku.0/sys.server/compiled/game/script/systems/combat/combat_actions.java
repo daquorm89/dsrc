@@ -12505,18 +12505,21 @@ public class combat_actions extends script.systems.combat.combat_base {
         precuPlayChangePosture(self, posture);
     }
 
-    // Core3 tumble: setPosture + combat anim "tumble" / "tumble_facing".
+    // Core3 tumble: setPosture + optional combat playback + ClientImmediate.
     private void precuTumbleTo(obj_id self, obj_id target, int posture) throws InterruptedException {
         if (!isIdValid(self) || isIncapacitated(self) || isDead(self)) {
             return;
         }
         setPosture(self, posture);
-        attacker_results anim = new attacker_results();
-        anim.id = self;
-        anim.endPosture = posture;
-        // Match Core3 doCombatAnimation(... "tumble" / "tumble_facing")
-        String playback = (isIdValid(target) && target != self) ? "tumble_facing" : "tumble";
-        doCombatResults(playback, anim, null);
+        try {
+            attacker_results anim = new attacker_results();
+            anim.id = self;
+            anim.endPosture = posture;
+            String playback = (isIdValid(target) && target != self) ? "tumble_facing" : "tumble";
+            doCombatResults(playback, anim, null);
+        } catch (Exception e) {
+            // playback name may be missing on NGE client; posture still applies
+        }
         setPostureClientImmediate(self, posture);
     }
 
@@ -12831,14 +12834,16 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!precuWeaponOk(self, WEAPON_TYPE_PISTOL, -1)) {
             return SCRIPT_OVERRIDE;
         }
-        // Pre-CU (Core3 ref): attacker posture is part of the combat action.
-        // Set BEFORE combatStandardAction so attacker_results.endPosture matches.
+        // Logical posture first so locomotion matches immediately.
         if (!isIncapacitated(self) && !isDead(self)) {
             setPosture(self, POSTURE_PRONE);
         }
         if (!combatStandardAction("diveShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // combat_data doClientAnim=0 so fire_acrobatic does not hold upright for seconds.
+        // ClientImmediate applies visual posture now (engine: drops combat visual hold).
+        setPosture(self, POSTURE_PRONE);
         setPostureClientImmediate(self, POSTURE_PRONE);
         return SCRIPT_CONTINUE;
     }
@@ -13657,14 +13662,16 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!precuWeaponOk(self, WEAPON_TYPE_PISTOL, -1)) {
             return SCRIPT_OVERRIDE;
         }
-        // Pre-CU (Core3 ref): attacker posture is part of the combat action.
-        // Set BEFORE combatStandardAction so attacker_results.endPosture matches.
+        // Logical posture first so locomotion matches immediately.
         if (!isIncapacitated(self) && !isDead(self)) {
             setPosture(self, POSTURE_UPRIGHT);
         }
         if (!combatStandardAction("kipUpShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // combat_data doClientAnim=0 so fire_acrobatic does not hold upright for seconds.
+        // ClientImmediate applies visual posture now (engine: drops combat visual hold).
+        setPosture(self, POSTURE_UPRIGHT);
         setPostureClientImmediate(self, POSTURE_UPRIGHT);
         return SCRIPT_CONTINUE;
     }
@@ -14516,14 +14523,16 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!precuWeaponOk(self, WEAPON_TYPE_PISTOL, -1)) {
             return SCRIPT_OVERRIDE;
         }
-        // Pre-CU (Core3 ref): attacker posture is part of the combat action.
-        // Set BEFORE combatStandardAction so attacker_results.endPosture matches.
+        // Logical posture first so locomotion matches immediately.
         if (!isIncapacitated(self) && !isDead(self)) {
             setPosture(self, POSTURE_CROUCHED);
         }
         if (!combatStandardAction("rollShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
+        // combat_data doClientAnim=0 so fire_acrobatic does not hold upright for seconds.
+        // ClientImmediate applies visual posture now (engine: drops combat visual hold).
+        setPosture(self, POSTURE_CROUCHED);
         setPostureClientImmediate(self, POSTURE_CROUCHED);
         return SCRIPT_CONTINUE;
     }
