@@ -532,8 +532,16 @@ public class base_player extends script.base_script
         }
         if (hasSkill(self, "jedi_padawan_novice"))
         {
-            setSkillTemplate(self, "a");
-            attachScript(self, "player.player_jedi_conversion");
+            // Pre-CU path: do NOT run NGE jedi conversion or clobber skill template with "a"
+            // (that broke lightsaber secondary_restriction / class template checks).
+            if (getJediState(self) == JEDI_STATE_NONE)
+            {
+                setJediState(self, JEDI_STATE_JEDI);
+            }
+            if (hasScript(self, "player.player_jedi_conversion"))
+            {
+                detachScript(self, "player.player_jedi_conversion");
+            }
         }
         if (!isJedi(self))
         {
@@ -6709,6 +6717,17 @@ public class base_player extends script.base_script
             int row = dataTableSearchColumnForString("beast_master", "profession", respec.EXPERTISE_VERSION_TABLE);
             int bmExpertiseVersion = dataTableGetInt(respec.EXPERTISE_VERSION_TABLE, row, "version");
             setObjVar(self, respec.BEAST_MASTER_EXPERTISE_VERSION_OBJVAR, bmExpertiseVersion);
+        }
+        if (skillName != null && skillName.equals("jedi_padawan_novice"))
+        {
+            if (getJediState(self) == JEDI_STATE_NONE)
+            {
+                setJediState(self, JEDI_STATE_JEDI);
+            }
+            if (hasScript(self, "player.player_jedi_conversion"))
+            {
+                detachScript(self, "player.player_jedi_conversion");
+            }
         }
         recomputeCommandSeries(self);
         beast_lib.verifyAndUpdateCalledBeastStats(self);

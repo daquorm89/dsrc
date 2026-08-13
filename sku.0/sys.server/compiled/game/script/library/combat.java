@@ -2335,6 +2335,20 @@ public class combat extends script.base_script
         {
             return true;
         }
+        // Pre-CU Jedi: allow any lightsaber template without NGE level/class checks
+        final boolean precuJediEarly = isJedi(objPlayer) || hasSkill(objPlayer, "jedi_padawan_novice");
+        if (precuJediEarly && template != null
+            && (template.indexOf("lightsaber") >= 0 || template.indexOf("crafted_saber") >= 0))
+        {
+            utils.setScriptVar(objPlayer, "combat.weaponCertified", objWeapon);
+            return true;
+        }
+        if (isGod(objPlayer) && template != null
+            && (template.indexOf("lightsaber") >= 0 || template.indexOf("crafted_saber") >= 0))
+        {
+            utils.setScriptVar(objPlayer, "combat.weaponCertified", objWeapon);
+            return true;
+        }
         int speciesRequired = dataTableGetInt(combat.WEAPON_LEVEL_TABLE, template, "species_restriction");
         if (speciesRequired >= 0)
         {

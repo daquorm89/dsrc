@@ -228,19 +228,48 @@ public class combat_weapon extends script.base_script
     }
     public int OnAboutToBeTransferred(obj_id self, obj_id destContainer, obj_id transferer) throws InterruptedException
     {
-        if (isPlayer(destContainer) && !combat.hasCertification(destContainer, self))
+        if (isPlayer(destContainer))
         {
-            // God mode still blocked previously when hasCertification returned false before isGod
-            // was evaluated in edge cases; allow explicit god override here too.
+            // Always allow god mode equip (engine still reports script block otherwise)
             if (isGod(destContainer) || (isIdValid(transferer) && isGod(transferer)))
             {
                 return SCRIPT_CONTINUE;
             }
-            prose_package pp = new prose_package();
-            pp = prose.setStringId(pp, new string_id("spam", "weapon_no_cert"));
-            pp = prose.setTT(pp, self);
-            sendSystemMessageProse(destContainer, pp);
-            return SCRIPT_OVERRIDE;
+            String tmpl = getTemplateName(self);
+            boolean looksLikeSaber = false;
+            if (tmpl != null)
+            {
+                looksLikeSaber = tmpl.indexOf("lightsaber") >= 0 || tmpl.indexOf("crafted_saber") >= 0;
+            }
+            if (!looksLikeSaber)
+            {
+                looksLikeSaber = jedi.isLightsaber(self) || combat.isLightsaberWeapon(self);
+            }
+            if (looksLikeSaber)
+            {
+                // Pre-CU Padawan / Jedi, NGE FS, or explicit saber certs
+                if (isJedi(destContainer)
+                    || hasSkill(destContainer, "jedi_padawan_novice")
+                    || hasSkill(destContainer, "force_title_jedi_novice")
+                    || hasSkill(destContainer, "force_title_jedi_rank_01")
+                    || utils.isProfession(destContainer, utils.FORCE_SENSITIVE)
+                    || hasCommand(destContainer, "cert_onehandlightsaber")
+                    || hasCommand(destContainer, "cert_onehandlightsaber_gen1")
+                    || hasCommand(destContainer, "cert_onehandlightsaber_training")
+                    || hasCommand(destContainer, "cert_twohandlightsaber")
+                    || hasCommand(destContainer, "cert_polearmlightsaber"))
+                {
+                    return SCRIPT_CONTINUE;
+                }
+            }
+            if (!combat.hasCertification(destContainer, self))
+            {
+                prose_package pp = new prose_package();
+                pp = prose.setStringId(pp, new string_id("spam", "weapon_no_cert"));
+                pp = prose.setTT(pp, self);
+                sendSystemMessageProse(destContainer, pp);
+                return SCRIPT_OVERRIDE;
+            }
         }
         return SCRIPT_CONTINUE;
     }
