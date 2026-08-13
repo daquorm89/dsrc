@@ -12505,22 +12505,31 @@ public class combat_actions extends script.systems.combat.combat_base {
         precuPlayChangePosture(self, posture);
     }
 
-    // Core3 tumble: setPosture + optional combat playback + ClientImmediate.
-    private void precuTumbleTo(obj_id self, obj_id target, int posture) throws InterruptedException {
+    // Posture change FIRST (visual), then caller may fire combat.
+    // Order matters: combatStandardAction combat packets hold client visual posture;
+    // applying posture after the shot leaves kneel/prone stuck behind that hold.
+    private void precuApplyPostureVisualFirst(obj_id self, obj_id target, int posture, boolean playTumble) throws InterruptedException {
         if (!isIdValid(self) || isIncapacitated(self) || isDead(self)) {
             return;
         }
         setPosture(self, posture);
-        try {
-            attacker_results anim = new attacker_results();
-            anim.id = self;
-            anim.endPosture = posture;
-            String playback = (isIdValid(target) && target != self) ? "tumble_facing" : "tumble";
-            doCombatResults(playback, anim, null);
-        } catch (Exception e) {
-            // playback name may be missing on NGE client; posture still applies
+        if (playTumble) {
+            try {
+                attacker_results anim = new attacker_results();
+                anim.id = self;
+                anim.endPosture = posture;
+                String playback = (isIdValid(target) && target != self) ? "tumble_facing" : "tumble";
+                doCombatResults(playback, anim, null);
+            } catch (Exception e) {
+                // tumble playback optional on NGE
+            }
         }
+        // Force client visual now so it is not queued behind the following combat action
         setPostureClientImmediate(self, posture);
+    }
+
+    private void precuTumbleTo(obj_id self, obj_id target, int posture) throws InterruptedException {
+        precuApplyPostureVisualFirst(self, target, posture, true);
     }
 
     private void precuApplyDefenderPostureDown(obj_id target) throws InterruptedException {
@@ -12834,17 +12843,13 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!precuWeaponOk(self, WEAPON_TYPE_PISTOL, -1)) {
             return SCRIPT_OVERRIDE;
         }
-        // Logical posture first so locomotion matches immediately.
-        if (!isIncapacitated(self) && !isDead(self)) {
-            setPosture(self, POSTURE_PRONE);
-        }
+        // 1) Posture visual first — not behind combat queue / combat anim hold
+        precuApplyPostureVisualFirst(self, target, POSTURE_PRONE, true);
+        // 2) Then the actual combat action (damage). combat_data doClientAnim=0 so the
+        //    shot does not re-lock client visual posture for seconds.
         if (!combatStandardAction("diveShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
-        // combat_data doClientAnim=0 so fire_acrobatic does not hold upright for seconds.
-        // ClientImmediate applies visual posture now (engine: drops combat visual hold).
-        setPosture(self, POSTURE_PRONE);
-        setPostureClientImmediate(self, POSTURE_PRONE);
         return SCRIPT_CONTINUE;
     }
 
@@ -13662,17 +13667,13 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!precuWeaponOk(self, WEAPON_TYPE_PISTOL, -1)) {
             return SCRIPT_OVERRIDE;
         }
-        // Logical posture first so locomotion matches immediately.
-        if (!isIncapacitated(self) && !isDead(self)) {
-            setPosture(self, POSTURE_UPRIGHT);
-        }
+        // 1) Posture visual first — not behind combat queue / combat anim hold
+        precuApplyPostureVisualFirst(self, target, POSTURE_UPRIGHT, true);
+        // 2) Then the actual combat action (damage). combat_data doClientAnim=0 so the
+        //    shot does not re-lock client visual posture for seconds.
         if (!combatStandardAction("kipUpShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
-        // combat_data doClientAnim=0 so fire_acrobatic does not hold upright for seconds.
-        // ClientImmediate applies visual posture now (engine: drops combat visual hold).
-        setPosture(self, POSTURE_UPRIGHT);
-        setPostureClientImmediate(self, POSTURE_UPRIGHT);
         return SCRIPT_CONTINUE;
     }
 
@@ -14523,17 +14524,13 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!precuWeaponOk(self, WEAPON_TYPE_PISTOL, -1)) {
             return SCRIPT_OVERRIDE;
         }
-        // Logical posture first so locomotion matches immediately.
-        if (!isIncapacitated(self) && !isDead(self)) {
-            setPosture(self, POSTURE_CROUCHED);
-        }
+        // 1) Posture visual first — not behind combat queue / combat anim hold
+        precuApplyPostureVisualFirst(self, target, POSTURE_CROUCHED, true);
+        // 2) Then the actual combat action (damage). combat_data doClientAnim=0 so the
+        //    shot does not re-lock client visual posture for seconds.
         if (!combatStandardAction("rollShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
-        // combat_data doClientAnim=0 so fire_acrobatic does not hold upright for seconds.
-        // ClientImmediate applies visual posture now (engine: drops combat visual hold).
-        setPosture(self, POSTURE_CROUCHED);
-        setPostureClientImmediate(self, POSTURE_CROUCHED);
         return SCRIPT_CONTINUE;
     }
 
