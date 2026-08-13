@@ -12484,14 +12484,13 @@ public class combat_actions extends script.systems.combat.combat_base {
     }
 
 
-    // Pre-CU posture helpers (Core3 stateEffects reference).
+    // Pre-CU posture helpers (Core3 stateEffects reference only).
     //
-    // combatStandardAction() sends combat results with endPosture = posture *at shot time*
-    // (still upright for diveShot). Server setPosture() then updates logical posture and
-    // locomotion immediately (crawl speed) but the client keeps the combat visual until
-    // combat migrates posture or ~5s timeout — classic "slow walk while standing, then
-    // snap prone". Engine: setPostureClientImmediate drops in-progress combat visuals and
-    // applies the new visual posture now (CreatureObject::setPosture isClientImmediate).
+    // combatStandardAction() stamps attacker_results.endPosture = getPosture(attacker) at
+    // action time. If we change posture *after* the shot, the combat packet still says
+    // upright and the client holds that visual for seconds while server locomotion is
+    // already prone (crawl while standing). Fix: set logical posture *before* the combat
+    // action so endPosture in the combat results matches the intended pose.
     private void precuPlayChangePosture(obj_id who, int endPosture) throws InterruptedException {
         if (!isIdValid(who) || isIncapacitated(who) || isDead(who)) {
             return;
@@ -12501,8 +12500,24 @@ public class combat_actions extends script.systems.combat.combat_base {
     }
 
     private void precuForceAttackerPosture(obj_id self, int posture) throws InterruptedException {
-        // After combatStandardAction: force visual posture to match server locomotion now.
+        // Prefer calling setPosture BEFORE combatStandardAction (see diveShot etc.).
+        // Kept for defenders / fallbacks.
         precuPlayChangePosture(self, posture);
+    }
+
+    // Core3 tumble: setPosture + combat anim "tumble" / "tumble_facing".
+    private void precuTumbleTo(obj_id self, obj_id target, int posture) throws InterruptedException {
+        if (!isIdValid(self) || isIncapacitated(self) || isDead(self)) {
+            return;
+        }
+        setPosture(self, posture);
+        attacker_results anim = new attacker_results();
+        anim.id = self;
+        anim.endPosture = posture;
+        // Match Core3 doCombatAnimation(... "tumble" / "tumble_facing")
+        String playback = (isIdValid(target) && target != self) ? "tumble_facing" : "tumble";
+        doCombatResults(playback, anim, null);
+        setPostureClientImmediate(self, posture);
     }
 
     private void precuApplyDefenderPostureDown(obj_id target) throws InterruptedException {
@@ -12541,6 +12556,32 @@ public class combat_actions extends script.systems.combat.combat_base {
 
     private void precuApplyDefenderKnockdown(obj_id target) throws InterruptedException {
         precuPlayChangePosture(target, POSTURE_KNOCKED_DOWN);
+    }
+
+
+    public int tumbleToProne(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
+        // Core3 TumbleToProneCommand: setPosture(PRONE) + combat anim tumble
+        if (isIncapacitated(self) || isDead(self)) {
+            return SCRIPT_OVERRIDE;
+        }
+        precuTumbleTo(self, target, POSTURE_PRONE);
+        return SCRIPT_CONTINUE;
+    }
+
+    public int tumbleToKneeling(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
+        if (isIncapacitated(self) || isDead(self)) {
+            return SCRIPT_OVERRIDE;
+        }
+        precuTumbleTo(self, target, POSTURE_CROUCHED);
+        return SCRIPT_CONTINUE;
+    }
+
+    public int tumbleToStanding(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
+        if (isIncapacitated(self) || isDead(self)) {
+            return SCRIPT_OVERRIDE;
+        }
+        precuTumbleTo(self, target, POSTURE_UPRIGHT);
+        return SCRIPT_CONTINUE;
     }
 
 // Auto-generated Pre-CU combat entry points (hybrid)
@@ -12790,12 +12831,15 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!precuWeaponOk(self, WEAPON_TYPE_PISTOL, -1)) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): attacker posture is part of the combat action.
+        // Set BEFORE combatStandardAction so attacker_results.endPosture matches.
+        if (!isIncapacitated(self) && !isDead(self)) {
+            setPosture(self, POSTURE_PRONE);
+        }
         if (!combatStandardAction("diveShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
-        // Pre-CU (Core3 ref): attacker posture after successful special
-        precuForceAttackerPosture(self, POSTURE_PRONE);
-
+        setPostureClientImmediate(self, POSTURE_PRONE);
         return SCRIPT_CONTINUE;
     }
 
@@ -13613,12 +13657,15 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!precuWeaponOk(self, WEAPON_TYPE_PISTOL, -1)) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): attacker posture is part of the combat action.
+        // Set BEFORE combatStandardAction so attacker_results.endPosture matches.
+        if (!isIncapacitated(self) && !isDead(self)) {
+            setPosture(self, POSTURE_UPRIGHT);
+        }
         if (!combatStandardAction("kipUpShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
-        // Pre-CU (Core3 ref): attacker posture after successful special
-        precuForceAttackerPosture(self, POSTURE_UPRIGHT);
-
+        setPostureClientImmediate(self, POSTURE_UPRIGHT);
         return SCRIPT_CONTINUE;
     }
 
@@ -14469,12 +14516,15 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!precuWeaponOk(self, WEAPON_TYPE_PISTOL, -1)) {
             return SCRIPT_OVERRIDE;
         }
+        // Pre-CU (Core3 ref): attacker posture is part of the combat action.
+        // Set BEFORE combatStandardAction so attacker_results.endPosture matches.
+        if (!isIncapacitated(self) && !isDead(self)) {
+            setPosture(self, POSTURE_CROUCHED);
+        }
         if (!combatStandardAction("rollShot", self, target, params, "", "")) {
             return SCRIPT_OVERRIDE;
         }
-        // Pre-CU (Core3 ref): attacker posture after successful special
-        precuForceAttackerPosture(self, POSTURE_CROUCHED);
-
+        setPostureClientImmediate(self, POSTURE_CROUCHED);
         return SCRIPT_CONTINUE;
     }
 
