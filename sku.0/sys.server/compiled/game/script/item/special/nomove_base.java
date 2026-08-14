@@ -32,6 +32,7 @@ public class nomove_base extends script.base_script
             {
                 if (isGod(transferer) || isGod(dest) || dest == transferer)
                 {
+                    sendSystemMessage(dest, "[precu] nomove: ALLOW saber equip onto player (build saber-equip-v3)");
                     return SCRIPT_CONTINUE;
                 }
             }

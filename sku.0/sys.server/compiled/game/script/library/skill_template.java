@@ -67,10 +67,36 @@ public class skill_template extends script.base_script
         }
         return template[idx];
     }
+    /**
+     * NGE characters use skillTemplate + workingSkill. Pre-CU skill-box characters
+     * have null/empty/"a" template and no working skill — they earn weapon/profession
+     * XP types directly and must not be nagged.
+     */
+    public static boolean isNgeSkillTemplatePlayer(obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(player))
+        {
+            return false;
+        }
+        String skillTemplate = getSkillTemplate(player);
+        if (skillTemplate == null || skillTemplate.equals("") || skillTemplate.equals("a"))
+        {
+            return false;
+        }
+        return true;
+    }
+
     public static String getTemplateSkillXpType(obj_id player, boolean verbose) throws InterruptedException
     {
         if (!isIdValid(player))
         {
+            return null;
+        }
+        // Pre-CU skill-based path: no NGE roadmap / working skill. Combat XP is granted
+        // by weapon type (rifle, carbine, lightsaber, etc.) in xp.grantCombatStyleXp.
+        if (!isNgeSkillTemplatePlayer(player))
+        {
+            utils.removeScriptVar(player, "skillTemplate.loop");
             return null;
         }
         int loopCount = utils.getIntScriptVar(player, "skillTemplate.loop");
