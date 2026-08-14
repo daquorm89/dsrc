@@ -16,7 +16,7 @@
 
 @class weapon_object_template 11
 
-weaponType = WT_1handMelee
+weaponType = WT_2handLightsaber
 minDamageAmount = 70
 maxDamageAmount = 145
 attackSpeed = 2.0
@@ -28,7 +28,10 @@ attackSpeed = 2.0
 
 sharedTemplate = "object/weapon/melee/2h_sword/crafted_saber/shared_sword_lightsaber_two_handed_gen4_must.iff"
 
-contents = [  ]]
+contents = [
+[slotName = "saber_inv",
+equipObject = true,
+content = "object/tangible/inventory/lightsaber_inventory_4.iff"]]
 
 objvars = +["skillmod.bonus.strength_modified" = 75]
 
