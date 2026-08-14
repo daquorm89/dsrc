@@ -2282,6 +2282,20 @@ public class base_player extends script.base_script
     }
     public int OnAboutToReceiveItem(obj_id self, obj_id srcContainer, obj_id transferer, obj_id item) throws InterruptedException
     {
+        // Pre-CU diagnostic: does destination receive fire for saber equip?
+        if (isIdValid(item))
+        {
+            String tmpl = getTemplateName(item);
+            boolean saber = hasObjVar(item, "isLightsaber");
+            if (!saber && tmpl != null && (tmpl.indexOf("lightsaber") >= 0 || tmpl.indexOf("crafted_saber") >= 0 || tmpl.indexOf("saber") >= 0))
+                saber = true;
+            if (saber)
+            {
+                sendSystemMessageTestingOnly(self, "[precu] base_player v9 receive saber tmpl=" + tmpl);
+                // Ensure owner so downstream nomove/noTrade C++ is happier
+                setOwner(item, self);
+            }
+        }
         int got = getGameObjectType(item);
         if (isGameObjectTypeOf(got, GOT_misc_container_wearable))
         {
