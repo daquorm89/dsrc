@@ -265,16 +265,8 @@ public class combat_weapon extends script.base_script
 
         if (isPlayer(destContainer))
         {
-            // Always print full identity so we can see what object is failing cert
-            sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon v6 equip tmpl=" + (tmpl != null ? tmpl : "null")
-                + " wt=" + weaponType + " saber=" + looksLikeSaber + " god=" + isGod(destContainer));
-        }
-
-        if (isPlayer(destContainer))
-        {
             if (looksLikeSaber)
             {
-                sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon v6 ALLOW saber");
                 return SCRIPT_CONTINUE;
             }
 

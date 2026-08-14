@@ -2291,8 +2291,6 @@ public class base_player extends script.base_script
                 saber = true;
             if (saber)
             {
-                sendSystemMessageTestingOnly(self, "[precu] base_player v9 receive saber tmpl=" + tmpl);
-                // Ensure owner so downstream nomove/noTrade C++ is happier
                 setOwner(item, self);
             }
         }
