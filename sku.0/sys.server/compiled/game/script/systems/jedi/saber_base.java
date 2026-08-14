@@ -67,6 +67,19 @@ public class saber_base extends script.base_script
     }
     public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
     {
+        if (isGod(player))
+        {
+            mi.addRootMenu(menu_info_types.SERVER_MENU2, new string_id("jedi_spam", "dismantle_saber"));
+            // Reuse string for menu; select handler identifies by type
+            sendSystemMessageTestingOnly(player, "[precu] saber_base menu open - scripts live on this saber");
+        }
+        if (isGod(player) || canManipulate(player, self, false, true, 15, true))
+        {
+            if (isGod(player))
+            {
+                mi.addRootMenu(menu_info_types.SERVER_MENU9, new string_id("ui", "ok"));
+            }
+        }
         if (canManipulate(player, self, false, true, 15, true))
         {
             String saberCert = getStringObjVar(self, "weapon.strCertUsed");
@@ -97,6 +110,27 @@ public class saber_base extends script.base_script
     }
     public int OnObjectMenuSelect(obj_id self, obj_id player, int item) throws InterruptedException
     {
+        if (item == menu_info_types.SERVER_MENU9 && isGod(player))
+        {
+            sendSystemMessageTestingOnly(player, "[precu] force equip attempt...");
+            if (hasScript(self, "item.special.nomove"))
+            {
+                detachScript(self, "item.special.nomove");
+            }
+            setOwner(self, player);
+            boolean ok = equipOverride(self, player);
+            if (!ok)
+            {
+                ok = equip(self, player);
+            }
+            sendSystemMessageTestingOnly(player, "[precu] force equip result=" + ok
+                + " tmpl=" + getTemplateName(self)
+                + " hasNomove=" + hasScript(self, "item.special.nomove")
+                + " padawan=" + hasSkill(player, "jedi_padawan_novice")
+                + " isJedi=" + isJedi(player)
+                + " state=" + getJediState(player));
+            return SCRIPT_CONTINUE;
+        }
         if (canManipulate(player, self, false, true, 15, true))
         {
             if (item == menu_info_types.SERVER_MENU1)
