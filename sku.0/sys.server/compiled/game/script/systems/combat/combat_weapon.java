@@ -228,58 +228,36 @@ public class combat_weapon extends script.base_script
     }
     public int OnAboutToBeTransferred(obj_id self, obj_id destContainer, obj_id transferer) throws InterruptedException
     {
+        // Always speak when this fires (visible in chat bubble / spatial; does not require god mode).
+        // If equip never shows this text, combat_weapon.class is not the class the GameServer loaded.
+        final String tmpl = getTemplateName(self);
+        final boolean looksLikeSaber = combat.isLightsaberTemplate(tmpl)
+            || jedi.isLightsaber(self)
+            || combat.isLightsaberWeapon(self);
+
+        if (looksLikeSaber)
+        {
+            debugSpeakMsg(destContainer, "[precu] combat_weapon v4: OnAboutToBeTransferred destPlayer="
+                + isPlayer(destContainer) + " god=" + (isPlayer(destContainer) && isGod(destContainer)));
+        }
+
         if (isPlayer(destContainer))
         {
-            final String tmpl = getTemplateName(self);
-            final boolean looksLikeSaber = combat.isLightsaberTemplate(tmpl)
-                || jedi.isLightsaber(self)
-                || combat.isLightsaberWeapon(self);
-
-            // In-game marker: if equiping a saber never shows this, combat_weapon.class is NOT loaded.
+            // Lightsabers: never block equip from this script (Pre-CU reconnect).
+            // Cert / Jedi gates were NGE-era and still race with nomove / unset owner.
             if (looksLikeSaber)
             {
-                sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon: saber equip check (build saber-equip-v3)");
-            }
-
-            // God mode: never block weapon equip from this script
-            if (isGod(destContainer) || (isIdValid(transferer) && isGod(transferer)))
-            {
-                if (looksLikeSaber)
-                {
-                    sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon: ALLOW (god mode)");
-                }
+                debugSpeakMsg(destContainer, "[precu] combat_weapon v4: ALLOW saber (unconditional)");
                 return SCRIPT_CONTINUE;
             }
 
-            if (looksLikeSaber)
+            if (isGod(destContainer) || (isIdValid(transferer) && isGod(transferer)))
             {
-                // Pre-CU path: skill box, Jedi state, title skills, NGE FS, or cert commands
-                final boolean allow = combat.isPreCuJediWielder(destContainer)
-                    || utils.isProfession(destContainer, utils.FORCE_SENSITIVE)
-                    || hasCommand(destContainer, "cert_onehandlightsaber")
-                    || hasCommand(destContainer, "cert_onehandlightsaber_gen1")
-                    || hasCommand(destContainer, "cert_onehandlightsaber_training")
-                    || hasCommand(destContainer, "cert_twohandlightsaber")
-                    || hasCommand(destContainer, "cert_polearmlightsaber");
-                if (allow)
-                {
-                    sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon: ALLOW (precu/jedi/cert) isJedi="
-                        + isJedi(destContainer) + " state=" + getJediState(destContainer)
-                        + " padawan=" + hasSkill(destContainer, "jedi_padawan_novice"));
-                    return SCRIPT_CONTINUE;
-                }
-                sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon: no precu match, hasCertification next"
-                    + " isJedi=" + isJedi(destContainer)
-                    + " state=" + getJediState(destContainer)
-                    + " padawan=" + hasSkill(destContainer, "jedi_padawan_novice"));
+                return SCRIPT_CONTINUE;
             }
 
             if (!combat.hasCertification(destContainer, self))
             {
-                if (looksLikeSaber)
-                {
-                    sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon: DENY hasCertification failed");
-                }
                 prose_package pp = new prose_package();
                 pp = prose.setStringId(pp, new string_id("spam", "weapon_no_cert"));
                 pp = prose.setTT(pp, self);

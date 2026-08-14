@@ -1131,6 +1131,8 @@ public class skill extends script.base_script
             }
         }
         String strProfession = getProfessionName(getSkillTemplate(objPlayer));
+        int intBaseHealth;
+        int intBaseAction;
         if (strProfession != null && strProfession.length() > 0)
         {
             player_levels.level_data stats = player_levels.getPlayerLevelData(strProfession, intLevel);
@@ -1139,33 +1141,51 @@ public class skill extends script.base_script
                 LOG("skill.scriptlib", "recalcPlayerPools stats == null");
                 return;
             }
-            int intBaseHealth = stats.health;
-            int intBaseAction = stats.action;
-            int intConstitution = getSkillStatisticModifier(objPlayer, "constitution");
-            int intStamina = getSkillStatisticModifier(objPlayer, "stamina");
-            intConstitution += getEnhancedSkillStatisticModifierUncapped(objPlayer, "constitution_modified");
-            intStamina += getEnhancedSkillStatisticModifierUncapped(objPlayer, "stamina_modified");
-            intBaseHealth = intBaseHealth + (HEALTH_POINTS_PER_CONSTITUTION * intConstitution);
-            intBaseHealth = intBaseHealth + (HEALTH_POINTS_PER_STAMINA * intStamina);
-            intBaseAction = intBaseAction + (ACTION_POINTS_PER_STAMINA * intStamina);
-            intBaseAction = intBaseAction + (ACTION_POINTS_PER_CONSTITUTION * intConstitution);
-            setMaxAttrib(objPlayer, ACTION, intBaseAction);
-            setMaxAttrib(objPlayer, HEALTH, intBaseHealth);
-            int[] myBuffs = buff.getAllBuffs(objPlayer);
-            String thisBuffEffect;
-            for (int myBuff : myBuffs) {
-                thisBuffEffect = buff.getEffectParam(myBuff, 1);
-                float thisBuffValue = buff.getEffectValue(myBuff, 1);
-                if (thisBuffEffect != null && thisBuffValue < 0 && thisBuffEffect.equals("healthPercent")) {
-                    boolHealEverything = false;
-                    break;
-                }
-            }
-            if (boolHealEverything)
+            intBaseHealth = stats.health;
+            intBaseAction = stats.action;
+        }
+        else
+        {
+            // Pre-CU skill-box characters have no NGE skillTemplate / profession.
+            // Previously this method returned without setting pools, so masters kept
+            // starter Action/Health and could not afford NGE heavy-weapon attack costs.
+            // Use level-scaled bases; constitution/stamina skill mods still apply below.
+            intBaseHealth = 1000 + (intLevel * 50);
+            intBaseAction = 500 + (intLevel * 40);
+            // If they have many Pre-CU combat skills, bump action so HW basic attack works
+            // even at low NGE combat level (grantAllSkills masters often stay level 1-5).
+            String[] skills = getSkillListingForPlayer(objPlayer);
+            if (skills != null && skills.length > 20)
             {
-                setAttrib(objPlayer, ACTION, getMaxAttrib(objPlayer, ACTION));
-                setAttrib(objPlayer, HEALTH, getMaxAttrib(objPlayer, HEALTH));
+                int extra = Math.min(60, skills.length);
+                intBaseHealth += extra * 40;
+                intBaseAction += extra * 50;
             }
+        }
+        int intConstitution = getSkillStatisticModifier(objPlayer, "constitution");
+        int intStamina = getSkillStatisticModifier(objPlayer, "stamina");
+        intConstitution += getEnhancedSkillStatisticModifierUncapped(objPlayer, "constitution_modified");
+        intStamina += getEnhancedSkillStatisticModifierUncapped(objPlayer, "stamina_modified");
+        intBaseHealth = intBaseHealth + (HEALTH_POINTS_PER_CONSTITUTION * intConstitution);
+        intBaseHealth = intBaseHealth + (HEALTH_POINTS_PER_STAMINA * intStamina);
+        intBaseAction = intBaseAction + (ACTION_POINTS_PER_STAMINA * intStamina);
+        intBaseAction = intBaseAction + (ACTION_POINTS_PER_CONSTITUTION * intConstitution);
+        setMaxAttrib(objPlayer, ACTION, intBaseAction);
+        setMaxAttrib(objPlayer, HEALTH, intBaseHealth);
+        int[] myBuffs = buff.getAllBuffs(objPlayer);
+        String thisBuffEffect;
+        for (int myBuff : myBuffs) {
+            thisBuffEffect = buff.getEffectParam(myBuff, 1);
+            float thisBuffValue = buff.getEffectValue(myBuff, 1);
+            if (thisBuffEffect != null && thisBuffValue < 0 && thisBuffEffect.equals("healthPercent")) {
+                boolHealEverything = false;
+                break;
+            }
+        }
+        if (boolHealEverything)
+        {
+            setAttrib(objPlayer, ACTION, getMaxAttrib(objPlayer, ACTION));
+            setAttrib(objPlayer, HEALTH, getMaxAttrib(objPlayer, HEALTH));
         }
     }
     public static void grantAllPoliticianSkills(obj_id player) throws InterruptedException
