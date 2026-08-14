@@ -60,6 +60,7 @@ public class saber_base extends script.base_script
     }
     public int OnAboutToBeTransferred(obj_id self, obj_id destContainer, obj_id transferer) throws InterruptedException
     {
+        // Pre-CU: never let residual nomove / noTrade block equip onto a player
         if (isPlayer(destContainer))
         {
             if (hasScript(self, "item.special.nomove"))
@@ -74,9 +75,11 @@ public class saber_base extends script.base_script
             {
                 removeObjVar(self, "noTrade");
             }
-            setOwner(self, destContainer);
-            sendSystemMessageTestingOnly(destContainer, "[precu] saber_base v10 transfer ALLOW tmpl=" + getTemplateName(self)
-                + " noTrade=" + hasObjVar(self, "noTrade"));
+            // Ensure ownership so downstream owner checks pass for non-god players
+            if (!isIdValid(getOwner(self)) || getOwner(self) != destContainer)
+            {
+                setOwner(self, destContainer);
+            }
         }
         return SCRIPT_CONTINUE;
     }
@@ -85,15 +88,6 @@ public class saber_base extends script.base_script
         if (isGod(player))
         {
             mi.addRootMenu(menu_info_types.SERVER_MENU2, new string_id("jedi_spam", "dismantle_saber"));
-            // Reuse string for menu; select handler identifies by type
-            sendSystemMessageTestingOnly(player, "[precu] saber_base menu open - scripts live on this saber");
-        }
-        if (isGod(player) || canManipulate(player, self, false, true, 15, true))
-        {
-            if (isGod(player))
-            {
-                mi.addRootMenu(menu_info_types.SERVER_MENU9, new string_id("ui", "ok"));
-            }
         }
         if (canManipulate(player, self, false, true, 15, true))
         {
@@ -125,50 +119,6 @@ public class saber_base extends script.base_script
     }
     public int OnObjectMenuSelect(obj_id self, obj_id player, int item) throws InterruptedException
     {
-        if (item == menu_info_types.SERVER_MENU9 && isGod(player))
-        {
-            int wt = -1;
-            try { wt = getWeaponType(self); } catch (Exception e) { wt = -1; }
-            sendSystemMessageTestingOnly(player, "[precu] force equip v11 attempt wt=" + wt
-                + " owner=" + getOwner(self)
-                + " containedBy=" + getContainedBy(self)
-                + " noTrade=" + hasObjVar(self, "noTrade"));
-            if (hasObjVar(self, "noTrade"))
-            {
-                removeObjVar(self, "noTrade");
-            }
-            setOwner(self, player);
-            // Nuclear: detach every script so no Java OVERRIDE can fire
-            String[] scripts = getScriptList(self);
-            if (scripts != null)
-            {
-                for (int i = 0; i < scripts.length; i++)
-                {
-                    if (scripts[i] != null && scripts[i].length() > 0)
-                    {
-                        detachScript(self, scripts[i]);
-                    }
-                }
-            }
-            boolean ok = equipOverride(self, player);
-            if (!ok)
-            {
-                ok = equip(self, player);
-            }
-            if (!ok)
-            {
-                ok = equip(self, player, "hold_r");
-            }
-            if (!ok)
-            {
-                ok = equip(self, player, "hold_l");
-            }
-            sendSystemMessageTestingOnly(player, "[precu] force equip v11 result=" + ok
-                + " wt=" + wt
-                + " scriptsDetached=" + (scripts != null ? scripts.length : 0)
-                + " tmpl=" + getTemplateName(self));
-            return SCRIPT_CONTINUE;
-        }
         if (canManipulate(player, self, false, true, 15, true))
         {
             if (item == menu_info_types.SERVER_MENU1)
