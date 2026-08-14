@@ -28,10 +28,7 @@ attackSpeed = 1.2
 
 sharedTemplate = "object/weapon/melee/2h_sword/crafted_saber/shared_sword_lightsaber_two_handed_pvp_bf_gen5.iff"
 
-contents = [
-[slotName = "saber_inv",
-equipObject = true,
-content = "object/tangible/inventory/lightsaber_inventory_5.iff"]]
+contents = [  ]]
 
 
 scripts = +["systems.jedi.jedi_weapon_noslice"]

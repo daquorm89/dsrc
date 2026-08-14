@@ -23,10 +23,7 @@
 
 sharedTemplate = "object/weapon/melee/polearm/crafted_saber/shared_sword_lightsaber_polearm_gen1.iff"
 
-contents = [
-[slotName = "saber_inv",
-equipObject = true,
-content = "object/tangible/inventory/lightsaber_inventory_1.iff"]]
+contents = [  ]]
 
 scripts = +["systems.jedi.jedi_weapon_noslice"]
 
