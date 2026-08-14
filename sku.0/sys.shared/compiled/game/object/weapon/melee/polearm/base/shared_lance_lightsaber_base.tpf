@@ -21,7 +21,7 @@
 
 @class object_template 8
 
-arrangementDescriptorFilename = "abstract/slot/arrangement/wearables/hold_both.iff"
+arrangementDescriptorFilename = "abstract/slot/arrangement/wearables/hold_r.iff"
 
 clientDataFile = "clientdata/weapon/client_melee_lightsaber_basic.cdf"
 
