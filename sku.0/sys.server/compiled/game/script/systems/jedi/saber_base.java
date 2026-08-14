@@ -13,18 +13,40 @@ public class saber_base extends script.base_script
     public static final string_id SID_NO_PARTS_TO_RECOVER = new string_id("jedi_spam", "no_parts_to_recover");
     public int OnInitialize(obj_id self) throws InterruptedException
     {
+        // Pre-CU: drop NGE no-trade transfer gate on lightsabers. nomove OVERRIDE on
+        // owner mismatch blocked equip (GM spawn / unset owner) before combat_weapon ran.
+        if (hasScript(self, "item.special.nomove"))
+        {
+            detachScript(self, "item.special.nomove");
+        }
+        if (hasScript(self, "item.special.nomove_base"))
+        {
+            detachScript(self, "item.special.nomove_base");
+        }
         if (static_item.isStaticItem(self))
         {
             return SCRIPT_CONTINUE;
         }
-        else 
+        else
         {
-            if (!utils.isNestedWithinANpcCreature(self))
+            if (!utils.isNestedWithinAPlayerCreature(self))
             {
                 weapons.validateWeaponRange(self);
             }
         }
         weapons.setWeaponData(self);
+        return SCRIPT_CONTINUE;
+    }
+    public int OnAttach(obj_id self) throws InterruptedException
+    {
+        if (hasScript(self, "item.special.nomove"))
+        {
+            detachScript(self, "item.special.nomove");
+        }
+        if (hasScript(self, "item.special.nomove_base"))
+        {
+            detachScript(self, "item.special.nomove_base");
+        }
         return SCRIPT_CONTINUE;
     }
     public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
