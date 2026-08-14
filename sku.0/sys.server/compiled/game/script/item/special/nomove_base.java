@@ -23,37 +23,30 @@ public class nomove_base extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
-        // Pre-CU / equip path: this script often runs BEFORE combat_weapon and can
-        // short-circuit the whole transfer with OVERRIDE (no combat_weapon debug).
-        // GM-spawned sabers have unset owner; path-string checks also miss some templates.
-        if (isPlayer(dest))
+        // NUCLEAR Pre-CU: never block lightsabers (any dest). Always log when this fires.
+        boolean saber = hasObjVar(self, "isLightsaber");
+        if (!saber)
         {
-            boolean saber = hasObjVar(self, "isLightsaber");
-            if (!saber)
-            {
-                try
-                {
-                    saber = jedi.isLightsaber(self);
-                }
-                catch (Exception e)
-                {
-                    saber = false;
-                }
-            }
-            if (!saber)
-            {
-                String tmpl = getTemplateName(self);
-                if (tmpl != null && (tmpl.indexOf("lightsaber") >= 0 || tmpl.indexOf("crafted_saber") >= 0 || tmpl.indexOf("saber") >= 0))
-                {
-                    saber = true;
-                }
-            }
-            if (saber || isGod(transferer) || isGod(dest))
-            {
-                sendSystemMessageTestingOnly(dest, "[precu] nomove v7 ALLOW equip onto player saber=" + saber
-                    + " tmpl=" + getTemplateName(self));
-                return SCRIPT_CONTINUE;
-            }
+            try { saber = jedi.isLightsaber(self); } catch (Exception e) { saber = false; }
+        }
+        if (!saber)
+        {
+            String tmpl = getTemplateName(self);
+            if (tmpl != null && (tmpl.indexOf("lightsaber") >= 0 || tmpl.indexOf("crafted_saber") >= 0 || tmpl.indexOf("saber") >= 0))
+                saber = true;
+        }
+        if (saber)
+        {
+            // Message transferer (always a player here) so we see this even if dest is not isPlayer()
+            sendSystemMessageTestingOnly(transferer, "[precu] nomove v9 NUCLEAR ALLOW saber destPlayer="
+                + isPlayer(dest) + " tmpl=" + getTemplateName(self));
+            return SCRIPT_CONTINUE;
+        }
+        // God equip onto player: never block via nomove
+        if (isPlayer(dest) && (isGod(transferer) || isGod(dest)))
+        {
+            sendSystemMessageTestingOnly(dest, "[precu] nomove v9 god ALLOW");
+            return SCRIPT_CONTINUE;
         }
         obj_id owner = getOwner(self);
         if (!isIdValid(owner) || !isPlayer(owner))
