@@ -49,7 +49,23 @@ public class saber_base extends script.base_script
         }
         return SCRIPT_CONTINUE;
     }
-    public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
+        public int OnAboutToBeTransferred(obj_id self, obj_id destContainer, obj_id transferer) throws InterruptedException
+    {
+        if (isPlayer(destContainer))
+        {
+            if (hasScript(self, "item.special.nomove"))
+            {
+                detachScript(self, "item.special.nomove");
+            }
+            if (hasScript(self, "item.special.nomove_base"))
+            {
+                detachScript(self, "item.special.nomove_base");
+            }
+            sendSystemMessageTestingOnly(destContainer, "[precu] saber_base v8 transfer ALLOW tmpl=" + getTemplateName(self));
+        }
+        return SCRIPT_CONTINUE;
+    }
+public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
     {
         if (canManipulate(player, self, false, true, 15, true))
         {
