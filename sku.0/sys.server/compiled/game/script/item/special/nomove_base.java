@@ -1,5 +1,6 @@
 package script.item.special;
 
+import script.library.jedi;
 import script.library.pet_lib;
 import script.library.structure;
 import script.library.sui;
@@ -22,13 +23,35 @@ public class nomove_base extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
-        // Pre-CU: never block equipping a lightsaber onto a player (owner often unset on GM spawn).
+        // Pre-CU / equip path: this script often runs BEFORE combat_weapon and can
+        // short-circuit the whole transfer with OVERRIDE (no combat_weapon debug).
+        // GM-spawned sabers have unset owner; path-string checks also miss some templates.
         if (isPlayer(dest))
         {
-            String tmpl = getTemplateName(self);
-            if (tmpl != null && (tmpl.indexOf("lightsaber") >= 0 || tmpl.indexOf("crafted_saber") >= 0))
+            boolean saber = hasObjVar(self, "isLightsaber");
+            if (!saber)
             {
-                debugSpeakMsg(dest, "[precu] nomove v4: ALLOW saber equip onto player");
+                try
+                {
+                    saber = jedi.isLightsaber(self);
+                }
+                catch (Exception e)
+                {
+                    saber = false;
+                }
+            }
+            if (!saber)
+            {
+                String tmpl = getTemplateName(self);
+                if (tmpl != null && (tmpl.indexOf("lightsaber") >= 0 || tmpl.indexOf("crafted_saber") >= 0 || tmpl.indexOf("saber") >= 0))
+                {
+                    saber = true;
+                }
+            }
+            if (saber || isGod(transferer) || isGod(dest))
+            {
+                sendSystemMessageTestingOnly(dest, "[precu] nomove v7 ALLOW equip onto player saber=" + saber
+                    + " tmpl=" + getTemplateName(self));
                 return SCRIPT_CONTINUE;
             }
         }
