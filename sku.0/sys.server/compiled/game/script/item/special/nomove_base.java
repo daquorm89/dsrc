@@ -23,7 +23,7 @@ public class nomove_base extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
-        // NUCLEAR Pre-CU: never block lightsabers (any dest). Always log when this fires.
+        // Pre-CU: lightsabers must be equippable; do not owner-block transfer onto players.
         boolean saber = hasObjVar(self, "isLightsaber");
         if (!saber)
         {
@@ -37,15 +37,11 @@ public class nomove_base extends script.base_script
         }
         if (saber)
         {
-            // Message transferer (always a player here) so we see this even if dest is not isPlayer()
-            sendSystemMessageTestingOnly(transferer, "[precu] nomove v9 NUCLEAR ALLOW saber destPlayer="
-                + isPlayer(dest) + " tmpl=" + getTemplateName(self));
             return SCRIPT_CONTINUE;
         }
         // God equip onto player: never block via nomove
         if (isPlayer(dest) && (isGod(transferer) || isGod(dest)))
         {
-            sendSystemMessageTestingOnly(dest, "[precu] nomove v9 god ALLOW");
             return SCRIPT_CONTINUE;
         }
         obj_id owner = getOwner(self);

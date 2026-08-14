@@ -315,13 +315,31 @@ public class combat_base extends script.base_script
             {
                 if (!beast_lib.isBeast(attackerData.id) && isPlayer(attackerData.id))
                 {
-                    if (!combat.canDrainKillMeter(attackerData.id, killMeterCost))
+                    // NGE kill meter: only for NGE skill-template characters.
+                    // Pre-CU hybrid rows often store Force (or pool) costs in vigorCost;
+                    // treating those as kill-meter costs causes "need more kills" spam.
+                    if (skill_template.isNgeSkillTemplatePlayer(attackerData.id))
                     {
-                        showFlyTextPrivate(self, self, new string_id("combat_effects", "need_more_kills"), 1.5f, colors.FIREBRICK);
-                        stealth.reinstateInvisFromCombat(self);
-                        return false;
+                        if (!combat.canDrainKillMeter(attackerData.id, killMeterCost))
+                        {
+                            showFlyTextPrivate(self, self, new string_id("combat_effects", "need_more_kills"), 1.5f, colors.FIREBRICK);
+                            stealth.reinstateInvisFromCombat(self);
+                            return false;
+                        }
+                        combat.drainKillMeter(attackerData.id, killMeterCost);
                     }
-                    combat.drainKillMeter(attackerData.id, killMeterCost);
+                    else if (combat.isPreCuJediWielder(attackerData.id) || isJedi(attackerData.id))
+                    {
+                        // Pre-CU Jedi: vigorCost on hybrid specials is Force cost.
+                        if (!jedi.hasForcePower(attackerData.id, killMeterCost))
+                        {
+                            showFlyTextPrivate(self, self, new string_id("jedi_spam", "no_force_power"), 1.5f, colors.FIREBRICK);
+                            stealth.reinstateInvisFromCombat(self);
+                            return false;
+                        }
+                        jedi.drainForcePower(attackerData.id, killMeterCost, false);
+                    }
+                    // else: Pre-CU non-Jedi with leftover vigorCost — do not block on kills
                 }
             }
         }
