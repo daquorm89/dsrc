@@ -20,7 +20,7 @@
 
 @class object_template 8
 
-slotDescriptorFilename = "abstract/slot/descriptor/default_lightsaber.iff"
+slotDescriptorFilename = "abstract/slot/descriptor/default_weapon.iff"
 
 arrangementDescriptorFilename = "abstract/slot/arrangement/wearables/hold_r.iff"
 

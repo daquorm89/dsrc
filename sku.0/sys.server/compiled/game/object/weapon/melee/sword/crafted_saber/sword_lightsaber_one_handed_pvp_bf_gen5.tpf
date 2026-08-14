@@ -10,8 +10,5 @@ weaponType = WT_1handLightsaber
 
 sharedTemplate = "object/weapon/melee/sword/crafted_saber/shared_sword_lightsaber_one_handed_pvp_bf_gen5.iff"
 
-contents = [
-[slotName = "saber_inv",
-equipObject = true,
-content = "object/tangible/inventory/lightsaber_inventory_5.iff"]]
+contents = [  ]]
 
