@@ -29,7 +29,7 @@ public class saber_base extends script.base_script
         }
         else
         {
-            if (!utils.isNestedWithinAPlayerCreature(self))
+            if (!utils.isNestedWithinAPlayer(self))
             {
                 weapons.validateWeaponRange(self);
             }
@@ -49,7 +49,7 @@ public class saber_base extends script.base_script
         }
         return SCRIPT_CONTINUE;
     }
-        public int OnAboutToBeTransferred(obj_id self, obj_id destContainer, obj_id transferer) throws InterruptedException
+    public int OnAboutToBeTransferred(obj_id self, obj_id destContainer, obj_id transferer) throws InterruptedException
     {
         if (isPlayer(destContainer))
         {
@@ -65,7 +65,7 @@ public class saber_base extends script.base_script
         }
         return SCRIPT_CONTINUE;
     }
-public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
+    public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
     {
         if (canManipulate(player, self, false, true, 15, true))
         {
