@@ -228,32 +228,53 @@ public class combat_weapon extends script.base_script
     }
     public int OnAboutToBeTransferred(obj_id self, obj_id destContainer, obj_id transferer) throws InterruptedException
     {
-        // Do not call combat.* helpers first — if combat.class is stale (missing
-        // isLightsaberTemplate), the trigger aborts with NoSuchMethodError and no debug text.
         final String tmpl = getTemplateName(self);
+        int weaponType = -1;
+        try
+        {
+            weaponType = getWeaponType(self);
+        }
+        catch (Exception e)
+        {
+            weaponType = -1;
+        }
         boolean looksLikeSaber = false;
         if (tmpl != null)
         {
-            looksLikeSaber = tmpl.indexOf("lightsaber") >= 0 || tmpl.indexOf("crafted_saber") >= 0;
+            looksLikeSaber = tmpl.indexOf("lightsaber") >= 0 || tmpl.indexOf("crafted_saber") >= 0 || tmpl.indexOf("saber") >= 0;
         }
-
-        // Diagnostics with no library deps (spatial + TestingOnly for god).
-        if (isIdValid(destContainer))
+        // Weapon-type bit (works even when template path is odd / static-item wrapper)
+        if (!looksLikeSaber && weaponType >= 0)
         {
-            debugSpeakMsg(destContainer, "[precu] combat_weapon v5 enter tmpl=" + (tmpl != null ? tmpl : "null"));
-            if (isPlayer(destContainer))
+            try
             {
-                sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon v5 enter saber=" + looksLikeSaber);
+                if (jedi.isLightsaber(weaponType) || combat.isLightsaberWeapon(weaponType))
+                {
+                    looksLikeSaber = true;
+                }
             }
+            catch (Exception e)
+            {
+            }
+        }
+        // Objvar set on crafted saber base templates
+        if (!looksLikeSaber && hasObjVar(self, "isLightsaber"))
+        {
+            looksLikeSaber = true;
         }
 
         if (isPlayer(destContainer))
         {
-            // Lightsabers: never block equip from this script (Pre-CU reconnect).
+            // Always print full identity so we can see what object is failing cert
+            sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon v6 equip tmpl=" + (tmpl != null ? tmpl : "null")
+                + " wt=" + weaponType + " saber=" + looksLikeSaber + " god=" + isGod(destContainer));
+        }
+
+        if (isPlayer(destContainer))
+        {
             if (looksLikeSaber)
             {
-                debugSpeakMsg(destContainer, "[precu] combat_weapon v5 ALLOW saber");
-                sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon v5 ALLOW saber");
+                sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon v6 ALLOW saber");
                 return SCRIPT_CONTINUE;
             }
 
@@ -273,6 +294,7 @@ public class combat_weapon extends script.base_script
         }
         return SCRIPT_CONTINUE;
     }
+
     public int OnTransferred(obj_id self, obj_id sourceContainer, obj_id destContainer, obj_id transferer) throws InterruptedException
     {
         expertiseRangeModify(self);

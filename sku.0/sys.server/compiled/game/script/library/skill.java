@@ -1150,16 +1150,15 @@ public class skill extends script.base_script
             // Previously this method returned without setting pools, so masters kept
             // starter Action/Health and could not afford NGE heavy-weapon attack costs.
             // Use level-scaled bases; constitution/stamina skill mods still apply below.
-            intBaseHealth = 1000 + (intLevel * 50);
-            intBaseAction = 500 + (intLevel * 40);
-            // If they have many Pre-CU combat skills, bump action so HW basic attack works
-            // even at low NGE combat level (grantAllSkills masters often stay level 1-5).
+            // NGE level-90-ish floor so HW / high attackCost weapons are usable.
+            intBaseHealth = 2500 + (intLevel * 80);
+            intBaseAction = 2000 + (intLevel * 60);
             String[] skills = getSkillListingForPlayer(objPlayer);
-            if (skills != null && skills.length > 20)
+            if (skills != null && skills.length > 10)
             {
-                int extra = Math.min(60, skills.length);
-                intBaseHealth += extra * 40;
-                intBaseAction += extra * 50;
+                int extra = Math.min(120, skills.length);
+                intBaseHealth += extra * 50;
+                intBaseAction += extra * 80;
             }
         }
         int intConstitution = getSkillStatisticModifier(objPlayer, "constitution");
