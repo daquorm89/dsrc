@@ -228,26 +228,32 @@ public class combat_weapon extends script.base_script
     }
     public int OnAboutToBeTransferred(obj_id self, obj_id destContainer, obj_id transferer) throws InterruptedException
     {
-        // Always speak when this fires (visible in chat bubble / spatial; does not require god mode).
-        // If equip never shows this text, combat_weapon.class is not the class the GameServer loaded.
+        // Do not call combat.* helpers first — if combat.class is stale (missing
+        // isLightsaberTemplate), the trigger aborts with NoSuchMethodError and no debug text.
         final String tmpl = getTemplateName(self);
-        final boolean looksLikeSaber = combat.isLightsaberTemplate(tmpl)
-            || jedi.isLightsaber(self)
-            || combat.isLightsaberWeapon(self);
-
-        if (looksLikeSaber)
+        boolean looksLikeSaber = false;
+        if (tmpl != null)
         {
-            debugSpeakMsg(destContainer, "[precu] combat_weapon v4: OnAboutToBeTransferred destPlayer="
-                + isPlayer(destContainer) + " god=" + (isPlayer(destContainer) && isGod(destContainer)));
+            looksLikeSaber = tmpl.indexOf("lightsaber") >= 0 || tmpl.indexOf("crafted_saber") >= 0;
+        }
+
+        // Diagnostics with no library deps (spatial + TestingOnly for god).
+        if (isIdValid(destContainer))
+        {
+            debugSpeakMsg(destContainer, "[precu] combat_weapon v5 enter tmpl=" + (tmpl != null ? tmpl : "null"));
+            if (isPlayer(destContainer))
+            {
+                sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon v5 enter saber=" + looksLikeSaber);
+            }
         }
 
         if (isPlayer(destContainer))
         {
             // Lightsabers: never block equip from this script (Pre-CU reconnect).
-            // Cert / Jedi gates were NGE-era and still race with nomove / unset owner.
             if (looksLikeSaber)
             {
-                debugSpeakMsg(destContainer, "[precu] combat_weapon v4: ALLOW saber (unconditional)");
+                debugSpeakMsg(destContainer, "[precu] combat_weapon v5 ALLOW saber");
+                sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon v5 ALLOW saber");
                 return SCRIPT_CONTINUE;
             }
 
