@@ -127,23 +127,29 @@ public class saber_base extends script.base_script
     {
         if (item == menu_info_types.SERVER_MENU9 && isGod(player))
         {
-            boolean hadNoTrade = hasObjVar(self, "noTrade");
-            sendSystemMessageTestingOnly(player, "[precu] force equip attempt... hadNoTrade=" + hadNoTrade
-                + " hasCombatWeapon=" + hasScript(self, "systems.combat.combat_weapon")
-                + " owner=" + getOwner(self));
-            if (hasScript(self, "item.special.nomove"))
-            {
-                detachScript(self, "item.special.nomove");
-            }
-            if (hasScript(self, "item.special.nomove_base"))
-            {
-                detachScript(self, "item.special.nomove_base");
-            }
+            int wt = -1;
+            try { wt = getWeaponType(self); } catch (Exception e) { wt = -1; }
+            sendSystemMessageTestingOnly(player, "[precu] force equip v11 attempt wt=" + wt
+                + " owner=" + getOwner(self)
+                + " containedBy=" + getContainedBy(self)
+                + " noTrade=" + hasObjVar(self, "noTrade"));
             if (hasObjVar(self, "noTrade"))
             {
                 removeObjVar(self, "noTrade");
             }
             setOwner(self, player);
+            // Nuclear: detach every script so no Java OVERRIDE can fire
+            String[] scripts = getScriptList(self);
+            if (scripts != null)
+            {
+                for (int i = 0; i < scripts.length; i++)
+                {
+                    if (scripts[i] != null && scripts[i].length() > 0)
+                    {
+                        detachScript(self, scripts[i]);
+                    }
+                }
+            }
             boolean ok = equipOverride(self, player);
             if (!ok)
             {
@@ -151,16 +157,16 @@ public class saber_base extends script.base_script
             }
             if (!ok)
             {
-                // last resort: put into inventory then try hold_r via equip(item, player, slot)
                 ok = equip(self, player, "hold_r");
             }
-            sendSystemMessageTestingOnly(player, "[precu] force equip result=" + ok
-                + " tmpl=" + getTemplateName(self)
-                + " hasNomove=" + hasScript(self, "item.special.nomove")
-                + " noTrade=" + hasObjVar(self, "noTrade")
-                + " padawan=" + hasSkill(player, "jedi_padawan_novice")
-                + " isJedi=" + isJedi(player)
-                + " state=" + getJediState(player));
+            if (!ok)
+            {
+                ok = equip(self, player, "hold_l");
+            }
+            sendSystemMessageTestingOnly(player, "[precu] force equip v11 result=" + ok
+                + " wt=" + wt
+                + " scriptsDetached=" + (scripts != null ? scripts.length : 0)
+                + " tmpl=" + getTemplateName(self));
             return SCRIPT_CONTINUE;
         }
         if (canManipulate(player, self, false, true, 15, true))

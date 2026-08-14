@@ -16,7 +16,7 @@
 
 @class weapon_object_template 11
 
-weaponType = WT_2handLightsaber
+weaponType = WT_1handMelee
 minDamageAmount = 70
 maxDamageAmount = 145
 attackSpeed = 1.2
