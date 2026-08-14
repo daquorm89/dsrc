@@ -23,6 +23,6 @@
 
 objvars = +["isLightsaber"=1]
 
-scripts = +["item.special.nomove", "systems.jedi.saber_base"]
+scripts = +["systems.jedi.saber_base"]
 
 moveFlags = [ MF_player ]

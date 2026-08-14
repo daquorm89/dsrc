@@ -29,7 +29,7 @@ public class saber_base extends script.base_script
         }
         else
         {
-            if (!utils.isNestedWithinAPlayerCreature(self))
+            if (!utils.isNestedWithinAPlayer(self))
             {
                 weapons.validateWeaponRange(self);
             }
@@ -46,6 +46,22 @@ public class saber_base extends script.base_script
         if (hasScript(self, "item.special.nomove_base"))
         {
             detachScript(self, "item.special.nomove_base");
+        }
+        return SCRIPT_CONTINUE;
+    }
+    public int OnAboutToBeTransferred(obj_id self, obj_id destContainer, obj_id transferer) throws InterruptedException
+    {
+        if (isPlayer(destContainer))
+        {
+            if (hasScript(self, "item.special.nomove"))
+            {
+                detachScript(self, "item.special.nomove");
+            }
+            if (hasScript(self, "item.special.nomove_base"))
+            {
+                detachScript(self, "item.special.nomove_base");
+            }
+            sendSystemMessageTestingOnly(destContainer, "[precu] saber_base v8 transfer ALLOW tmpl=" + getTemplateName(self));
         }
         return SCRIPT_CONTINUE;
     }
