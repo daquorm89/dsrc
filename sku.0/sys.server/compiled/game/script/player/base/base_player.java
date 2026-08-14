@@ -543,6 +543,9 @@ public class base_player extends script.base_script
                 detachScript(self, "player.player_jedi_conversion");
             }
         }
+        // Pre-CU: always recalc Health/Action on login (no NGE skillTemplate profession).
+        // Existing masters kept starter pools until something called recalcPlayerPools.
+        skill.recalcPlayerPools(self, true);
         if (!isJedi(self))
         {
             if (hasObjVar(self, "jedi.postponeGrant"))
