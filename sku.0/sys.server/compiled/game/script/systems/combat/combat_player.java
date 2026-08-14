@@ -108,21 +108,18 @@ public class combat_player extends script.systems.combat.combat_base
         {
             if (jedi.isLightsaber(getWeaponType(objItem)))
             {
-                if (!utils.isProfession(self, utils.FORCE_SENSITIVE))
+                // NGE FS class OR Pre-CU Jedi skill path may equip lightsabers.
+                // (utils.isProfession FORCE_SENSITIVE is NGE skill-template only.)
+                final boolean ngeFs = utils.isProfession(self, utils.FORCE_SENSITIVE);
+                final boolean precuJedi = combat.isPreCuJediWielder(self);
+                if (!ngeFs && !precuJedi && !isGod(self))
                 {
                     string_id strSpam = new string_id("jedi_spam", "no_equip_lightsaber");
                     sendSystemMessage(self, strSpam);
                     return SCRIPT_OVERRIDE;
                 }
-                else 
-                {
-                    if (!jedi.hasColorCrystal(objItem))
-                    {
-                        string_id strSpam = new string_id("jedi_spam", "lightsaber_no_color");
-                        sendSystemMessage(self, strSpam);
-                        return SCRIPT_OVERRIDE;
-                    }
-                }
+                // Color crystals affect stats; they are not required to equip a hilt
+                // (Pre-CU / training sabers are usable without a color crystal).
             }
         }
         return SCRIPT_CONTINUE;
