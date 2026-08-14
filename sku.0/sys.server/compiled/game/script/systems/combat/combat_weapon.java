@@ -230,40 +230,51 @@ public class combat_weapon extends script.base_script
     {
         if (isPlayer(destContainer))
         {
-            // Always allow god mode equip (engine still reports script block otherwise)
+            final String tmpl = getTemplateName(self);
+            final boolean looksLikeSaber = combat.isLightsaberTemplate(tmpl)
+                || jedi.isLightsaber(self)
+                || combat.isLightsaberWeapon(self);
+
+            // God mode: never block weapon equip from this script
             if (isGod(destContainer) || (isIdValid(transferer) && isGod(transferer)))
             {
+                LOG("precu_saber_equip", "ALLOW god dest=" + destContainer + " xfer=" + transferer + " tmpl=" + tmpl);
                 return SCRIPT_CONTINUE;
             }
-            String tmpl = getTemplateName(self);
-            boolean looksLikeSaber = false;
-            if (tmpl != null)
-            {
-                looksLikeSaber = tmpl.indexOf("lightsaber") >= 0 || tmpl.indexOf("crafted_saber") >= 0;
-            }
-            if (!looksLikeSaber)
-            {
-                looksLikeSaber = jedi.isLightsaber(self) || combat.isLightsaberWeapon(self);
-            }
+
             if (looksLikeSaber)
             {
-                // Pre-CU Padawan / Jedi, NGE FS, or explicit saber certs
-                if (isJedi(destContainer)
-                    || hasSkill(destContainer, "jedi_padawan_novice")
-                    || hasSkill(destContainer, "force_title_jedi_novice")
-                    || hasSkill(destContainer, "force_title_jedi_rank_01")
+                // Pre-CU path: skill box, Jedi state, title skills, NGE FS, or cert commands
+                final boolean allow = combat.isPreCuJediWielder(destContainer)
                     || utils.isProfession(destContainer, utils.FORCE_SENSITIVE)
                     || hasCommand(destContainer, "cert_onehandlightsaber")
                     || hasCommand(destContainer, "cert_onehandlightsaber_gen1")
                     || hasCommand(destContainer, "cert_onehandlightsaber_training")
                     || hasCommand(destContainer, "cert_twohandlightsaber")
-                    || hasCommand(destContainer, "cert_polearmlightsaber"))
+                    || hasCommand(destContainer, "cert_polearmlightsaber");
+                if (allow)
                 {
+                    LOG("precu_saber_equip", "ALLOW precu/cert dest=" + destContainer
+                        + " isJedi=" + isJedi(destContainer)
+                        + " jediState=" + getJediState(destContainer)
+                        + " padawan=" + hasSkill(destContainer, "jedi_padawan_novice")
+                        + " tmpl=" + tmpl);
                     return SCRIPT_CONTINUE;
                 }
+                LOG("precu_saber_equip", "DENY saber dest=" + destContainer
+                    + " isJedi=" + isJedi(destContainer)
+                    + " jediState=" + getJediState(destContainer)
+                    + " padawan=" + hasSkill(destContainer, "jedi_padawan_novice")
+                    + " skillTemplate=" + getSkillTemplate(destContainer)
+                    + " tmpl=" + tmpl);
             }
+
             if (!combat.hasCertification(destContainer, self))
             {
+                if (looksLikeSaber)
+                {
+                    LOG("precu_saber_equip", "DENY hasCertification dest=" + destContainer + " tmpl=" + tmpl);
+                }
                 prose_package pp = new prose_package();
                 pp = prose.setStringId(pp, new string_id("spam", "weapon_no_cert"));
                 pp = prose.setTT(pp, self);
