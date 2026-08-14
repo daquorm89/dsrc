@@ -23,6 +23,11 @@ public class saber_base extends script.base_script
         {
             detachScript(self, "item.special.nomove_base");
         }
+        // Residual from nomove: flag survives script detach and blocks non-god equip
+        if (hasObjVar(self, "noTrade"))
+        {
+            removeObjVar(self, "noTrade");
+        }
         if (static_item.isStaticItem(self))
         {
             return SCRIPT_CONTINUE;
@@ -47,6 +52,10 @@ public class saber_base extends script.base_script
         {
             detachScript(self, "item.special.nomove_base");
         }
+        if (hasObjVar(self, "noTrade"))
+        {
+            removeObjVar(self, "noTrade");
+        }
         return SCRIPT_CONTINUE;
     }
     public int OnAboutToBeTransferred(obj_id self, obj_id destContainer, obj_id transferer) throws InterruptedException
@@ -61,7 +70,13 @@ public class saber_base extends script.base_script
             {
                 detachScript(self, "item.special.nomove_base");
             }
-            sendSystemMessageTestingOnly(destContainer, "[precu] saber_base v8 transfer ALLOW tmpl=" + getTemplateName(self));
+            if (hasObjVar(self, "noTrade"))
+            {
+                removeObjVar(self, "noTrade");
+            }
+            setOwner(self, destContainer);
+            sendSystemMessageTestingOnly(destContainer, "[precu] saber_base v10 transfer ALLOW tmpl=" + getTemplateName(self)
+                + " noTrade=" + hasObjVar(self, "noTrade"));
         }
         return SCRIPT_CONTINUE;
     }
@@ -112,10 +127,21 @@ public class saber_base extends script.base_script
     {
         if (item == menu_info_types.SERVER_MENU9 && isGod(player))
         {
-            sendSystemMessageTestingOnly(player, "[precu] force equip attempt...");
+            boolean hadNoTrade = hasObjVar(self, "noTrade");
+            sendSystemMessageTestingOnly(player, "[precu] force equip attempt... hadNoTrade=" + hadNoTrade
+                + " hasCombatWeapon=" + hasScript(self, "systems.combat.combat_weapon")
+                + " owner=" + getOwner(self));
             if (hasScript(self, "item.special.nomove"))
             {
                 detachScript(self, "item.special.nomove");
+            }
+            if (hasScript(self, "item.special.nomove_base"))
+            {
+                detachScript(self, "item.special.nomove_base");
+            }
+            if (hasObjVar(self, "noTrade"))
+            {
+                removeObjVar(self, "noTrade");
             }
             setOwner(self, player);
             boolean ok = equipOverride(self, player);
@@ -123,9 +149,15 @@ public class saber_base extends script.base_script
             {
                 ok = equip(self, player);
             }
+            if (!ok)
+            {
+                // last resort: put into inventory then try hold_r via equip(item, player, slot)
+                ok = equip(self, player, "hold_r");
+            }
             sendSystemMessageTestingOnly(player, "[precu] force equip result=" + ok
                 + " tmpl=" + getTemplateName(self)
                 + " hasNomove=" + hasScript(self, "item.special.nomove")
+                + " noTrade=" + hasObjVar(self, "noTrade")
                 + " padawan=" + hasSkill(player, "jedi_padawan_novice")
                 + " isJedi=" + isJedi(player)
                 + " state=" + getJediState(player));
