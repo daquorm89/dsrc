@@ -207,7 +207,8 @@ public class jedi extends script.base_script
     public static boolean hasForcePower(obj_id objPlayer, int intForcePowerCost) throws InterruptedException
     {
         int intCurrentPower = getForcePower(objPlayer);
-        if ((intCurrentPower - intForcePowerCost > 0) || (!isPlayer(objPlayer)))
+        // Allow exact spend (current == cost). Old check used > 0 and rejected full-cost spends.
+        if ((intCurrentPower - intForcePowerCost >= 0) || (!isPlayer(objPlayer)))
         {
             return true;
         }
@@ -398,6 +399,20 @@ public class jedi extends script.base_script
         regenRate /= regenPenalty;
         setMaxForcePower(player, maxPower);
         setForcePowerRegenRate(player, regenRate);
+        // Pre-CU: skill mods only raise max/regen. Current Force stays 0 until filled.
+        // Top up when empty so a newly granted Padawan can actually use abilities.
+        if (maxPower > 0)
+        {
+            int current = getForcePower(player);
+            if (current <= 0)
+            {
+                setForcePower(player, maxPower);
+            }
+            else if (current > maxPower)
+            {
+                setForcePower(player, maxPower);
+            }
+        }
         return;
     }
     public static boolean postponeGrantJedi() throws InterruptedException

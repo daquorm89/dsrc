@@ -542,6 +542,8 @@ public class base_player extends script.base_script
             {
                 detachScript(self, "player.player_jedi_conversion");
             }
+            // Apply jedi_force_power_* mods to engine max/regen and fill empty pool.
+            jedi.recalculateForcePower(self);
         }
         // Pre-CU: always recalc Health/Action on login (no NGE skillTemplate profession).
         // Existing masters kept starter pools until something called recalcPlayerPools.
@@ -6733,9 +6735,9 @@ public class base_player extends script.base_script
             int bmExpertiseVersion = dataTableGetInt(respec.EXPERTISE_VERSION_TABLE, row, "version");
             setObjVar(self, respec.BEAST_MASTER_EXPERTISE_VERSION_OBJVAR, bmExpertiseVersion);
         }
-        if (skillName != null && skillName.equals("jedi_padawan_novice"))
+        if (skillName != null && skillName.startsWith("jedi_"))
         {
-            if (getJediState(self) == JEDI_STATE_NONE)
+            if (skillName.equals("jedi_padawan_novice") && getJediState(self) == JEDI_STATE_NONE)
             {
                 setJediState(self, JEDI_STATE_JEDI);
             }
@@ -6743,6 +6745,9 @@ public class base_player extends script.base_script
             {
                 detachScript(self, "player.player_jedi_conversion");
             }
+            // Skill mods (force max/regen) are applied by the engine before this trigger;
+            // push them into the Force pool so abilities can spend Force immediately.
+            jedi.recalculateForcePower(self);
         }
         recomputeCommandSeries(self);
         beast_lib.verifyAndUpdateCalledBeastStats(self);
