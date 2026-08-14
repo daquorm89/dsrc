@@ -238,7 +238,7 @@ public class combat_weapon extends script.base_script
             // In-game marker: if equiping a saber never shows this, combat_weapon.class is NOT loaded.
             if (looksLikeSaber)
             {
-                sendSystemMessage(destContainer, "[precu] combat_weapon: saber equip check (build saber-equip-v3)");
+                sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon: saber equip check (build saber-equip-v3)");
             }
 
             // God mode: never block weapon equip from this script
@@ -246,7 +246,7 @@ public class combat_weapon extends script.base_script
             {
                 if (looksLikeSaber)
                 {
-                    sendSystemMessage(destContainer, "[precu] combat_weapon: ALLOW (god mode)");
+                    sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon: ALLOW (god mode)");
                 }
                 return SCRIPT_CONTINUE;
             }
@@ -263,12 +263,12 @@ public class combat_weapon extends script.base_script
                     || hasCommand(destContainer, "cert_polearmlightsaber");
                 if (allow)
                 {
-                    sendSystemMessage(destContainer, "[precu] combat_weapon: ALLOW (precu/jedi/cert) isJedi="
+                    sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon: ALLOW (precu/jedi/cert) isJedi="
                         + isJedi(destContainer) + " state=" + getJediState(destContainer)
                         + " padawan=" + hasSkill(destContainer, "jedi_padawan_novice"));
                     return SCRIPT_CONTINUE;
                 }
-                sendSystemMessage(destContainer, "[precu] combat_weapon: no precu match, hasCertification next"
+                sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon: no precu match, hasCertification next"
                     + " isJedi=" + isJedi(destContainer)
                     + " state=" + getJediState(destContainer)
                     + " padawan=" + hasSkill(destContainer, "jedi_padawan_novice"));
@@ -278,7 +278,7 @@ public class combat_weapon extends script.base_script
             {
                 if (looksLikeSaber)
                 {
-                    sendSystemMessage(destContainer, "[precu] combat_weapon: DENY hasCertification failed");
+                    sendSystemMessageTestingOnly(destContainer, "[precu] combat_weapon: DENY hasCertification failed");
                 }
                 prose_package pp = new prose_package();
                 pp = prose.setStringId(pp, new string_id("spam", "weapon_no_cert"));
