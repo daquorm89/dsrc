@@ -2280,6 +2280,41 @@ public class npe_station_han_solo2 extends script.base_script
                 }
                 return SCRIPT_CONTINUE;
             }
+            // Pre-CU / no NGE class: no utils.isProfession match after "contact for me".
+            // Route to combat (Commando) contact path so tutorial does not fall through.
+            if (npe_station_han_solo2_condition__defaultCondition(player, npc))
+            {
+                doAnimationAction(npc, "rub_chin_thoughtful");
+                npe_station_han_solo2_action_sound6(player, npc);
+                string_id message = new string_id(c_stringFile, "s_181");
+                int numberOfResponses = 0;
+                boolean hasResponse = false;
+                boolean hasResponse0 = false;
+                if (npe_station_han_solo2_condition__defaultCondition(player, npc))
+                {
+                    ++numberOfResponses;
+                    hasResponse = true;
+                    hasResponse0 = true;
+                }
+                if (hasResponse)
+                {
+                    int responseIndex = 0;
+                    string_id responses[] = new string_id[numberOfResponses];
+                    if (hasResponse0)
+                    {
+                        responses[responseIndex++] = new string_id(c_stringFile, "s_146");
+                    }
+                    utils.setScriptVar(player, "conversation.npe_station_han_solo2.branchId", 49);
+                    npcSpeak(player, message);
+                    npcSetConversationResponses(player, responses);
+                }
+                else
+                {
+                    utils.removeScriptVar(player, "conversation.npe_station_han_solo2.branchId");
+                    npcEndConversationWithMessage(player, message);
+                }
+                return SCRIPT_CONTINUE;
+            }
         }
         return SCRIPT_DEFAULT;
     }
