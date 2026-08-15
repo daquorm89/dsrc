@@ -1106,6 +1106,86 @@ public class npe extends script.base_script
                 false
         ));
     }
+    public static final String[] PROFESSION_TRAINER_CHOICES = new String[]
+    {
+        "Combat (Commando)",
+        "Officer",
+        "Spy",
+        "Medic",
+        "Smuggler",
+        "Bounty Hunter",
+        "Force Sensitive",
+        "Entertainer",
+        "Trader"
+    };
+    public static final String[] PROFESSION_TRAINER_POINTERS = new String[]
+    {
+        "npe_pointer_commando_template",
+        "npe_pointer_officer_template",
+        "npe_pointer_spy_template",
+        "npe_pointer_med_template",
+        "npe_pointer_smuggler_template",
+        "npe_pointer_artisan",
+        "npe_pointer_force_template",
+        "npe_pointer_entertainer_template",
+        "npe_pointer_trader_template"
+    };
+
+    /**
+     * Show a SUI list of trainers. Uses plain English labels (no client string pack needed).
+     * Handler: conversation.npe_station_han_solo2.handleProfessionTrainerChoice
+     */
+    public static void showProfessionTrainerChoice(obj_id npc, obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(player) || !isIdValid(npc))
+        {
+            return;
+        }
+        String prompt = "Who should I put you in touch with? Pick a trainer:";
+        String title = "Choose a trainer";
+        sui.listbox(npc, player, prompt, sui.OK_CANCEL, title, PROFESSION_TRAINER_CHOICES, "handleProfessionTrainerChoice", true, false);
+    }
+
+    /**
+     * Grant pointer for SUI choice index. Ends npe_solo_profession_2.
+     */
+    public static void giveTemplatePointerByChoice(obj_id player, int choiceIndex) throws InterruptedException
+    {
+        if (!isIdValid(player))
+        {
+            return;
+        }
+        if (choiceIndex < 0 || choiceIndex >= PROFESSION_TRAINER_POINTERS.length)
+        {
+            choiceIndex = 0;
+        }
+        groundquests.sendSignal(player, "npe_solo_profession_2_end");
+        groundquests.grantQuest(player, PROFESSION_TRAINER_POINTERS[choiceIndex]);
+        utils.setScriptVar(player, "npe.chosenTrainerIndex", choiceIndex);
+    }
+
+    /**
+     * Pre-CU / no class: allow profession trainer if pointer quest is active,
+     * or if NGE skill template still contains the profession substring.
+     */
+    public static boolean allowsProfessionTrainer(obj_id player, String pointerQuest, String templateSubstring) throws InterruptedException
+    {
+        if (!isIdValid(player))
+        {
+            return false;
+        }
+        String playerTemplate = getSkillTemplate(player);
+        if (playerTemplate != null && templateSubstring != null && playerTemplate.contains(templateSubstring))
+        {
+            return true;
+        }
+        if (pointerQuest != null && groundquests.isQuestActive(player, pointerQuest))
+        {
+            return true;
+        }
+        return false;
+    }
+
     public static void giveTemplatePointer(obj_id player) throws InterruptedException
     {
         if (utils.isProfession(player, utils.BOUNTY_HUNTER))

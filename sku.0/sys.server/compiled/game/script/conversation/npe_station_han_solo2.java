@@ -79,14 +79,7 @@ public class npe_station_han_solo2 extends script.base_script
     }
     public boolean npe_station_han_solo2_condition_isSmugglerToTrain(obj_id player, obj_id npc) throws InterruptedException
     {
-        if ((utils.isProfession(player, utils.SMUGGLER)) && groundquests.isQuestActive(player, "npe_pointer_smuggler_template"))
-        {
-            return true;
-        }
-        else 
-        {
-            return false;
-        }
+        return npe.allowsProfessionTrainer(player, "npe_pointer_smuggler_template", "smuggler");
     }
     public boolean npe_station_han_solo2_condition_playerisTrader(obj_id player, obj_id npc) throws InterruptedException
     {
@@ -1983,340 +1976,34 @@ public class npe_station_han_solo2 extends script.base_script
     {
         if (response.equals("s_142"))
         {
-            if (npe_station_han_solo2_condition_playerisSpy(player, npc))
-            {
-                doAnimationAction(npc, "rub_chin_thoughtful");
-                npe_station_han_solo2_action_sound3(player, npc);
-                string_id message = new string_id(c_stringFile, "s_144");
-                int numberOfResponses = 0;
-                boolean hasResponse = false;
-                boolean hasResponse0 = false;
-                if (npe_station_han_solo2_condition__defaultCondition(player, npc))
-                {
-                    ++numberOfResponses;
-                    hasResponse = true;
-                    hasResponse0 = true;
-                }
-                if (hasResponse)
-                {
-                    int responseIndex = 0;
-                    string_id responses[] = new string_id[numberOfResponses];
-                    if (hasResponse0)
-                    {
-                        responses[responseIndex++] = new string_id(c_stringFile, "s_146");
-                    }
-                    utils.setScriptVar(player, "conversation.npe_station_han_solo2.branchId", 49);
-                    npcSpeak(player, message);
-                    npcSetConversationResponses(player, responses);
-                }
-                else 
-                {
-                    utils.removeScriptVar(player, "conversation.npe_station_han_solo2.branchId");
-                    npcEndConversationWithMessage(player, message);
-                }
-                return SCRIPT_CONTINUE;
-            }
-            if (npe_station_han_solo2_condition_playerisTrader(player, npc))
-            {
-                doAnimationAction(npc, "rub_chin_thoughtful");
-                npe_station_han_solo2_action_sound4(player, npc);
-                string_id message = new string_id(c_stringFile, "s_173");
-                int numberOfResponses = 0;
-                boolean hasResponse = false;
-                boolean hasResponse0 = false;
-                if (npe_station_han_solo2_condition__defaultCondition(player, npc))
-                {
-                    ++numberOfResponses;
-                    hasResponse = true;
-                    hasResponse0 = true;
-                }
-                if (hasResponse)
-                {
-                    int responseIndex = 0;
-                    string_id responses[] = new string_id[numberOfResponses];
-                    if (hasResponse0)
-                    {
-                        responses[responseIndex++] = new string_id(c_stringFile, "s_146");
-                    }
-                    utils.setScriptVar(player, "conversation.npe_station_han_solo2.branchId", 49);
-                    npcSpeak(player, message);
-                    npcSetConversationResponses(player, responses);
-                }
-                else 
-                {
-                    utils.removeScriptVar(player, "conversation.npe_station_han_solo2.branchId");
-                    npcEndConversationWithMessage(player, message);
-                }
-                return SCRIPT_CONTINUE;
-            }
-            if (npe_station_han_solo2_condition_playerisEntertainer(player, npc))
-            {
-                doAnimationAction(npc, "rub_chin_thoughtful");
-                npe_station_han_solo2_action_sound5(player, npc);
-                string_id message = new string_id(c_stringFile, "s_177");
-                int numberOfResponses = 0;
-                boolean hasResponse = false;
-                boolean hasResponse0 = false;
-                if (npe_station_han_solo2_condition__defaultCondition(player, npc))
-                {
-                    ++numberOfResponses;
-                    hasResponse = true;
-                    hasResponse0 = true;
-                }
-                if (hasResponse)
-                {
-                    int responseIndex = 0;
-                    string_id responses[] = new string_id[numberOfResponses];
-                    if (hasResponse0)
-                    {
-                        responses[responseIndex++] = new string_id(c_stringFile, "s_146");
-                    }
-                    utils.setScriptVar(player, "conversation.npe_station_han_solo2.branchId", 49);
-                    npcSpeak(player, message);
-                    npcSetConversationResponses(player, responses);
-                }
-                else 
-                {
-                    utils.removeScriptVar(player, "conversation.npe_station_han_solo2.branchId");
-                    npcEndConversationWithMessage(player, message);
-                }
-                return SCRIPT_CONTINUE;
-            }
-            if (npe_station_han_solo2_condition_playerisCommando(player, npc))
-            {
-                doAnimationAction(npc, "rub_chin_thoughtful");
-                npe_station_han_solo2_action_sound6(player, npc);
-                string_id message = new string_id(c_stringFile, "s_181");
-                int numberOfResponses = 0;
-                boolean hasResponse = false;
-                boolean hasResponse0 = false;
-                if (npe_station_han_solo2_condition__defaultCondition(player, npc))
-                {
-                    ++numberOfResponses;
-                    hasResponse = true;
-                    hasResponse0 = true;
-                }
-                if (hasResponse)
-                {
-                    int responseIndex = 0;
-                    string_id responses[] = new string_id[numberOfResponses];
-                    if (hasResponse0)
-                    {
-                        responses[responseIndex++] = new string_id(c_stringFile, "s_146");
-                    }
-                    utils.setScriptVar(player, "conversation.npe_station_han_solo2.branchId", 49);
-                    npcSpeak(player, message);
-                    npcSetConversationResponses(player, responses);
-                }
-                else 
-                {
-                    utils.removeScriptVar(player, "conversation.npe_station_han_solo2.branchId");
-                    npcEndConversationWithMessage(player, message);
-                }
-                return SCRIPT_CONTINUE;
-            }
-            if (npe_station_han_solo2_condition_playerisBountyHunter(player, npc))
-            {
-                doAnimationAction(npc, "rub_chin_thoughtful");
-                npe_station_han_solo2_action_sound7(player, npc);
-                string_id message = new string_id(c_stringFile, "s_185");
-                int numberOfResponses = 0;
-                boolean hasResponse = false;
-                boolean hasResponse0 = false;
-                if (npe_station_han_solo2_condition__defaultCondition(player, npc))
-                {
-                    ++numberOfResponses;
-                    hasResponse = true;
-                    hasResponse0 = true;
-                }
-                if (hasResponse)
-                {
-                    int responseIndex = 0;
-                    string_id responses[] = new string_id[numberOfResponses];
-                    if (hasResponse0)
-                    {
-                        responses[responseIndex++] = new string_id(c_stringFile, "s_146");
-                    }
-                    utils.setScriptVar(player, "conversation.npe_station_han_solo2.branchId", 49);
-                    npcSpeak(player, message);
-                    npcSetConversationResponses(player, responses);
-                }
-                else 
-                {
-                    utils.removeScriptVar(player, "conversation.npe_station_han_solo2.branchId");
-                    npcEndConversationWithMessage(player, message);
-                }
-                return SCRIPT_CONTINUE;
-            }
-            if (npe_station_han_solo2_condition_playerisMedic(player, npc))
-            {
-                doAnimationAction(npc, "rub_chin_thoughtful");
-                npe_station_han_solo2_action_sound8(player, npc);
-                string_id message = new string_id(c_stringFile, "s_189");
-                int numberOfResponses = 0;
-                boolean hasResponse = false;
-                boolean hasResponse0 = false;
-                if (npe_station_han_solo2_condition__defaultCondition(player, npc))
-                {
-                    ++numberOfResponses;
-                    hasResponse = true;
-                    hasResponse0 = true;
-                }
-                if (hasResponse)
-                {
-                    int responseIndex = 0;
-                    string_id responses[] = new string_id[numberOfResponses];
-                    if (hasResponse0)
-                    {
-                        responses[responseIndex++] = new string_id(c_stringFile, "s_146");
-                    }
-                    utils.setScriptVar(player, "conversation.npe_station_han_solo2.branchId", 49);
-                    npcSpeak(player, message);
-                    npcSetConversationResponses(player, responses);
-                }
-                else 
-                {
-                    utils.removeScriptVar(player, "conversation.npe_station_han_solo2.branchId");
-                    npcEndConversationWithMessage(player, message);
-                }
-                return SCRIPT_CONTINUE;
-            }
-            if (npe_station_han_solo2_condition_playerisForceSensitive(player, npc))
-            {
-                doAnimationAction(npc, "rub_chin_thoughtful");
-                npe_station_han_solo2_action_sound9(player, npc);
-                string_id message = new string_id(c_stringFile, "s_201");
-                int numberOfResponses = 0;
-                boolean hasResponse = false;
-                boolean hasResponse0 = false;
-                if (npe_station_han_solo2_condition__defaultCondition(player, npc))
-                {
-                    ++numberOfResponses;
-                    hasResponse = true;
-                    hasResponse0 = true;
-                }
-                if (hasResponse)
-                {
-                    int responseIndex = 0;
-                    string_id responses[] = new string_id[numberOfResponses];
-                    if (hasResponse0)
-                    {
-                        responses[responseIndex++] = new string_id(c_stringFile, "s_146");
-                    }
-                    utils.setScriptVar(player, "conversation.npe_station_han_solo2.branchId", 49);
-                    npcSpeak(player, message);
-                    npcSetConversationResponses(player, responses);
-                }
-                else 
-                {
-                    utils.removeScriptVar(player, "conversation.npe_station_han_solo2.branchId");
-                    npcEndConversationWithMessage(player, message);
-                }
-                return SCRIPT_CONTINUE;
-            }
-            if (npe_station_han_solo2_condition_playerisOfficer(player, npc))
-            {
-                doAnimationAction(npc, "rub_chin_thoughtful");
-                npe_station_han_solo2_action_sound10(player, npc);
-                string_id message = new string_id(c_stringFile, "s_203");
-                int numberOfResponses = 0;
-                boolean hasResponse = false;
-                boolean hasResponse0 = false;
-                if (npe_station_han_solo2_condition__defaultCondition(player, npc))
-                {
-                    ++numberOfResponses;
-                    hasResponse = true;
-                    hasResponse0 = true;
-                }
-                if (hasResponse)
-                {
-                    int responseIndex = 0;
-                    string_id responses[] = new string_id[numberOfResponses];
-                    if (hasResponse0)
-                    {
-                        responses[responseIndex++] = new string_id(c_stringFile, "s_146");
-                    }
-                    utils.setScriptVar(player, "conversation.npe_station_han_solo2.branchId", 49);
-                    npcSpeak(player, message);
-                    npcSetConversationResponses(player, responses);
-                }
-                else 
-                {
-                    utils.removeScriptVar(player, "conversation.npe_station_han_solo2.branchId");
-                    npcEndConversationWithMessage(player, message);
-                }
-                return SCRIPT_CONTINUE;
-            }
-            if (npe_station_han_solo2_condition_playerisSmuggler(player, npc))
-            {
-                doAnimationAction(npc, "thumbs_up");
-                npe_station_han_solo2_action_sound11(player, npc);
-                string_id message = new string_id(c_stringFile, "s_205");
-                int numberOfResponses = 0;
-                boolean hasResponse = false;
-                boolean hasResponse0 = false;
-                if (npe_station_han_solo2_condition__defaultCondition(player, npc))
-                {
-                    ++numberOfResponses;
-                    hasResponse = true;
-                    hasResponse0 = true;
-                }
-                if (hasResponse)
-                {
-                    int responseIndex = 0;
-                    string_id responses[] = new string_id[numberOfResponses];
-                    if (hasResponse0)
-                    {
-                        responses[responseIndex++] = new string_id(c_stringFile, "s_207");
-                    }
-                    utils.setScriptVar(player, "conversation.npe_station_han_solo2.branchId", 58);
-                    npcSpeak(player, message);
-                    npcSetConversationResponses(player, responses);
-                }
-                else 
-                {
-                    utils.removeScriptVar(player, "conversation.npe_station_han_solo2.branchId");
-                    npcEndConversationWithMessage(player, message);
-                }
-                return SCRIPT_CONTINUE;
-            }
-            // Pre-CU / no NGE class: no utils.isProfession match after "contact for me".
-            // Route to combat (Commando) contact path so tutorial does not fall through.
-            if (npe_station_han_solo2_condition__defaultCondition(player, npc))
-            {
-                doAnimationAction(npc, "rub_chin_thoughtful");
-                npe_station_han_solo2_action_sound6(player, npc);
-                string_id message = new string_id(c_stringFile, "s_181");
-                int numberOfResponses = 0;
-                boolean hasResponse = false;
-                boolean hasResponse0 = false;
-                if (npe_station_han_solo2_condition__defaultCondition(player, npc))
-                {
-                    ++numberOfResponses;
-                    hasResponse = true;
-                    hasResponse0 = true;
-                }
-                if (hasResponse)
-                {
-                    int responseIndex = 0;
-                    string_id responses[] = new string_id[numberOfResponses];
-                    if (hasResponse0)
-                    {
-                        responses[responseIndex++] = new string_id(c_stringFile, "s_146");
-                    }
-                    utils.setScriptVar(player, "conversation.npe_station_han_solo2.branchId", 49);
-                    npcSpeak(player, message);
-                    npcSetConversationResponses(player, responses);
-                }
-                else
-                {
-                    utils.removeScriptVar(player, "conversation.npe_station_han_solo2.branchId");
-                    npcEndConversationWithMessage(player, message);
-                }
-                return SCRIPT_CONTINUE;
-            }
+            // No NGE classes: always let the player pick a trainer via SUI (plain English, no client strings).
+            doAnimationAction(npc, "rub_chin_thoughtful");
+            utils.removeScriptVar(player, "conversation.npe_station_han_solo2.branchId");
+            npcEndConversation(player);
+            npe.showProfessionTrainerChoice(npc, player);
+            return SCRIPT_CONTINUE;
         }
         return SCRIPT_DEFAULT;
+    }
+    public int handleProfessionTrainerChoice(obj_id self, dictionary params) throws InterruptedException
+    {
+        obj_id player = sui.getPlayerId(params);
+        if (!isIdValid(player))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        int bp = sui.getIntButtonPressed(params);
+        if (bp == sui.BP_CANCEL)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        int idx = sui.getListboxSelectedRow(params);
+        if (idx < 0)
+        {
+            idx = 0;
+        }
+        npe.giveTemplatePointerByChoice(player, idx);
+        return SCRIPT_CONTINUE;
     }
     public int npe_station_han_solo2_handleBranch49(obj_id player, obj_id npc, string_id response) throws InterruptedException
     {

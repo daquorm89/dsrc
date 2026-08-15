@@ -23,15 +23,8 @@ public class npe_profession_trader extends script.base_script
     }
     public boolean npe_profession_trader_condition_isTrader(obj_id player, obj_id npc) throws InterruptedException
     {
-        String pTemplate = getSkillTemplate(player);
-        if (pTemplate.contains("trader"))
-        {
-            return true;
-        }
-        else 
-        {
-            return false;
-        }
+        return npe.allowsProfessionTrainer(player, "npe_pointer_trader_template", "trader")
+            || npe.allowsProfessionTrainer(player, "npe_pointer_artisan", "trader");
     }
     public boolean npe_profession_trader_condition_onEntertainer1quest(obj_id player, obj_id npc) throws InterruptedException
     {

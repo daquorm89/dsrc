@@ -54,15 +54,7 @@ public class npe_spy extends script.base_script
     }
     public boolean npe_spy_condition_isSYTemplate(obj_id player, obj_id npc) throws InterruptedException
     {
-        String pTemplate = getSkillTemplate(player);
-        if (pTemplate.contains("spy"))
-        {
-            return true;
-        }
-        else 
-        {
-            return false;
-        }
+        return npe.allowsProfessionTrainer(player, "npe_pointer_spy_template", "spy");
     }
     public void npe_spy_action_giveSpyQuest(obj_id player, obj_id npc) throws InterruptedException
     {
