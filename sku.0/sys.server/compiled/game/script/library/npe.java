@@ -1153,7 +1153,14 @@ public class npe extends script.base_script
             groundquests.sendSignal(player, "npe_solo_profession_2_end");
             groundquests.grantQuest(player, "npe_pointer_smuggler_template");
         }
+        else
+        {
+            // Pre-CU: no NGE profession — end profession tutorial and use combat pointer
+            groundquests.sendSignal(player, "npe_solo_profession_2_end");
+            groundquests.grantQuest(player, "npe_pointer_commando_template");
+        }
     }
+
     public static void commTutorialPlayer(obj_id owner, obj_id player, float duration, string_id text, String sfx, String appearance) throws InterruptedException
     {
         commPlayers(owner, appearance, sfx, duration, player, prose.getPackage(text));
