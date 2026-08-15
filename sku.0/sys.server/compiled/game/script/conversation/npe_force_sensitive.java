@@ -58,15 +58,7 @@ public class npe_force_sensitive extends script.base_script
     }
     public boolean npe_force_sensitive_condition_isFSTemplate(obj_id player, obj_id npc) throws InterruptedException
     {
-        String pTemplate = getSkillTemplate(player);
-        if (pTemplate.contains("force_sensitive"))
-        {
-            return true;
-        }
-        else 
-        {
-            return false;
-        }
+        return npe.allowsProfessionTrainer(player, "npe_pointer_force_template", "force_sensitive");
     }
     public void npe_force_sensitive_action_giveFSQuest(obj_id player, obj_id npc) throws InterruptedException
     {

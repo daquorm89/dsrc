@@ -79,15 +79,7 @@ public class npe_medic2 extends script.base_script
     }
     public boolean npe_medic2_condition_isMedTemplate(obj_id player, obj_id npc) throws InterruptedException
     {
-        String pTemplate = getSkillTemplate(player);
-        if (pTemplate.contains("medic"))
-        {
-            return true;
-        }
-        else 
-        {
-            return false;
-        }
+        return npe.allowsProfessionTrainer(player, "npe_pointer_med_template", "medic");
     }
     public void npe_medic2_action_giveMedQuest(obj_id player, obj_id npc) throws InterruptedException
     {

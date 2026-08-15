@@ -39,7 +39,7 @@ public class npe_officer extends script.base_script
     }
     public boolean npe_officer_condition_isOffTemplate(obj_id player, obj_id npc) throws InterruptedException
     {
-        return utils.isProfession(player, utils.OFFICER);
+        return npe.allowsProfessionTrainer(player, "npe_pointer_officer_template", "officer");
     }
     public boolean npe_officer_condition_completedQuest2(obj_id player, obj_id npc) throws InterruptedException
     {
