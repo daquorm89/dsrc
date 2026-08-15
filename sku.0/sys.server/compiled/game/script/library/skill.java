@@ -1146,10 +1146,45 @@ public class skill extends script.base_script
         }
         else
         {
-            // Pre-CU skill-box characters: fixed base pools; growth is only from
-            // constitution/stamina skill mods (and equipment) below — not combat level.
+            // Pre-CU skill-box characters (Core3-aligned):
+            // Human brawler baseline ~1100 health / 900 action comes from
+            // base 1000/800 + human racial +100/+100 (see racial_mods.tab).
+            // Growth beyond that is constitution/stamina skill mods + equipment —
+            // combat level is intentionally ignored for pools.
             intBaseHealth = 1000;
-            intBaseAction = 300;
+            intBaseAction = 800;
+            // Apply Pre-CU racial Health/Action mods from creation racial_mods.tab
+            int racialHealth = 0;
+            int racialAction = 0;
+            try
+            {
+                int speciesId = getSpecies(objPlayer);
+                String speciesName = utils.getPlayerSpeciesName(speciesId);
+                // Template keys are e.g. human_male; gender does not change racial HAM mods.
+                String maleKey = speciesName + "_male";
+                // moncalamari -> moncal (table uses moncal_male)
+                if (maleKey.startsWith("moncalamari"))
+                {
+                    maleKey = "moncal_male";
+                }
+                final String RACIAL_MODS = "datatables/creation/racial_mods.iff";
+                int row = dataTableSearchColumnForString(maleKey, "male_template", RACIAL_MODS);
+                if (row < 0)
+                {
+                    row = dataTableSearchColumnForString(speciesName + "_female", "female_template", RACIAL_MODS);
+                }
+                if (row >= 0)
+                {
+                    racialHealth = dataTableGetInt(RACIAL_MODS, row, "health");
+                    racialAction = dataTableGetInt(RACIAL_MODS, row, "action");
+                }
+            }
+            catch (Exception e)
+            {
+                // keep zero racial if lookup fails
+            }
+            intBaseHealth += racialHealth;
+            intBaseAction += racialAction;
         }
         int intConstitution = getSkillStatisticModifier(objPlayer, "constitution");
         int intStamina = getSkillStatisticModifier(objPlayer, "stamina");
