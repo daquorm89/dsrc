@@ -1114,7 +1114,6 @@ public class npe extends script.base_script
         "Medic",
         "Smuggler",
         "Bounty Hunter",
-        "Force Sensitive",
         "Entertainer",
         "Trader"
     };
@@ -1126,7 +1125,6 @@ public class npe extends script.base_script
         "npe_pointer_med_template",
         "npe_pointer_smuggler_template",
         "npe_pointer_artisan",
-        "npe_pointer_force_template",
         "npe_pointer_entertainer_template",
         "npe_pointer_trader_template"
     };
