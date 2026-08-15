@@ -1146,13 +1146,10 @@ public class skill extends script.base_script
         }
         else
         {
-            // Pre-CU skill-box characters have no NGE skillTemplate / profession.
-            // Match NGE levels.tab level-1 floor and mild level scaling (not the old
-            // 2500/2000 "level-90 floor" that made fresh brawlers ~2580/2060 and
-            // trivialized Action costs vs Core3 ~1100/900).
-            // constitution/stamina from skill boxes still apply via the multipliers below.
-            intBaseHealth = 1000 + Math.max(0, (intLevel - 1) * 50);
-            intBaseAction = 300 + Math.max(0, (intLevel - 1) * 40);
+            // Pre-CU skill-box characters: fixed base pools; growth is only from
+            // constitution/stamina skill mods (and equipment) below — not combat level.
+            intBaseHealth = 1000;
+            intBaseAction = 300;
         }
         int intConstitution = getSkillStatisticModifier(objPlayer, "constitution");
         int intStamina = getSkillStatisticModifier(objPlayer, "stamina");
