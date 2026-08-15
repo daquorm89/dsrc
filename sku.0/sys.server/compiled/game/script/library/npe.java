@@ -1161,6 +1161,26 @@ public class npe extends script.base_script
     /**
      * Grant pointer for SUI choice index. Ends npe_solo_profession_2.
      */
+    /**
+     * Grant Pre-CU artisan novice + freebie schematics needed for NPE craft quests
+     * (spiced tea, small glass, basic tools, etc.). Safe to call repeatedly.
+     */
+    public static void grantStarterCraftingSchematics(obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(player))
+        {
+            return;
+        }
+        if (!hasSkill(player, "crafting_artisan_novice"))
+        {
+            grantSkill(player, "crafting_artisan_novice");
+        }
+        // Freebie group is NOT attached to any skill box — must grant explicitly
+        grantSchematicGroup(player, "craftArtisanFreebieGroupA");
+        grantSchematicGroup(player, "craftArtisanNewbieGroupA");
+        grantSchematicGroup(player, "craftArtisanNewbieGroupB");
+    }
+
     public static void giveTemplatePointerByChoice(obj_id player, int choiceIndex) throws InterruptedException
     {
         if (!isIdValid(player))
@@ -1177,6 +1197,11 @@ public class npe extends script.base_script
         setObjVar(player, "npe.chosenTrainer", PROFESSION_TRAINER_KEYS[choiceIndex]);
         setObjVar(player, "npe.chosenTrainerIndex", choiceIndex);
         utils.setScriptVar(player, "npe.chosenTrainerIndex", choiceIndex);
+        // Trader (and related) need starter schematics for cantina craft quest
+        if ("trader".equals(PROFESSION_TRAINER_KEYS[choiceIndex]))
+        {
+            grantStarterCraftingSchematics(player);
+        }
     }
 
     public static boolean hasChosenTrainer(obj_id player, String key) throws InterruptedException

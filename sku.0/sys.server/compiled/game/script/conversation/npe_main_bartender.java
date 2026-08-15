@@ -76,6 +76,8 @@ public class npe_main_bartender extends script.base_script
     }
     public void npe_main_bartender_action_giveQuest(obj_id player, obj_id npc) throws InterruptedException
     {
+        // Pre-CU: no NGE class schematics — grant artisan starter + freebie (spiced tea, glass)
+        npe.grantStarterCraftingSchematics(player);
         groundquests.grantQuest(player, "npe_new_artisan_quest");
         groundquests.sendSignal(player, "talked_to_bartender");
         npe.giveInvPopUp(player, npc);
