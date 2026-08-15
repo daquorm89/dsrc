@@ -1147,19 +1147,12 @@ public class skill extends script.base_script
         else
         {
             // Pre-CU skill-box characters have no NGE skillTemplate / profession.
-            // Previously this method returned without setting pools, so masters kept
-            // starter Action/Health and could not afford NGE heavy-weapon attack costs.
-            // Use level-scaled bases; constitution/stamina skill mods still apply below.
-            // NGE level-90-ish floor so HW / high attackCost weapons are usable.
-            intBaseHealth = 2500 + (intLevel * 80);
-            intBaseAction = 2000 + (intLevel * 60);
-            String[] skills = getSkillListingForPlayer(objPlayer);
-            if (skills != null && skills.length > 10)
-            {
-                int extra = Math.min(120, skills.length);
-                intBaseHealth += extra * 50;
-                intBaseAction += extra * 80;
-            }
+            // Match NGE levels.tab level-1 floor and mild level scaling (not the old
+            // 2500/2000 "level-90 floor" that made fresh brawlers ~2580/2060 and
+            // trivialized Action costs vs Core3 ~1100/900).
+            // constitution/stamina from skill boxes still apply via the multipliers below.
+            intBaseHealth = 1000 + Math.max(0, (intLevel - 1) * 50);
+            intBaseAction = 300 + Math.max(0, (intLevel - 1) * 40);
         }
         int intConstitution = getSkillStatisticModifier(objPlayer, "constitution");
         int intStamina = getSkillStatisticModifier(objPlayer, "stamina");
