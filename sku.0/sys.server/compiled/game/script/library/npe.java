@@ -1153,6 +1153,12 @@ public class npe extends script.base_script
             groundquests.sendSignal(player, "npe_solo_profession_2_end");
             groundquests.grantQuest(player, "npe_pointer_smuggler_template");
         }
+        else
+        {
+            // Pre-CU: no NGE profession — end profession step and use combat pointer
+            groundquests.sendSignal(player, "npe_solo_profession_2_end");
+            groundquests.grantQuest(player, "npe_pointer_commando_template");
+        }
     }
     public static void commTutorialPlayer(obj_id owner, obj_id player, float duration, string_id text, String sfx, String appearance) throws InterruptedException
     {
@@ -1214,6 +1220,11 @@ public class npe extends script.base_script
         else if (utils.isProfession(player, utils.TRADER))
         {
             theSet.add(static_item.createNewItemFunction("item_npe_gen_craft_tool_trader_03_01", pInv));
+        }
+        else
+        {
+            // Pre-CU: no NGE profession — give a generic starter carbine
+            theSet.add(static_item.createNewItemFunction("weapon_npe_commando_carbine_03_01", pInv));
         }
         obj_id[] items = new obj_id[theSet.size()];
         theSet.toArray(items);

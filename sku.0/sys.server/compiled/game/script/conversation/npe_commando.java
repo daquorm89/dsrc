@@ -20,14 +20,17 @@ public class npe_commando extends script.base_script
     public boolean npe_commando_condition_isCommandoTemplate(obj_id player, obj_id npc) throws InterruptedException
     {
         String playerTemplate = getSkillTemplate(player);
-        if (playerTemplate.contains("commando"))
+        if (playerTemplate != null && playerTemplate.contains("commando"))
         {
             return true;
         }
-        else 
+        // Pre-CU: no NGE skill template — allow if combat pointer quest is active
+        if ((playerTemplate == null || playerTemplate.length() == 0)
+            && groundquests.isQuestActive(player, "npe_pointer_commando_template"))
         {
-            return false;
+            return true;
         }
+        return false;
     }
     public boolean npe_commando_condition_fromBrawler(obj_id player, obj_id npc) throws InterruptedException
     {
