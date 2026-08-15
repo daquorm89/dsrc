@@ -1117,6 +1117,9 @@ public class npe extends script.base_script
         "Entertainer",
         "Trader"
     };
+    // Must stay aligned with PROFESSION_TRAINER_CHOICES.
+    // BH -> bounty_template (Boba in cantina). Trader -> trader_template (docking bay trader).
+    // Do NOT use npe_pointer_artisan for BH — that is the bartender crafting intro for traders.
     public static final String[] PROFESSION_TRAINER_POINTERS = new String[]
     {
         "npe_pointer_commando_template",
@@ -1124,9 +1127,20 @@ public class npe extends script.base_script
         "npe_pointer_spy_template",
         "npe_pointer_med_template",
         "npe_pointer_smuggler_template",
-        "npe_pointer_artisan",
+        "npe_pointer_bounty_template",
         "npe_pointer_entertainer_template",
         "npe_pointer_trader_template"
+    };
+    public static final String[] PROFESSION_TRAINER_KEYS = new String[]
+    {
+        "commando",
+        "officer",
+        "spy",
+        "medic",
+        "smuggler",
+        "bounty_hunter",
+        "entertainer",
+        "trader"
     };
 
     /**
@@ -1159,7 +1173,23 @@ public class npe extends script.base_script
         }
         groundquests.sendSignal(player, "npe_solo_profession_2_end");
         groundquests.grantQuest(player, PROFESSION_TRAINER_POINTERS[choiceIndex]);
+        // Durable choice key so trainers do not confuse trader with BH, etc.
+        setObjVar(player, "npe.chosenTrainer", PROFESSION_TRAINER_KEYS[choiceIndex]);
+        setObjVar(player, "npe.chosenTrainerIndex", choiceIndex);
         utils.setScriptVar(player, "npe.chosenTrainerIndex", choiceIndex);
+    }
+
+    public static boolean hasChosenTrainer(obj_id player, String key) throws InterruptedException
+    {
+        if (!isIdValid(player) || key == null)
+        {
+            return false;
+        }
+        if (!hasObjVar(player, "npe.chosenTrainer"))
+        {
+            return false;
+        }
+        return key.equals(getStringObjVar(player, "npe.chosenTrainer"));
     }
 
     /**

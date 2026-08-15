@@ -15,8 +15,17 @@ public class npe_main_bartender extends script.base_script
     }
     public boolean npe_main_bartender_condition_onPointerQuest(obj_id player, obj_id npc) throws InterruptedException
     {
+        // Crafting intro at cantina — traders only (not BH)
+        if (npe.hasChosenTrainer(player, "trader"))
+        {
+            return true;
+        }
+        if (npe.hasChosenTrainer(player, "bounty_hunter"))
+        {
+            return false;
+        }
         return npe.allowsProfessionTrainer(player, "npe_pointer_trader_template", "trader")
-            || npe.allowsProfessionTrainer(player, "npe_pointer_artisan", "trader");
+            || (groundquests.isQuestActive(player, "npe_pointer_artisan") && utils.isProfession(player, utils.TRADER));
     }
     public boolean npe_main_bartender_condition_completedAssignment(obj_id player, obj_id npc) throws InterruptedException
     {
@@ -36,16 +45,20 @@ public class npe_main_bartender extends script.base_script
     }
     public boolean npe_main_bartender_condition_ifBHPointed(obj_id player, obj_id npc) throws InterruptedException
     {
-        if (!groundquests.isQuestActive(player, "npe_pointer_artisan"))
-        {
-            return false;
-        }
         if (hasObjVar(player, "npe.finishedTemplate"))
         {
             return false;
         }
-        // Pre-CU with artisan pointer (BH choice) or NGE BH template
-        return npe.allowsProfessionTrainer(player, "npe_pointer_artisan", "bounty_hunter");
+        // Only true BH path — not traders who may visit the cantina later
+        if (npe.hasChosenTrainer(player, "bounty_hunter"))
+        {
+            return true;
+        }
+        if (utils.isProfession(player, utils.BOUNTY_HUNTER) && groundquests.isQuestActive(player, "npe_pointer_artisan"))
+        {
+            return true;
+        }
+        return false;
     }
     public void npe_main_bartender_action_facePlayer(obj_id player, obj_id npc) throws InterruptedException
     {

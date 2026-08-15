@@ -15,7 +15,11 @@ public class npe_profession_trader extends script.base_script
     }
     public boolean npe_profession_trader_condition_onTrainingQuest(obj_id player, obj_id npc) throws InterruptedException
     {
-        return (groundquests.isQuestActive(player, "npe_pointer_artisan") || groundquests.isQuestActive(player, "npe_new_artisan_quest") || groundquests.isQuestActive(player, "npe_prof_artisan1"));
+        return (groundquests.isQuestActive(player, "npe_pointer_trader_template")
+            || groundquests.isQuestActive(player, "npe_pointer_artisan")
+            || groundquests.isQuestActive(player, "npe_new_artisan_quest")
+            || groundquests.isQuestActive(player, "npe_prof_artisan1")
+            || npe.hasChosenTrainer(player, "trader"));
     }
     public boolean npe_profession_trader_condition_onArtisan1task(obj_id player, obj_id npc) throws InterruptedException
     {
@@ -23,8 +27,11 @@ public class npe_profession_trader extends script.base_script
     }
     public boolean npe_profession_trader_condition_isTrader(obj_id player, obj_id npc) throws InterruptedException
     {
-        return npe.allowsProfessionTrainer(player, "npe_pointer_trader_template", "trader")
-            || npe.allowsProfessionTrainer(player, "npe_pointer_artisan", "trader");
+        if (npe.hasChosenTrainer(player, "trader"))
+        {
+            return true;
+        }
+        return npe.allowsProfessionTrainer(player, "npe_pointer_trader_template", "trader");
     }
     public boolean npe_profession_trader_condition_onEntertainer1quest(obj_id player, obj_id npc) throws InterruptedException
     {

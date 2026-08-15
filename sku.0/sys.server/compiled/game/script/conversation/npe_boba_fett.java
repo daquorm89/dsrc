@@ -43,7 +43,8 @@ public class npe_boba_fett extends script.base_script
     }
     public boolean npe_boba_fett_condition_isBHTemplate(obj_id player, obj_id npc) throws InterruptedException
     {
-        return utils.isProfession(player, utils.BOUNTY_HUNTER);
+        return npe.allowsProfessionTrainer(player, "npe_pointer_bounty_template", "bounty_hunter")
+            || npe.hasChosenTrainer(player, "bounty_hunter");
     }
     public void npe_boba_fett_action_giveBHQuest(obj_id player, obj_id npc) throws InterruptedException
     {
