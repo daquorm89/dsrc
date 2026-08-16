@@ -555,16 +555,19 @@ public class xp extends script.base_script
                 xp_type = COMBAT_GRENADE;
                 break;
             case WEAPON_TYPE_WT_1HAND_LIGHTSABER:
-                xp_type = COMBAT_MELEESPECIALIZE_ONEHAND;
+                // Pre-CU: saber kills feed saber XP types, which grantCombatXpPerAttackType
+                // converts to jedi_general when isJedi(player). NGE mapped sabers to
+                // normal melee XP, so Padawans never earned Jedi XP.
+                xp_type = COMBAT_JEDI_ONEHANDLIGHTSABER;
                 break;
             case WEAPON_TYPE_WT_2HAND_LIGHTSABER:
-                xp_type = COMBAT_MELEESPECIALIZE_TWOHAND;
+                xp_type = COMBAT_JEDI_TWOHANDLIGHTSABER;
                 break;
             case WEAPON_TYPE_WT_POLEARM_LIGHTSABER:
-                xp_type = COMBAT_MELEESPECIALIZE_POLEARM;
+                xp_type = COMBAT_JEDI_POLEARMLIGHTSABER;
                 break;
             case combat.WEAPON_TYPE_FORCE_POWER:
-                xp_type = COMBAT_MELEESPECIALIZE_UNARMED;
+                xp_type = COMBAT_JEDI_FORCE_POWER;
                 break;
             default:
                 xp_type = UNKNOWN;
