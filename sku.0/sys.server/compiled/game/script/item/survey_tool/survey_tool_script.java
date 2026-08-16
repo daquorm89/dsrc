@@ -16,6 +16,7 @@ public class survey_tool_script extends script.base_script
     public static final int MIN_SURVEY_TOOL_DELAY = 10;
     public static final int SURVEY_MIND_COST = 0;
     public static final int SAMPLE_MIND_COST = 0;
+    // Legacy NGE level-scaled cost (unused). Core3 uses 124 - (quickness/12.5).
     public static final int SAMPLE_ACTION_COST = 105;
     public static final int MIN_SURVEY_MISSION_DISTANCE = 1024;
     public static final string_id SID_TOOL_OPTIONS = new string_id("sui", "tool_options");
@@ -668,11 +669,21 @@ public class survey_tool_script extends script.base_script
             resource.cleanupTool(player, self);
             return SCRIPT_CONTINUE;
         }
+        // Core3 Pre-CU: actionCost = 124 - (QUICKNESS / 12.5).
+        // NGE attribute set has no Quickness; STAMINA is the Action secondary
+        // (same role as Quickness/Stamina for the Action pool).
         int action = getAttrib(player, ACTION);
-        int actioncost = SAMPLE_ACTION_COST * (getLevel(player) / 2);
+        int stamina = getAttrib(player, STAMINA);
+        int actioncost = 124 - (int)(stamina / 12.5f);
+        if (actioncost < 1)
+        {
+            actioncost = 1;
+        }
         if (!drainAttributes(player, actioncost, 0))
         {
+            // Core3: @error_message:sample_mind — exhausted / must rest
             sendSystemMessage(player, SID_SAMPLE_MIND);
+            utils.removeScriptVar(player, "surveying.outstandingHarvestMessage");
             resource.cleanupTool(player, self);
             queueCommand(player, (-1465754503), player, "No params.", COMMAND_PRIORITY_FRONT);
             return SCRIPT_OVERRIDE;
