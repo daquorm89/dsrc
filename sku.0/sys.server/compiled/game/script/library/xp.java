@@ -1206,6 +1206,12 @@ public class xp extends script.base_script
                 }
                 if (xpType.equals(COMBAT_JEDI_ONEHANDLIGHTSABER) || xpType.equals(COMBAT_JEDI_TWOHANDLIGHTSABER) || xpType.equals(COMBAT_JEDI_POLEARMLIGHTSABER) || xpType.equals(COMBAT_JEDI_FORCE_POWER) || xpType.equals(JEDI_GENERAL)) {
                     if (isJedi(player)) {
+                        // Pre-CU dual grant: bank the named saber / force XP type
+                        // (needed for saber-branch skill boxes) AND fold a share into
+                        // jedi_general for healing / force / master boxes.
+                        if (!xpType.equals(JEDI_GENERAL)) {
+                            totalXpGranted += grantCombatStyleXp(player, xpType, amt);
+                        }
                         jediXp += amt;
                     }
                 } else {
