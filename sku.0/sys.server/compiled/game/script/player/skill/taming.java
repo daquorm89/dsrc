@@ -64,21 +64,17 @@ public class taming extends script.base_script
         // Pre-CU: only babies (ai.pet_advance from makeBaby)
         if (!hasScript(target, "ai.pet_advance"))
         {
-            sendSystemMessageTestingOnly(self, "TAME FAIL: target missing ai.pet_advance (not a baby marker)");
             sendSystemMessage(self, pet_lib.SID_SYS_CANT_TAME);
             return SCRIPT_CONTINUE;
         }
         if (!pet_lib.hasTamingMenuOption(target, self))
         {
-            sendSystemMessageTestingOnly(self, "TAME FAIL: hasTamingMenuOption=false (skill/master/combat/monster/chance)");
             sendSystemMessage(self, pet_lib.SID_SYS_CANT_TAME);
             return SCRIPT_CONTINUE;
         }
         int chance = pet_lib.getChanceToTame(target, self);
-        sendSystemMessageTestingOnly(self, "TAME: chance=" + chance + " name=" + getCreatureName(target));
         if (chance <= 0)
         {
-            sendSystemMessageTestingOnly(self, "TAME FAIL: chance<=0");
             sendSystemMessage(self, pet_lib.SID_SYS_CANT_TAME);
             return SCRIPT_CONTINUE;
         }
