@@ -679,6 +679,63 @@ public class combat extends script.base_script
     // -------------------------------------------------------------------------
     public static final float PRECU_SOFT_SQF_DIVISOR = 1400.0f;
 
+    // -------------------------------------------------------------------------
+    // Pre-CU server PVE incoming damage scale (AI/NPC -> player or player's pet)
+    // NGE creature damage is tuned for multi-k Health; Pre-CU pools are ~1k-1.5k.
+    // Goals (single-player):
+    //   - High-tier enemies: beatable with full skills + high-end gear (solo)
+    //   - Bosses: beatable with player + combat droid + pet (geared)
+    // difficultyClass objvar: 0=NORMAL, 1=ELITE, 2=BOSS (see ai.java / combat_base)
+    // REVERT: remove these constants + getPrecuPveIncomingDamageScale, and the
+    // call site in combat_base.applyDamage.
+    // Tune these floats after in-game smoke tests (raise if too hard, lower if easy).
+    // -------------------------------------------------------------------------
+    public static final float PRECU_PVE_DMG_SCALE_NORMAL = 0.40f;
+    public static final float PRECU_PVE_DMG_SCALE_ELITE = 0.50f;
+    public static final float PRECU_PVE_DMG_SCALE_BOSS = 0.65f;
+
+    public static float getPrecuPveIncomingDamageScale(obj_id attacker, obj_id defender) throws InterruptedException
+    {
+        if (!isIdValid(attacker) || !isIdValid(defender))
+        {
+            return 1.0f;
+        }
+        // Player outgoing damage unchanged (PvE and PvP)
+        if (isPlayer(attacker))
+        {
+            return 1.0f;
+        }
+        // Scale only when the defender is a player or a player-owned pet/droid
+        boolean defenderPlayerSide = isPlayer(defender);
+        if (!defenderPlayerSide)
+        {
+            obj_id master = getMaster(defender);
+            if (isIdValid(master) && isPlayer(master))
+            {
+                defenderPlayerSide = true;
+            }
+        }
+        if (!defenderPlayerSide)
+        {
+            return 1.0f;
+        }
+        int difficultyClass = 0;
+        if (hasObjVar(attacker, "difficultyClass"))
+        {
+            difficultyClass = getIntObjVar(attacker, "difficultyClass");
+        }
+        if (difficultyClass >= 2)
+        {
+            return PRECU_PVE_DMG_SCALE_BOSS;
+        }
+        if (difficultyClass == 1)
+        {
+            return PRECU_PVE_DMG_SCALE_ELITE;
+        }
+        return PRECU_PVE_DMG_SCALE_NORMAL;
+    }
+
+
     public static int getSoftSqfMod(obj_id player, String primaryMod, String fallbackMod) throws InterruptedException
     {
         // Base skill mod + NGE-style "_modified" (food/buffs often grant strength_modified, etc.)
