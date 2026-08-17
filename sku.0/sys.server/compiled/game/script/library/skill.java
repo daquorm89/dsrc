@@ -1112,6 +1112,30 @@ public class skill extends script.base_script
         }
         return professionData.strClassName;
     }
+    // Soft SQF racial skill-mod apply (see PROGRESS.md P6 soft-SQF). Idempotent via objvar.
+    // REVERT with soft SQF cost path if experiment fails.
+    public static void applySoftSqfRacialMod(obj_id player, String modName, int desired, String objVarKey) throws InterruptedException
+    {
+        if (!isIdValid(player) || modName == null || modName.length() == 0 || objVarKey == null)
+        {
+            return;
+        }
+        if (desired < 0)
+        {
+            desired = 0;
+        }
+        int previous = 0;
+        if (hasObjVar(player, objVarKey))
+        {
+            previous = getIntObjVar(player, objVarKey);
+        }
+        int delta = desired - previous;
+        if (delta != 0)
+        {
+            applySkillStatisticModifier(player, modName, delta);
+            setObjVar(player, objVarKey, desired);
+        }
+    }
     public static void recalcPlayerPools(obj_id objPlayer, boolean boolHealEverything) throws InterruptedException
     {
         if (!isPlayer(objPlayer))
@@ -1177,6 +1201,15 @@ public class skill extends script.base_script
                 {
                     racialHealth = dataTableGetInt(RACIAL_MODS, row, "health");
                     racialAction = dataTableGetInt(RACIAL_MODS, row, "action");
+                    // Soft SQF (P6.9): map Pre-CU racial secondaries to skill mods used by
+                    // combat.applySoftSqfCost. Track last applied amounts on objvars so
+                    // recalc does not stack. REVERT: delete this block + objvar keys.
+                    int racialStrength = dataTableGetInt(RACIAL_MODS, row, "strength");
+                    int racialQuickness = dataTableGetInt(RACIAL_MODS, row, "quickness");
+                    int racialFocus = dataTableGetInt(RACIAL_MODS, row, "focus");
+                    applySoftSqfRacialMod(objPlayer, "strength", racialStrength, "precu.soft_sqf.racial_strength");
+                    applySoftSqfRacialMod(objPlayer, "quickness", racialQuickness, "precu.soft_sqf.racial_quickness");
+                    applySoftSqfRacialMod(objPlayer, "focus", racialFocus, "precu.soft_sqf.racial_focus");
                 }
             }
             catch (Exception e)
