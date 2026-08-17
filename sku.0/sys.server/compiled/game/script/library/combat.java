@@ -726,28 +726,9 @@ public class combat extends script.base_script
 
     public static boolean drainCombatActionAttributes(obj_id self, int[] actionCost) throws InterruptedException
     {
-        // Native drainAttributes only drains Action + Mind. Health is manual.
-        if (actionCost[0] > 0)
+        // Action-only drain until multi-pool spend is re-enabled (soft SQF "too tired" fix).
+        if (!(drainAttributes(self, actionCost[1], 0)))
         {
-            int curHealth = getAttrib(self, HEALTH);
-            if (curHealth < actionCost[0])
-            {
-                return false;
-            }
-            setAttrib(self, HEALTH, curHealth - actionCost[0]);
-        }
-        int mindDrain = actionCost[2];
-        if (mindDrain > 0 && getMaxAttrib(self, MIND) <= 0)
-        {
-            mindDrain = 0;
-        }
-        if (!(drainAttributes(self, actionCost[1], mindDrain)))
-        {
-            // Roll back health if Action/Mind drain failed after Health was taken
-            if (actionCost[0] > 0)
-            {
-                setAttrib(self, HEALTH, getAttrib(self, HEALTH) + actionCost[0]);
-            }
             return false;
         }
         return true;
@@ -764,23 +745,10 @@ public class combat extends script.base_script
     }
     public static boolean canDrainCombatActionAttributes(obj_id self, int[] actionCost) throws InterruptedException
     {
-        if (actionCost[0] > 0)
-        {
-            if (testDrainAttribute(self, HEALTH, actionCost[0]) < 0)
-            {
-                return false;
-            }
-        }
+        // Action-only gate until multi-pool spend is re-enabled (soft SQF "too tired" fix).
         if (actionCost[1] > 0)
         {
             if (testDrainAttribute(self, ACTION, actionCost[1]) < 0)
-            {
-                return false;
-            }
-        }
-        if (actionCost[2] > 0 && getMaxAttrib(self, MIND) > 0)
-        {
-            if (testDrainAttribute(self, MIND, actionCost[2]) < 0)
             {
                 return false;
             }
@@ -965,13 +933,13 @@ public class combat extends script.base_script
                 sendCombatSpamMessageProse(self, burnBuffOwner, pp, true, true, true, COMBAT_RESULT_DEBUFF);
             }
         }
-        // Pre-CU soft SQF cost reduction (skill mods; not real 9-stat attributes)
-        healthCost = applySoftSqfCost(healthCost, getSoftSqfMod(self, "strength", null));
+        // Soft SQF reduces Action cost only. Health/Mind table costs are NOT spent yet:
+        // NGE pool sizing left Mind ~0 and multi-pool gates caused universal "too tired".
+        // REVERT to full H/A/M spend when Mind/Health pools are verified in-game.
         actionCost = applySoftSqfCost(actionCost, getSoftSqfMod(self, "quickness", "agility"));
-        mindCost = applySoftSqfCost(mindCost, getSoftSqfMod(self, "focus", null));
-        cost[0] = (int)(healthCost);
+        cost[0] = 0;
         cost[1] = (int)(actionCost);
-        cost[2] = (int)(mindCost);
+        cost[2] = 0;
         return cost;
     }
     public static int[] getActionCost(obj_id self, weapon_data weaponData, combat_data actionData) throws InterruptedException
@@ -1133,14 +1101,12 @@ public class combat extends script.base_script
                 sendCombatSpamMessageProse(self, burnBuffOwner, pp, true, true, true, COMBAT_RESULT_DEBUFF);
             }
         }
-        // Pre-CU soft SQF cost reduction (skill mods; not real 9-stat attributes)
-        healthCost = applySoftSqfCost(healthCost, getSoftSqfMod(self, "strength", null));
+        // Soft SQF reduces Action cost only (see dictionary overload comment).
         actionCost = applySoftSqfCost(actionCost, getSoftSqfMod(self, "quickness", "agility"));
-        mindCost = applySoftSqfCost(mindCost, getSoftSqfMod(self, "focus", null));
-        cost[0] = (int)(healthCost);
+        cost[0] = 0;
         cost[1] = (int)(actionCost);
-        cost[2] = (int)(mindCost);
-        combatLog(self, null, "getActionCost", "Final HAM cost = [" + cost[0] + ", " + cost[1] + ", " + cost[2] + "]");
+        cost[2] = 0;
+        combatLog(self, null, "getActionCost", "Final Action cost (soft SQF) = [" + cost[0] + ", " + cost[1] + ", " + cost[2] + "]");
         return cost;
     }
     public static int getForceCost(obj_id self, weapon_data weaponData, dictionary actionData) throws InterruptedException
