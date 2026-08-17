@@ -5,7 +5,7 @@ itemsPerContainer = 25
 //
 
 
-craftedObjectTemplate = "object/tangible/component/bio/bio_component_food_flavor.iff"
+craftedObjectTemplate = "object/tangible/component/bio/bio_component_food_light_flavor.iff"
 slots = [
 	[
 	optional=false,

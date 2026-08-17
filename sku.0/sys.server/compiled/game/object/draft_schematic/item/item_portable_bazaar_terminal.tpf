@@ -4,7 +4,7 @@
 itemsPerContainer = 25
 
 category = CT_misc
-craftedObjectTemplate = "item_portable_bazaar_terminal"
+craftedObjectTemplate = "object/tangible/terminal/portable_bazaar_terminal.iff"
 
 slots = [
 	[

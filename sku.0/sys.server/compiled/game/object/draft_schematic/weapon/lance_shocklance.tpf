@@ -4,7 +4,7 @@
 
 category = CT_weapon
 itemsPerContainer = 0
-craftedObjectTemplate = "object/weapon/melee/polearm/lance_shocklance.iff"
+craftedObjectTemplate = "object/weapon/melee/polearm/lance_shock.iff"
 slots = [
 	[
 	optional=false,

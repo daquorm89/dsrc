@@ -3,7 +3,7 @@
 
 category = CT_armor
 itemsPerContainer = 0
-craftedObjectTemplate = "object/tangible/wearables/armor/infiltrator/armor_mandalorian_bracer_r.iff"
+craftedObjectTemplate = "object/tangible/wearables/armor/infiltrator/armor_infiltrator_s01_bracer_r.iff"
 slots = [
 	[
 	optional=false,

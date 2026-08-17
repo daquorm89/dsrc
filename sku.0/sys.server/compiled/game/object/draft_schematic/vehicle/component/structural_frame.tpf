@@ -4,7 +4,7 @@
 // skills used: inventor/basic general component design
 //
 itemsPerContainer = 50
-craftedObjectTemplate = "object/tangible/component/vehicle/vehicle_structre_frame.iff"
+craftedObjectTemplate = "object/tangible/component/vehicle/vehicle_structure_frame.iff"
 slots = [
 	[
 	optional=false,

@@ -4,7 +4,7 @@
 // skills used: inventor/basic general component design
 //
 itemsPerContainer = 50
-craftedObjectTemplate = "object/tangible/component/vehicle/armor_panel_kinetic.iff"
+craftedObjectTemplate = "object/tangible/component/vehicle/armor_panel_kenetic.iff"
 slots = [
 	[
 	optional=false,
