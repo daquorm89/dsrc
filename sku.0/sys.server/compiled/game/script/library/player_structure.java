@@ -1365,32 +1365,10 @@ public class player_structure extends script.base_script
     }
     public static int getMaintenanceRate(obj_id structure) throws InterruptedException
     {
-        if (getIntObjVar(structure, VAR_CIVIC) == 1)
-        {
-            return 0;
-        }
-        int maint = getBaseMaintenanceRate(structure);
-        float merchant_mod = getMaintenanceMerchantMod(structure);
-        if (merchant_mod != 0.0f)
-        {
-            maint = Math.round(maint * (1.0f + merchant_mod));
-        }
-        float factory_mod = getMaintenanceFactoryMod(structure);
-        if (factory_mod != 0.0f)
-        {
-            maint -= Math.round(maint * (factory_mod / 100.0f));
-        }
-        float harvester_mod = getMaintenanceHarvesterMod(structure);
-        if (harvester_mod != 0.0f)
-        {
-            maint -= Math.round(maint * (harvester_mod / 100.0f));
-        }
-        int tax = getMaintenancePropertyTax(structure);
-        if (tax > 0)
-        {
-            maint += tax;
-        }
-        return maint;
+        // Pre-CU server policy: structure maintenance is free for all buildings.
+        // Base rates remain in datatables/structure/player_structure.tab (MAINT_RATE)
+        // for reference / future restore. REVERT = restore original getMaintenanceRate body.
+        return 0;
     }
     public static int getBaseMaintenanceRate(obj_id structure) throws InterruptedException
     {
