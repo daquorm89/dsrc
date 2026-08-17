@@ -4,7 +4,7 @@
 
 category = CT_weapon
 itemsPerContainer = 25
-craftedObjectTemplate = "object/weapon/ranged/rifle/rifle_odararissl.tpf"
+craftedObjectTemplate = "object/weapon/ranged/rifle/rifle_odararissl.iff"
 slots = [
 	[
 	optional=false,
