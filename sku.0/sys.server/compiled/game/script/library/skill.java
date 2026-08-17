@@ -1157,6 +1157,7 @@ public class skill extends script.base_script
         String strProfession = getProfessionName(getSkillTemplate(objPlayer));
         int intBaseHealth;
         int intBaseAction;
+        int intBaseMind = 0;
         if (strProfession != null && strProfession.length() > 0)
         {
             player_levels.level_data stats = player_levels.getPlayerLevelData(strProfession, intLevel);
@@ -1167,6 +1168,9 @@ public class skill extends script.base_script
             }
             intBaseHealth = stats.health;
             intBaseAction = stats.action;
+            // NGE level tables do not size Mind; keep a usable Pre-CU-ish Mind pool
+            // so soft-SQF mindCost specials do not always fail as "too tired".
+            intBaseMind = 1000;
         }
         else
         {
@@ -1177,9 +1181,11 @@ public class skill extends script.base_script
             // combat level is intentionally ignored for pools.
             intBaseHealth = 1000;
             intBaseAction = 800;
-            // Apply Pre-CU racial Health/Action mods from creation racial_mods.tab
+            intBaseMind = 1000;
+            // Apply Pre-CU racial Health/Action/Mind mods from creation racial_mods.tab
             int racialHealth = 0;
             int racialAction = 0;
+            int racialMind = 0;
             try
             {
                 int speciesId = getSpecies(objPlayer);
@@ -1201,6 +1207,7 @@ public class skill extends script.base_script
                 {
                     racialHealth = dataTableGetInt(RACIAL_MODS, row, "health");
                     racialAction = dataTableGetInt(RACIAL_MODS, row, "action");
+                    racialMind = dataTableGetInt(RACIAL_MODS, row, "mind");
                     // Soft SQF (P6.9): map Pre-CU racial secondaries to skill mods used by
                     // combat.applySoftSqfCost. Track last applied amounts on objvars so
                     // recalc does not stack. REVERT: delete this block + objvar keys.
@@ -1218,17 +1225,27 @@ public class skill extends script.base_script
             }
             intBaseHealth += racialHealth;
             intBaseAction += racialAction;
+            intBaseMind += racialMind;
         }
         int intConstitution = getSkillStatisticModifier(objPlayer, "constitution");
         int intStamina = getSkillStatisticModifier(objPlayer, "stamina");
+        int intWillpower = getSkillStatisticModifier(objPlayer, "willpower");
         intConstitution += getEnhancedSkillStatisticModifierUncapped(objPlayer, "constitution_modified");
         intStamina += getEnhancedSkillStatisticModifierUncapped(objPlayer, "stamina_modified");
+        intWillpower += getEnhancedSkillStatisticModifierUncapped(objPlayer, "willpower_modified");
         intBaseHealth = intBaseHealth + (HEALTH_POINTS_PER_CONSTITUTION * intConstitution);
         intBaseHealth = intBaseHealth + (HEALTH_POINTS_PER_STAMINA * intStamina);
         intBaseAction = intBaseAction + (ACTION_POINTS_PER_STAMINA * intStamina);
         intBaseAction = intBaseAction + (ACTION_POINTS_PER_CONSTITUTION * intConstitution);
+        // Mind: Pre-CU soft-SQF uses mindCost; size from base + willpower (NGE secondary).
+        if (intBaseMind <= 0)
+        {
+            intBaseMind = 1000;
+        }
+        intBaseMind = intBaseMind + (ACTION_POINTS_PER_STAMINA * intWillpower);
         setMaxAttrib(objPlayer, ACTION, intBaseAction);
         setMaxAttrib(objPlayer, HEALTH, intBaseHealth);
+        setMaxAttrib(objPlayer, MIND, intBaseMind);
         int[] myBuffs = buff.getAllBuffs(objPlayer);
         String thisBuffEffect;
         for (int myBuff : myBuffs) {
@@ -1243,6 +1260,7 @@ public class skill extends script.base_script
         {
             setAttrib(objPlayer, ACTION, getMaxAttrib(objPlayer, ACTION));
             setAttrib(objPlayer, HEALTH, getMaxAttrib(objPlayer, HEALTH));
+            setAttrib(objPlayer, MIND, getMaxAttrib(objPlayer, MIND));
         }
     }
     public static void grantAllPoliticianSkills(obj_id player) throws InterruptedException

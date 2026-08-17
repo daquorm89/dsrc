@@ -736,7 +736,12 @@ public class combat extends script.base_script
             }
             setAttrib(self, HEALTH, curHealth - actionCost[0]);
         }
-        if (!(drainAttributes(self, actionCost[1], actionCost[2])))
+        int mindDrain = actionCost[2];
+        if (mindDrain > 0 && getMaxAttrib(self, MIND) <= 0)
+        {
+            mindDrain = 0;
+        }
+        if (!(drainAttributes(self, actionCost[1], mindDrain)))
         {
             // Roll back health if Action/Mind drain failed after Health was taken
             if (actionCost[0] > 0)
@@ -773,7 +778,7 @@ public class combat extends script.base_script
                 return false;
             }
         }
-        if (actionCost[2] > 0)
+        if (actionCost[2] > 0 && getMaxAttrib(self, MIND) > 0)
         {
             if (testDrainAttribute(self, MIND, actionCost[2]) < 0)
             {
