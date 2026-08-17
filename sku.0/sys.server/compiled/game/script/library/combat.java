@@ -665,10 +665,84 @@ public class combat extends script.base_script
         setAction(self, newAction);
         return true;
     }
+    // -------------------------------------------------------------------------
+    // Pre-CU soft SQF (Strength / Quickness / Focus) — HAM cost approximation
+    // -------------------------------------------------------------------------
+    // NOT true 9-stat engine attributes. Uses skill mods only on the NGE 6-attr
+    // model. Formula (Core3/SWGANH-style): cost *= (1 - mod / 1400), clamped.
+    //   strength  -> Health costs
+    //   quickness -> Action costs (fallback skill mod: agility)
+    //   focus     -> Mind costs
+    // Documented in PROGRESS.md under P6 soft-SQF. Designed to be revertible:
+    // REVERT = restore cost[0]/cost[2]=0, Action-only canDrain/drain, and
+    // remove applySoftSqfCost / getSoftSqfMod / healthCost+mindCost loading.
+    // -------------------------------------------------------------------------
+    public static final float PRECU_SOFT_SQF_DIVISOR = 1400.0f;
+
+    public static int getSoftSqfMod(obj_id player, String primaryMod, String fallbackMod) throws InterruptedException
+    {
+        // Base skill mod + NGE-style "_modified" (food/buffs often grant strength_modified, etc.)
+        int mod = getEnhancedSkillStatisticModifierUncapped(player, primaryMod);
+        mod += getEnhancedSkillStatisticModifierUncapped(player, primaryMod + "_modified");
+        if (mod <= 0 && fallbackMod != null && fallbackMod.length() > 0)
+        {
+            mod = getEnhancedSkillStatisticModifierUncapped(player, fallbackMod);
+            mod += getEnhancedSkillStatisticModifierUncapped(player, fallbackMod + "_modified");
+        }
+        // Armor tax: reuse combat.armor.fireRatePenalty from armor.calculateArmorHinderances
+        // (percent). 1% fire-rate penalty ≈ 10 soft-SQF points lost (Pre-CU-ish "heavy armor").
+        if (utils.hasScriptVar(player, "combat.armor.fireRatePenalty"))
+        {
+            float fireRatePenalty = utils.getFloatScriptVar(player, "combat.armor.fireRatePenalty");
+            if (fireRatePenalty > 0)
+            {
+                mod -= (int)(fireRatePenalty * 10.0f);
+            }
+        }
+        if (mod < 0)
+        {
+            mod = 0;
+        }
+        return mod;
+    }
+
+    public static float applySoftSqfCost(float baseCost, int sqfMod) throws InterruptedException
+    {
+        if (baseCost <= 0)
+        {
+            return 0;
+        }
+        float factor = 1.0f - ((float)sqfMod / PRECU_SOFT_SQF_DIVISOR);
+        if (factor < 0.0f)
+        {
+            factor = 0.0f;
+        }
+        if (factor > 1.0f)
+        {
+            factor = 1.0f;
+        }
+        return baseCost * factor;
+    }
+
     public static boolean drainCombatActionAttributes(obj_id self, int[] actionCost) throws InterruptedException
     {
+        // Native drainAttributes only drains Action + Mind. Health is manual.
+        if (actionCost[0] > 0)
+        {
+            int curHealth = getAttrib(self, HEALTH);
+            if (curHealth < actionCost[0])
+            {
+                return false;
+            }
+            setAttrib(self, HEALTH, curHealth - actionCost[0]);
+        }
         if (!(drainAttributes(self, actionCost[1], actionCost[2])))
         {
+            // Roll back health if Action/Mind drain failed after Health was taken
+            if (actionCost[0] > 0)
+            {
+                setAttrib(self, HEALTH, getAttrib(self, HEALTH) + actionCost[0]);
+            }
             return false;
         }
         return true;
@@ -685,9 +759,23 @@ public class combat extends script.base_script
     }
     public static boolean canDrainCombatActionAttributes(obj_id self, int[] actionCost) throws InterruptedException
     {
+        if (actionCost[0] > 0)
+        {
+            if (testDrainAttribute(self, HEALTH, actionCost[0]) < 0)
+            {
+                return false;
+            }
+        }
         if (actionCost[1] > 0)
         {
             if (testDrainAttribute(self, ACTION, actionCost[1]) < 0)
+            {
+                return false;
+            }
+        }
+        if (actionCost[2] > 0)
+        {
+            if (testDrainAttribute(self, MIND, actionCost[2]) < 0)
             {
                 return false;
             }
@@ -726,10 +814,9 @@ public class combat extends script.base_script
     public static int[] getActionCost(obj_id self, weapon_data weaponData, dictionary actionData) throws InterruptedException
     {
         int[] cost = new int[3];
-        float healthCost = 0;
-        float actionCost;
-        float mindCost;
-        actionCost = actionData.getFloat("actionCost");
+        float healthCost = actionData.getFloat("healthCost");
+        float actionCost = actionData.getFloat("actionCost");
+        float mindCost = actionData.getFloat("mindCost");
         if (isCommandoBonus(self, weaponData, actionData.getInt("commandType")))
         {
             cost[0] = (int)(0);
@@ -873,18 +960,21 @@ public class combat extends script.base_script
                 sendCombatSpamMessageProse(self, burnBuffOwner, pp, true, true, true, COMBAT_RESULT_DEBUFF);
             }
         }
-        cost[0] = (int)(0);
+        // Pre-CU soft SQF cost reduction (skill mods; not real 9-stat attributes)
+        healthCost = applySoftSqfCost(healthCost, getSoftSqfMod(self, "strength", null));
+        actionCost = applySoftSqfCost(actionCost, getSoftSqfMod(self, "quickness", "agility"));
+        mindCost = applySoftSqfCost(mindCost, getSoftSqfMod(self, "focus", null));
+        cost[0] = (int)(healthCost);
         cost[1] = (int)(actionCost);
-        cost[2] = (int)(0);
+        cost[2] = (int)(mindCost);
         return cost;
     }
     public static int[] getActionCost(obj_id self, weapon_data weaponData, combat_data actionData) throws InterruptedException
     {
         int[] cost = new int[3];
-        float healthCost = 0;
-        float actionCost;
-        float mindCost;
-        actionCost = actionData.actionCost;
+        float healthCost = actionData.healthCost;
+        float actionCost = actionData.actionCost;
+        float mindCost = actionData.mindCost;
         if (isCommandoBonus(self, weaponData, actionData.commandType))
         {
             cost[0] = (int)(0);
@@ -1038,10 +1128,14 @@ public class combat extends script.base_script
                 sendCombatSpamMessageProse(self, burnBuffOwner, pp, true, true, true, COMBAT_RESULT_DEBUFF);
             }
         }
-        cost[0] = (int)(0);
+        // Pre-CU soft SQF cost reduction (skill mods; not real 9-stat attributes)
+        healthCost = applySoftSqfCost(healthCost, getSoftSqfMod(self, "strength", null));
+        actionCost = applySoftSqfCost(actionCost, getSoftSqfMod(self, "quickness", "agility"));
+        mindCost = applySoftSqfCost(mindCost, getSoftSqfMod(self, "focus", null));
+        cost[0] = (int)(healthCost);
         cost[1] = (int)(actionCost);
-        cost[2] = (int)(0);
-        combatLog(self, null, "getActionCost", "Final Action cost = [" + cost[0] + ", " + cost[1] + ", " + cost[2] + "]");
+        cost[2] = (int)(mindCost);
+        combatLog(self, null, "getActionCost", "Final HAM cost = [" + cost[0] + ", " + cost[1] + ", " + cost[2] + "]");
         return cost;
     }
     public static int getForceCost(obj_id self, weapon_data weaponData, dictionary actionData) throws InterruptedException

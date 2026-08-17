@@ -114,6 +114,8 @@ public class combat_engine
 			dat.hateAddTime 					= d.getInt("hateAddTime");
 			dat.hateReduce						= d.getInt("hateReduce");
 			dat.actionCost 						= d.getFloat("actionCost");
+			dat.healthCost 						= d.getFloat("healthCost");
+			dat.mindCost 						= d.getFloat("mindCost");
 			dat.vigorCost 						= d.getFloat("vigorCost");
 			dat.scaleByDefenderWeaponSpeed				= d.getFloat("scaleByDefenderWeaponSpeed");
 			dat.dotType 						= d.getString("dotType");
@@ -222,6 +224,8 @@ public class combat_engine
 			dict.put("hateAddTime", actionData.hateAddTime);
 			dict.put("hateReduce", actionData.hateReduce);
 			dict.put("actionCost", actionData.actionCost);
+			dict.put("healthCost", actionData.healthCost);
+			dict.put("mindCost", actionData.mindCost);
 			dict.put("vigorCost", actionData.vigorCost);
 			dict.put("scaleByDefenderWeaponSpeed", actionData.scaleByDefenderWeaponSpeed);
 			dict.put("dotType", actionData.dotType);
@@ -322,6 +326,8 @@ public class combat_engine
 				dat.hateAddTime 					= dict.getInt("hateAddTime");
 				dat.hateReduce						= dict.getInt("hateReduce");
 				dat.actionCost 						= dict.getFloat("actionCost");
+				dat.healthCost 						= dict.getFloat("healthCost");
+				dat.mindCost 						= dict.getFloat("mindCost");
 				dat.vigorCost 						= dict.getFloat("vigorCost");
 				dat.scaleByDefenderWeaponSpeed		= dict.getFloat("scaleByDefenderWeaponSpeed");
 				dat.dotType 						= dict.getString("dotType");
@@ -440,6 +446,9 @@ public class combat_engine
 			public int 		hateAddTime 					= 0;
 			public int		hateReduce						= 0;
 			public float	actionCost 						= 0;
+			// Pre-CU soft SQF: loaded from combat_data.tab (see PROGRESS.md P6 soft-SQF)
+			public float	healthCost 						= 0;
+			public float	mindCost 						= 0;
 			public float 	vigorCost						= 0;
 			public float	scaleByDefenderWeaponSpeed				= 0;
 			public String 	dotType 						= "";

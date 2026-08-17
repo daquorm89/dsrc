@@ -119,21 +119,21 @@ armorHinderanceMove	armorMove			1	buffs.armorHinderance	1		0		0		0		0		0	STATE_N
 armorHinderanceAccuracy	armorAcc			1	buffs.armorHinderance	1		0		0		0		0		0	STATE_NONE	none			1	1		0	1	1	0	1	1	0	1	1	1
 armorHinderanceFireRate	armorRof			1	buffs.armorHinderance	1		0		0		0		0		0	STATE_NONE	none			1	1		0	1	1	0	1	1	0	1	1	1
 weaponHinderance	weapon			1	buffs.weaponHinderance	-1	movement	0		0		0		0		0	STATE_NONE	none			1	1		0	1	1	0	1	1	0	1	1	1
-dessert_bofa_treat	food			1	buffs.foodDessert	1200	strength_modified	5	constitution_modified	5		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
+dessert_bofa_treat	food			1	buffs.foodDessert	1200	strength_modified	5	constitution_modified	5	focus_modified	10		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dish_travel_biscuits	food			1	buffs.foodMeal	1200	agility_modified	20	movement	15		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_spiced_tea	food			1	buffs.foodBeverage	1200	precision_modified	10	constitution_modified	10		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dessert_blob_candy	food			1	buffs.foodDessert	1200	stamina_modified	10		0		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dish_exo_protein_wafers	food			1	buffs.foodMeal	1200	stamina_modified	5	luck_modified	5		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_aitha	food			1	buffs.foodBeverage	1200	luck_modified	35		0		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dish_crispic	food			1	buffs.foodMeal	1200	precision_modified	20	stamina_modified	15		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
-drink_caf	food			1	buffs.foodBeverage	1200	strength_modified	10	constitution_modified	10		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
+drink_caf	food			1	buffs.foodBeverage	1200	strength_modified	10	constitution_modified	10	quickness_modified	15		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dessert_pkneb	food			1	buffs.foodDessert	1200	strength_modified	5	precision_modified	3		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dish_kanali_wafers	food			1	buffs.foodMeal	1200	constitution_modified	20		0		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_ruby_bliel	food			1	buffs.foodBeverage	1200	agility_modified	5	stamina_modified	5		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_jawa_beer	food			1	buffs.foodBeverage	1200	agility_modified	5	luck_modified	3		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_starshine_surprise	food			1	buffs.foodBeverage	1200	milk_quantity_modified	1	milk_exceptional_modified	5	milk_stun_modified	25		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dish_teltier_noodles	food			1	buffs.foodMeal	1200	luck_modified	15	constitution_modified	15		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
-dessert_air_cake	food			1	buffs.foodDessert	1200	strength_modified	10	precision_modified	5		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
+dessert_air_cake	food			1	buffs.foodDessert	1200	strength_modified	10	precision_modified	5	focus_modified	15		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dessert_almond_kwevvu_crisp_munchies	food			1	buffs.foodDessert	1200	agility_modified	10	stamina_modified	10		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dessert_blap_biscuit	food			1	buffs.foodDessert	1200	luck_modified	30	stamina_modified	20		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dish_synthsteak	food			1	buffs.foodMeat	1200	luck_modified	30	constitution_modified	20		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
@@ -143,7 +143,7 @@ dish_veghash	food			1	buffs.foodVegetable	1200	creature_harvesting	15		0		0		0		
 dish_karkan_ribenes	food			1	buffs.foodMeat	1200	agility_modified	40		0		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dish_trimpian	food			1	buffs.foodMeal	1200	expertise_healing_all	5	constitution_modified	40		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dish_ormachek	food			1	buffs.foodMeal	1200	precision_modified	50	stamina_modified	30		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
-dish_havla	food			1	buffs.foodVegetable	1200	strength_modified	50	stamina_modified	40		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
+dish_havla	food			1	buffs.foodVegetable	1200	strength_modified	50	stamina_modified	40	focus_modified	25		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dish_gruuvan_shaal	food			1	buffs.foodMeal	1200	precision_modified	80		0		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dish_scrimpi	food			1	buffs.foodMeat	1200	expertise_healing_all	5	stamina_modified	40		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dish_ahrisa	food			1	buffs.foodMeal	180	absorption_poison	10	resistance_poison	3		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
@@ -167,14 +167,14 @@ dessert_sweesonberry_rolls	food			1	buffs.foodDessert	1200	luck_modified	50	cons
 dessert_smugglers_delight	food			1	buffs.foodDessert	1200	resistance_spice_downer	2		0		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_gralinyn_juice	food			1	buffs.foodBeverage	1200	stamina_modified	40		0		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_deuterium_pyro	food			1	buffs.foodBeverage	1200	precision_modified	30	stamina_modified	20		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
-drink_corellian_ale	food			1	buffs.foodBeverage	1200	strength_modified	30	stamina_modified	25		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
+drink_corellian_ale	food			1	buffs.foodBeverage	1200	strength_modified	30	stamina_modified	25	quickness_modified	20		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_blue_milk	food			1	buffs.foodBeverage	1200	stamina_modified	10	constitution_modified	10		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_durindfire	food			1	buffs.foodBeverage	1200	stamina_modified	30	constitution_modified	15		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_veronian_berry_wine	food			1	buffs.foodBeverage	180	absorption_bleeding	10	resistance_bleeding	3		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_ithorian_mist	food			1	buffs.foodBeverage	180	absorption_fire	10	resistance_fire	3		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_corellian_brandy	food			1	buffs.foodBeverage	1200	strength_modified	30	constitution_modified	25		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_tssolok	food			1	buffs.foodBeverage	1200	precision_modified	50	constitution_modified	30		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
-drink_vasarian_brandy	food			1	buffs.foodBeverage	1200	strength_modified	50	constitution_modified	40		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
+drink_vasarian_brandy	food			1	buffs.foodBeverage	1200	strength_modified	50	constitution_modified	40	focus_modified	20		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_accarragm	food			1	buffs.foodBeverage	1200	agility_modified	80	movement	27		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_garrmorl	food			1	buffs.foodBeverage	1200	constitution_modified	40	strength_modified	15	precision_modified	15		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_vayerbok	food			1	buffs.foodBeverage	1200	agility_modified	80	stamina_modified	40		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
@@ -182,12 +182,12 @@ drink_bespin_port	food			1	buffs.foodBeverage	1200	script_var	10		0		0		0		0	STA
 drink_elshandruu_pica_thundercloud	food			1	buffs.foodBeverage	1200	agility_modified	70	constitution_modified	15	stamina_modified	15		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_breath_of_heaven	food			1	buffs.foodBeverage	1200	constitution_modified	80	expertise_dodge	3		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 drink_flameout	food			1	buffs.foodBeverage	1200	agility_modified	80	expertise_strikethrough_chance	3	combat_strikethrough_value	30		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
-drink_mandalorian_wine	food			1	buffs.foodBeverage	1200	strength_modified	80	constitution_modified	40		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
+drink_mandalorian_wine	food			1	buffs.foodBeverage	1200	strength_modified	80	constitution_modified	40	quickness_modified	30		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dish_thakitillo	food			1	buffs.foodMeal	1200	stamina_modified	80	expertise_parry	3		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dish_vercupti_of_agazza_boleruuee	food			1	buffs.foodMeal	1200	precision_modified	80	expertise_evasion_chance	3	combat_evasion_value	30		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dessert_deneelian_fizz_pudding	food			1	buffs.foodDessert	1200	luck_modified	80	expertise_block_chance	3	combat_block_value	30		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 dessert_luilris_mushroom_pie	food			1	buffs.foodDessert	1200	constitution_modified	100	stamina_modified	100		0		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
-drink_warrl_surprise	food			1	buffs.foodBeverage	900	agility_modified	55	strength_modified	20	constitution_modified	20		0		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
+drink_warrl_surprise	food			1	buffs.foodBeverage	900	agility_modified	55	strength_modified	20	constitution_modified	20	quickness_modified	25		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 tasty_beverage	food			1	buffs.foodBeverage	120	constitution_modified	5	agility_modified	5	stamina_modified	5	luck_modified	5		0	STATE_NONE	none			1	0		1	1	1	0	1	1	0	1	1	1
 shadowpaw	spice			1	buffs.spiceAction	300	agility_modified	-25	stamina_modified	50		0		0		0	STATE_NONE	handleSpiceDownerEffect			1	0		1	1	1	0	1	1	0	1	1	1
 shadowpaw_01	spice			1	buffs.spiceAction	900	agility_modified	-25	stamina_modified	50		0		0		0	STATE_NONE	handleSpiceDownerEffect			1	0		0	1	1	0	1	1	0	1	1	1
