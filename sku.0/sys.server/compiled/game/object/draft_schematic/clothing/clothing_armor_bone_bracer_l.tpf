@@ -4,7 +4,7 @@
 itemsPerContainer = 25
 //
 
-craftedObjectTemplate = "object/tangible/wearables/armor/bone/gp_armor_bone_bracer_l.iff"
+craftedObjectTemplate = "object/tangible/wearables/armor/bone/armor_bone_s01_bracer_l.iff"
 
 slots = [
 	[
