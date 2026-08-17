@@ -681,10 +681,23 @@ public class combat extends script.base_script
 
     public static int getSoftSqfMod(obj_id player, String primaryMod, String fallbackMod) throws InterruptedException
     {
+        // Base skill mod + NGE-style "_modified" (food/buffs often grant strength_modified, etc.)
         int mod = getEnhancedSkillStatisticModifierUncapped(player, primaryMod);
+        mod += getEnhancedSkillStatisticModifierUncapped(player, primaryMod + "_modified");
         if (mod <= 0 && fallbackMod != null && fallbackMod.length() > 0)
         {
             mod = getEnhancedSkillStatisticModifierUncapped(player, fallbackMod);
+            mod += getEnhancedSkillStatisticModifierUncapped(player, fallbackMod + "_modified");
+        }
+        // Armor tax: reuse combat.armor.fireRatePenalty from armor.calculateArmorHinderances
+        // (percent). 1% fire-rate penalty ≈ 10 soft-SQF points lost (Pre-CU-ish "heavy armor").
+        if (utils.hasScriptVar(player, "combat.armor.fireRatePenalty"))
+        {
+            float fireRatePenalty = utils.getFloatScriptVar(player, "combat.armor.fireRatePenalty");
+            if (fireRatePenalty > 0)
+            {
+                mod -= (int)(fireRatePenalty * 10.0f);
+            }
         }
         if (mod < 0)
         {
