@@ -1180,8 +1180,7 @@ public class pet extends script.base_script
             // Pre-CU single-player: pack pet after incap timeout instead of permanent death.
             // Master can Call again; no pet.isDead brick on the PCD.
             // REVERT: handleFlagDeadCreature + reallyKill(self).
-            obj_id master = getMaster(self);
-            if (isIdValid(master) && master.isLoaded())
+            if (master.isLoaded())
             {
                 pet_lib.storePet(self, master);
             }
