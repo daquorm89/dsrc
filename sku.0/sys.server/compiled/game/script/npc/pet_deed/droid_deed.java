@@ -710,8 +710,11 @@ public class droid_deed extends script.base_script
         {
             String creatureName = getStringObjVar(self, "creature_attribs.type");
             int petType = pet_lib.getPetType(creatureName);
+            // Pre-CU: skill characters have low NGE getLevel(); never block generating a
+            // droid control device from a crafted deed by player vs droid level.
+            // REVERT: restore getLevel(player) < droidLevel - MAX_PET_LEVELS_ABOVE_CALLER check.
             int droidLevel = getIntObjVar(self, "creature_attribs.level");
-            if (getLevel(player) < droidLevel - pet_lib.MAX_PET_LEVELS_ABOVE_CALLER)
+            if (false && getLevel(player) < droidLevel - pet_lib.MAX_PET_LEVELS_ABOVE_CALLER)
             {
                 sendSystemMessage(player, pet_lib.SID_SYS_CANT_CALL_LEVEL);
                 return SCRIPT_CONTINUE;

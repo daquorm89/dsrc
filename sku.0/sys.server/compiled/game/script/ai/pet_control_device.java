@@ -1967,6 +1967,13 @@ public class pet_control_device extends script.base_script
         {
             return true;
         }
+        // Pre-CU: droids skip hard stat caps + bio level validation (high combat
+        // modules exceed NGE MAX_DAM_VALUE and block Call).
+        int ptype = hasObjVar(pcd, "ai.pet.type") ? getIntObjVar(pcd, "ai.pet.type") : -1;
+        if (ptype == pet_lib.PET_TYPE_DROID)
+        {
+            return true;
+        }
         final int MAX_HAM_VALUE = 20000;
         final int MAX_HIT_VALUE = 500;
         final int MAX_DAM_VALUE = 1500;
@@ -1975,16 +1982,9 @@ public class pet_control_device extends script.base_script
             sendSystemMessage(player, pet_lib.SID_INVALID_CRAFTED_PET);
             return false;
         }
-        // Pre-CU: skip NGE bio-engineer level/stat validation for droids (and all
-        // crafted pets if needed). Broken-pet SUI blocked high-level crafted droids.
-        // REVERT: always call validatePcdLevel.
-        int ptype = hasObjVar(pcd, "ai.pet.type") ? getIntObjVar(pcd, "ai.pet.type") : -1;
-        if (ptype != pet_lib.PET_TYPE_DROID)
+        if (!bio_engineer.validatePcdLevel(pcd, player))
         {
-            if (!bio_engineer.validatePcdLevel(pcd, player))
-            {
-                return false;
-            }
+            return false;
         }
         return true;
     }
