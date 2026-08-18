@@ -333,7 +333,13 @@ public class pet_control_device extends script.base_script
                 return SCRIPT_CONTINUE;
             }
             int petLevel = getLevelFromPetControlDevice(self);
-            if (getLevel(player) < petLevel - pet_lib.MAX_PET_LEVELS_ABOVE_CALLER && !pet_lib.isMountPcd(self))
+            // Pre-CU / skill characters: NGE player level is not meaningful. Do not
+            // block calling crafted droids by getLevel(player) vs droid level.
+            // Creature pets still use the +5 level gate. Mounts already exempt.
+            // REVERT: restore the single if without the PET_TYPE_DROID skip.
+            if (petType != pet_lib.PET_TYPE_DROID
+                && getLevel(player) < petLevel - pet_lib.MAX_PET_LEVELS_ABOVE_CALLER
+                && !pet_lib.isMountPcd(self))
             {
                 sendSystemMessage(player, pet_lib.SID_SYS_CANT_CALL_LEVEL);
                 return SCRIPT_CONTINUE;
