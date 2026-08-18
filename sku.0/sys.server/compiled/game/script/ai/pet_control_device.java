@@ -1890,19 +1890,23 @@ public class pet_control_device extends script.base_script
     }
     public int handleFlagDeadCreature(obj_id self, dictionary params) throws InterruptedException
     {
-        setObjVar(self, "pet.isDead", true);
+        // Pre-CU single-player: never permanently brick a pet control device.
+        // Death/incap packs the pet; Call restores it. Clear any existing dead flag.
+        // REVERT: setObjVar(self, "pet.isDead", true);
+        if (hasObjVar(self, "pet.isDead"))
+        {
+            removeObjVar(self, "pet.isDead");
+        }
         return SCRIPT_CONTINUE;
     }
     public boolean petIsDead(obj_id petControlDevice, obj_id player, int petType) throws InterruptedException
     {
+        // Pre-CU single-player: pets are never permanently lost.
+        // Clear legacy pet.isDead so Call works after incap/death.
+        // REVERT: restore dead_pet message + return true when flag present.
         if (hasObjVar(petControlDevice, "pet.isDead"))
         {
-            // Pre-CU: dead pets stay dead until revived (vitality heal / CH ability).
-            // The old NGE path cleared pet.isDead for AGGRO/NON_AGGRO/DROID so
-            // they could be re-called for free — that is what made pets "come
-            // back to life" immediately after dying.
-            sendSystemMessage(player, new string_id("pet/pet_menu", "dead_pet"));
-            return true;
+            removeObjVar(petControlDevice, "pet.isDead");
         }
         return false;
     }

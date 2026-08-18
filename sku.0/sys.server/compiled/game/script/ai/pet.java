@@ -1177,13 +1177,18 @@ public class pet extends script.base_script
         }
         if (isIncapacitated(self))
         {
-            // Flag PCD dead so Call is blocked until a revive path clears pet.isDead
-            obj_id petControlDevice = callable.getCallableCD(self);
-            if (isIdValid(petControlDevice))
+            // Pre-CU single-player: pack pet after incap timeout instead of permanent death.
+            // Master can Call again; no pet.isDead brick on the PCD.
+            // REVERT: handleFlagDeadCreature + reallyKill(self).
+            obj_id master = getMaster(self);
+            if (isIdValid(master) && master.isLoaded())
             {
-                messageTo(petControlDevice, "handleFlagDeadCreature", null, 0, false);
+                pet_lib.storePet(self, master);
             }
-            reallyKill(self);
+            else
+            {
+                pet_lib.storePet(self);
+            }
         }
         return SCRIPT_CONTINUE;
     }
