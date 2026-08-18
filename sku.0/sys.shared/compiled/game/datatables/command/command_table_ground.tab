@@ -8,3 +8,12 @@ createVendor		immediate	createVendor						1	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	
 offerRide		immediate	offerRide																									1	1																																						required					1				0										
 acceptRide		immediate	acceptRide																									1	1																																						none					1				0										
 declineRide		immediate	declineRide																									1	1																																						none					1				0										
+pilotShip		front	cmdPilotShip																																																																none				ship				ship											
+unpilotShip		front	cmdLeaveStation																																																									1		0	0	1			none				ship				ship											
+leaveStation		front	cmdLeaveStation																																																									1		1	1	0			none				ship				ship											
+openWings		normal	cmdOpenWings																																																									1							none				ship				ship											
+closeWings		normal	cmdCloseWings																																																									1							none																			
+boosterOn		front			boosterOn																																																								1	0	0	0			none				ship				ship											
+boosterOff		front			boosterOff																																																								1	0	0	0			none				ship				ship											
+escapePod		normal	escapePod																																																									1	0	0	1	1																						
+kickFromShip		normal			kickFromShip																																																							1	0	0	0	1			required				ship				ship											
