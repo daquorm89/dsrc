@@ -2469,6 +2469,23 @@ public class combat_base extends script.base_script
         hitData.damage -= getEnhancedSkillStatisticModifierUncapped(expert, "combat_subtract_damage_dealt");
         hitData.damage += getEnhancedSkillStatisticModifierUncapped(defender, "combat_add_damage_taken");
         hitData.damage -= getEnhancedSkillStatisticModifierUncapped(defender, "combat_subtract_damage_taken");
+        // Pre-CU server: scale AI/NPC damage into player (and owned pets) for Pre-CU HAM pools.
+        // REVERT: delete this block. Tunables: combat.PRECU_PVE_DMG_SCALE_*
+        {
+            float precuPveScale = combat.getPrecuPveIncomingDamageScale(attacker, defender);
+            if (precuPveScale != 1.0f && precuPveScale > 0.0f)
+            {
+                hitData.damage = (int)(hitData.damage * precuPveScale);
+                if (hitData.elementalDamage > 0)
+                {
+                    hitData.elementalDamage = (int)(hitData.elementalDamage * precuPveScale);
+                }
+                if (hitData.damage < 0)
+                {
+                    hitData.damage = 0;
+                }
+            }
+        }
         if (isPlayer(attacker))
         {
             session.logActivity(attacker, isPlayer(defender) ? session.ACTIVITY_PVP : session.ACTIVITY_PVE);
