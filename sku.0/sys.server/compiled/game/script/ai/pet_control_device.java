@@ -333,11 +333,11 @@ public class pet_control_device extends script.base_script
                 return SCRIPT_CONTINUE;
             }
             int petLevel = getLevelFromPetControlDevice(self);
-            // Pre-CU / skill characters: NGE player level is not meaningful. Do not
-            // block calling crafted droids by getLevel(player) vs droid level.
-            // Creature pets still use the +5 level gate. Mounts already exempt.
-            // REVERT: restore the single if without the PET_TYPE_DROID skip.
-            if (petType != pet_lib.PET_TYPE_DROID
+            // Pre-CU single-player: NGE getLevel(player) is not meaningful for skill
+            // characters. Do not block Call for droids OR creature pets by level.
+            // REVERT: restore MAX_PET_LEVELS_ABOVE_CALLER check (optionally droid-only skip).
+            // (Intentionally no level gate here.)
+            if (false
                 && getLevel(player) < petLevel - pet_lib.MAX_PET_LEVELS_ABOVE_CALLER
                 && !pet_lib.isMountPcd(self))
             {
@@ -1975,9 +1975,16 @@ public class pet_control_device extends script.base_script
             sendSystemMessage(player, pet_lib.SID_INVALID_CRAFTED_PET);
             return false;
         }
-        if (!bio_engineer.validatePcdLevel(pcd, player))
+        // Pre-CU: skip NGE bio-engineer level/stat validation for droids (and all
+        // crafted pets if needed). Broken-pet SUI blocked high-level crafted droids.
+        // REVERT: always call validatePcdLevel.
+        int ptype = hasObjVar(pcd, "ai.pet.type") ? getIntObjVar(pcd, "ai.pet.type") : -1;
+        if (ptype != pet_lib.PET_TYPE_DROID)
         {
-            return false;
+            if (!bio_engineer.validatePcdLevel(pcd, player))
+            {
+                return false;
+            }
         }
         return true;
     }

@@ -3708,7 +3708,9 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
         int maxDamage = getIntObjVar(petControlDevice, "creature_attribs.maxDamage");
         if (isIdValid(player) && exists(player))
         {
-            if (level > 60 && !craftinglib.isTrader(player))
+            // Pre-CU: do not clamp crafted droid combat stats to level 60 for non-traders.
+            // REVERT: if (level > 60 && !craftinglib.isTrader(player)) level = 60;
+            if (false && level > 60 && !craftinglib.isTrader(player))
             {
                 level = 60;
             }
@@ -5665,11 +5667,9 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
     }
     public static int getDroidCapLevel(obj_id who, int level) throws InterruptedException
     {
-        if (craftinglib.isTrader(who))
-        {
-            return 90;
-        }
-        return 60;
+        // Pre-CU: no non-trader cap at 60. Skill characters can use full crafted levels.
+        // REVERT: return 60 for non-traders, 90 for traders.
+        return 90;
     }
     public static void initDroidDefaultStats(obj_id deed) throws InterruptedException
     {
