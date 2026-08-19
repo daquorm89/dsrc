@@ -152,6 +152,17 @@ public class droid_deed extends script.base_script
                 return SCRIPT_CONTINUE;
             }
         }
+        if (hasObjVar(self, "module_data.droid_command"))
+        {
+            names[idx] = "pet_stats.droid_command";
+            int value = getIntObjVar(self, "module_data.droid_command");
+            attribs[idx] = "" + value + " (+" + pet_lib.getDroidCommandExtraSlots(self) + " droid slots)";
+            idx++;
+            if (idx >= names.length)
+            {
+                return SCRIPT_CONTINUE;
+            }
+        }
         if (hasObjVar(self, "creature_attribs." + create.MAXATTRIBNAMES[HEALTH]))
         {
             names[idx] = "pet_stats.creature_health";

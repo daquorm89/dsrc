@@ -180,6 +180,17 @@ public class crafting_base_droid extends script.systems.crafting.crafting_base
                             setObjVar(prototype, "module_data.trap_bonus", (int) (itemAttribute.currentValue));
                         }
                         break;
+                    case "droid_command_module":
+                        // Pre-CU: multi-droid command. Quality 1-100 → stored as quality;
+                        // runtime maps to +1..+5 extra droid slots. Direct 1-5 also valid.
+                        {
+                            int cmd = (int) itemAttribute.currentValue;
+                            if (cmd > 0)
+                            {
+                                setObjVar(prototype, "module_data.droid_command", cmd);
+                            }
+                        }
+                        break;
                     case "cmbt_module":
                         tempCombatModule = (int) itemAttribute.currentValue;
                         break;
