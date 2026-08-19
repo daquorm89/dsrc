@@ -153,6 +153,14 @@ public class combat_ship_player extends script.base_script
             }
             if (getObjectInSlot(container, POB_SHIP_PILOT_SLOT_NAME) == self)
             {
+                // P9 atmospheric flight: bailing out of the pilot seat is
+                // only allowed planet-side, and only once the ship has
+                // actually landed -- otherwise this would eject the pilot
+                // in mid-flight. God-mode keeps the existing debug bypass.
+                if (!isGod(self) && (isSpaceScene() || !isShipLanded(container)))
+                {
+                    return SCRIPT_CONTINUE;
+                }
                 unpilotShip(self);
             }
             else if (getObjectInSlot(container, POB_SHIP_OPERATIONS_SLOT_NAME) == self)

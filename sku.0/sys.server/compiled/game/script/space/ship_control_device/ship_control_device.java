@@ -10,6 +10,11 @@ public class ship_control_device extends script.base_script
     }
     public static final string_id RENAME_SHIP = new string_id("sui", "rename_ship");
     public static final string_id PACK_SHIP = new string_id("sui", "pack_ship");
+    // P9 atmospheric flight: reuse the existing "Summon Vehicle" string
+    // (already used by mini_vehicle_terminal.java) for "call ship to me"
+    // rather than adding new, unlocalized text.
+    public static final string_id SID_CALL_SHIP = new string_id("sui", "summon_vehicle");
+    public static final string_id SID_CALL_SHIP_FAILED = new string_id("pet/pet_menu", "failed_to_call_vehicle");
     public static final string_id PROMPT1 = new string_id("sui", "rename_ship_text");
     public static final String[] ignoreRules = new String[]
     {
@@ -77,6 +82,14 @@ public class ship_control_device extends script.base_script
         obj_id objShip = space_transition.getShipFromShipControlDevice(self);
         if (isIdValid(objShip))
         {
+            // P9 atmospheric flight: offer to summon the ship to the
+            // player's location on the ground if it hasn't been placed in
+            // the world yet (still packed inside this control device) and
+            // the current planet allows atmospheric flight.
+            if (!isInWorld(objShip) && !isSpaceScene() && space_utils.isAtmosphericFlightAllowedHere())
+            {
+                mi.addRootMenu(menu_info_types.SERVER_MENU5, SID_CALL_SHIP);
+            }
             gunshipCheck(objShip);
             if (hasObjVar(objShip, player_structure.OBJVAR_STRUCTURE_STORAGE_INCREASE))
             {
@@ -122,6 +135,28 @@ public class ship_control_device extends script.base_script
                     space_crafting.repairDamage(player, objShip, 1.0f);
                 }
             }
+        }
+        if (item == menu_info_types.SERVER_MENU5)
+        {
+            // P9 atmospheric flight: call the ship to the player's current
+            // location on the ground.
+            obj_id objShip = space_transition.getShipFromShipControlDevice(self);
+            if (!isIdValid(objShip) || isInWorld(objShip) || isSpaceScene() || !space_utils.isAtmosphericFlightAllowedHere())
+            {
+                return SCRIPT_CONTINUE;
+            }
+            if (getIntObjVar(self, IN_USE_OBJVAR) == 1)
+            {
+                return SCRIPT_CONTINUE;
+            }
+            setObjVar(self, IN_USE_OBJVAR, 1);
+            boolean success = space_transition.unpackShipForPlayer(player, objShip);
+            removeObjVar(self, IN_USE_OBJVAR);
+            if (!success)
+            {
+                sendSystemMessage(player, SID_CALL_SHIP_FAILED);
+            }
+            return SCRIPT_CONTINUE;
         }
         if (item == menu_info_types.SERVER_MENU1)
         {
