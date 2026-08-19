@@ -154,7 +154,8 @@ public class ship_control_device extends script.base_script
                 return SCRIPT_CONTINUE;
             }
             setObjVar(self, IN_USE_OBJVAR, 1);
-            boolean success = space_transition.unpackShipForPlayer(player, objShip);
+            // P9: place only — do not auto-pilot. Player boards via radial on the ship.
+            boolean success = space_transition.placeShipInWorldForPlayer(player, objShip);
             removeObjVar(self, IN_USE_OBJVAR);
             if (!success)
             {

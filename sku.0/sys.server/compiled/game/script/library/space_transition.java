@@ -565,6 +565,69 @@ public class space_transition extends script.base_script
             setName(ship, getName(player) + " (" + strName + ")");
         }
     }
+    // P9 atmospheric flight: place the ship in the world at the player's
+    // location WITHOUT auto-piloting. The player boards later via radial
+    // on the ship object (combat_ship). Space launch still uses
+    // unpackShipForPlayer which pilots immediately.
+    public static boolean placeShipInWorldForPlayer(obj_id player, obj_id ship) throws InterruptedException
+    {
+        obj_id shipControlDevice = getContainedBy(ship);
+        if (!isIdValid(shipControlDevice) || !isIdValid(ship) || !isIdValid(player))
+        {
+            return false;
+        }
+        // already out in the world?
+        if (getContainedBy(ship) != shipControlDevice)
+        {
+            return isInWorld(ship);
+        }
+        setShipName(ship, player, shipControlDevice);
+        location playerLoc = getLocation(player);
+        setLocation(ship, playerLoc);
+        if (!isSpaceScene())
+        {
+            setShipLanded(ship, true);
+        }
+        setObjVar(shipControlDevice, "ship", ship);
+        setObjVar(ship, "shipControlDevice", shipControlDevice);
+        updateShipFaction(ship, player);
+        doAIImmunityCheck(ship);
+        // Flight droid: create next to ship / in pilot slot object without seating the player
+        obj_id droidControlDevice = getDroidControlDeviceForShip(ship);
+        if (isIdValid(droidControlDevice))
+        {
+            obj_id objDroid = callable.getCDCallable(droidControlDevice);
+            if (isIdValid(objDroid))
+            {
+                space_combat.removeFlightDroidFromShip(droidControlDevice, objDroid);
+            }
+            obj_id pilotSlotObject = findPilotSlotObjectForShip(player, ship);
+            if (isIdValid(pilotSlotObject))
+            {
+                space_combat.createFlightDroidFromData(droidControlDevice, pilotSlotObject);
+                objDroid = callable.getCDCallable(droidControlDevice);
+                if (isIdValid(objDroid))
+                {
+                    setAnimationMood(objDroid, "ship");
+                }
+                utils.setLocalVar(ship, "droidPcdId", droidControlDevice);
+            }
+        }
+        obj_id[] shipContents = trial.getAllObjectsInDungeon(ship);
+        if (shipContents != null && shipContents.length > 0)
+        {
+            for (obj_id shipContent : shipContents)
+            {
+                if (isIdValid(shipContent))
+                {
+                    messageTo(shipContent, "OnShipUnpack", null, 1.0f, false);
+                }
+            }
+        }
+        // After setLocation the ship is no longer contained by the SCD.
+        return getContainedBy(ship) != shipControlDevice;
+    }
+
     public static boolean unpackShipForPlayer(obj_id player, obj_id ship) throws InterruptedException
     {
         obj_id shipControlDevice = getContainedBy(ship);
