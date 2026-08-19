@@ -509,8 +509,15 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
     }
     public static boolean hasMaxPets(obj_id master, int petType, obj_id pet) throws InterruptedException
     {
+        // Pre-CU: creature pets use COMBAT_PET slot; droids use COMBAT_OTHER so
+        // one pet + one droid can both be out (not two of either).
+        // REVERT: droids also used CALLABLE_TYPE_COMBAT_PET.
         int callableType = callable.CALLABLE_TYPE_COMBAT_PET;
-        if (petType == PET_TYPE_FAMILIAR)
+        if (petType == PET_TYPE_DROID)
+        {
+            callableType = callable.CALLABLE_TYPE_COMBAT_OTHER;
+        }
+        else if (petType == PET_TYPE_FAMILIAR)
         {
             callableType = callable.CALLABLE_TYPE_FAMILIAR;
         }
