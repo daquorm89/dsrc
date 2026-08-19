@@ -1804,17 +1804,28 @@ public class xp extends script.base_script
     }
     public static int grantUnmodifiedXPPercentageOfLevel(obj_id player, float percentage) throws InterruptedException
     {
+        // Pre-CU: never block at NGE level 90; clamp table lookup so XP still grants.
+        // REVERT: if (playerLevel < 90) { ... } return 0;
         int playerLevel = getLevel(player);
-        if (playerLevel < 90)
+        if (playerLevel < 1)
         {
-            int xpForCurrentLevel = dataTableGetInt(xp.TBL_PLAYER_LEVEL_XP, playerLevel - 1, "xp_required");
-            int xpForNextLevel = dataTableGetInt(xp.TBL_PLAYER_LEVEL_XP, playerLevel, "xp_required");
-            float xpGrantedFloat = (xpForNextLevel - xpForCurrentLevel) * percentage / 100;
-            int xpGranted = (int)xpGrantedFloat;
-            if (grantUnmodifiedXpByTemplate(player, xpGranted) > 0)
-            {
-                return xpGranted;
-            }
+            playerLevel = 1;
+        }
+        if (playerLevel >= 90)
+        {
+            playerLevel = 89;
+        }
+        int xpForCurrentLevel = dataTableGetInt(xp.TBL_PLAYER_LEVEL_XP, playerLevel - 1, "xp_required");
+        int xpForNextLevel = dataTableGetInt(xp.TBL_PLAYER_LEVEL_XP, playerLevel, "xp_required");
+        float xpGrantedFloat = (xpForNextLevel - xpForCurrentLevel) * percentage / 100;
+        int xpGranted = (int)xpGrantedFloat;
+        if (xpGranted < 1)
+        {
+            xpGranted = 1;
+        }
+        if (grantUnmodifiedXpByTemplate(player, xpGranted) > 0)
+        {
+            return xpGranted;
         }
         return 0;
     }
@@ -1857,57 +1868,43 @@ public class xp extends script.base_script
     }
     public static int getMissionXpAmount(obj_id player, int missionLevel) throws InterruptedException
     {
-        int xpToGrant = 0;
-        int playerLevel = getLevel(player);
-        int xpForCurrentLevel = dataTableGetInt(TBL_PLAYER_LEVEL_XP, playerLevel - 1, "xp_required");
-        int xpForNextLevel = dataTableGetInt(TBL_PLAYER_LEVEL_XP, playerLevel, "xp_required");
-        int levelDivisor = 0;
-        int levelDelta = Math.abs(missionLevel - playerLevel);
-        LOG("NewMission", "getMissionXpAmountLevelDelta: " + levelDelta);
-        if (xpForNextLevel <= 0)
+        // Pre-CU: mission XP from mission difficulty only — not player NGE level,
+        // not level-delta penalties, not high-level divisors.
+        // REVERT: restore playerLevel / levelDelta / DAILY_MISSION_XP_* divisor logic.
+        int level = missionLevel;
+        if (level < 1)
         {
-            return xpToGrant;
+            level = 1;
         }
-        int xpForLevel = xpForNextLevel - xpForCurrentLevel;
-        if (levelDelta > 15)
+        int xpToGrant = getLevelBasedXP(level);
+        if (xpToGrant < 1)
         {
-            levelDivisor += levelDelta;
-        }
-        if (xpForLevel > 0)
-        {
-            int missionXpDivisor = missions.DAILY_MISSION_XP_LOW;
-            if (playerLevel >= 70)
-            {
-                missionXpDivisor = missions.DAILY_MISSION_XP_MEDIUM;
-            }
-            if (playerLevel >= 80)
-            {
-                missionXpDivisor = missions.DAILY_MISSION_XP_HIGH;
-            }
-            missionXpDivisor += levelDivisor;
-            if (missionXpDivisor > 0)
-            {
-                xpToGrant = xpForLevel / missionXpDivisor;
-                int sanityXpAmount = xpForLevel / missions.DAILY_MISSION_XP_SANITY;
-                if (xpToGrant > sanityXpAmount)
-                {
-                    xpToGrant = sanityXpAmount;
-                }
-            }
+            xpToGrant = 1;
         }
         return xpToGrant;
     }
     public static int grantCollectionXP(obj_id player, String collectionName) throws InterruptedException
     {
+        // Pre-CU: do not zero collection XP at NGE level 90; use a stable XP band
+        // so high getLevel() does not wipe rewards.
+        // REVERT: if (playerLevel == 90) return 0; use playerLevel for table rows.
         float xpToGrant;
         int playerLevel = getLevel(player);
-        if (playerLevel == 90)
+        if (playerLevel < 1)
         {
-            return 0;
+            playerLevel = 1;
+        }
+        if (playerLevel >= 90)
+        {
+            playerLevel = 89;
         }
         int xpForCurrentLevel = dataTableGetInt(TBL_PLAYER_LEVEL_XP, playerLevel - 1, "xp_required");
         int xpForNextLevel = dataTableGetInt(TBL_PLAYER_LEVEL_XP, playerLevel, "xp_required");
         float xpForLevel = xpForNextLevel - xpForCurrentLevel;
+        if (xpForLevel <= 0)
+        {
+            xpForLevel = getLevelBasedXP(25);
+        }
         float xpModifier = dataTableGetFloat(collection.COLLECTION_REWARD_TABLE, collectionName, "xpModifier");
         long repeatSlotValue = getCollectionSlotValue(player, collectionName + "_tracker") - 1;
         if (repeatSlotValue > 0)
