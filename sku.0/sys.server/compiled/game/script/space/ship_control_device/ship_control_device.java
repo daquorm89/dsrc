@@ -10,10 +10,9 @@ public class ship_control_device extends script.base_script
     }
     public static final string_id RENAME_SHIP = new string_id("sui", "rename_ship");
     public static final string_id PACK_SHIP = new string_id("sui", "pack_ship");
-    // P9 atmospheric flight: reuse the existing "Summon Vehicle" string
-    // (already used by mini_vehicle_terminal.java) for "call ship to me"
-    // rather than adding new, unlocalized text.
-    public static final string_id SID_CALL_SHIP = new string_id("sui", "summon_vehicle");
+    // P9 atmospheric flight: reuse existing localized strings rather than
+    // adding new ones. "launch_ship" reads better than "summon vehicle/toy".
+    public static final string_id SID_CALL_SHIP = new string_id("space/space_terminal", "launch_ship");
     public static final string_id SID_CALL_SHIP_FAILED = new string_id("pet/pet_menu", "failed_to_call_vehicle");
     public static final string_id PROMPT1 = new string_id("sui", "rename_ship_text");
     public static final String[] ignoreRules = new String[]
