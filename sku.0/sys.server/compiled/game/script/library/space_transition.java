@@ -576,6 +576,15 @@ public class space_transition extends script.base_script
         {
             setShipName(ship, player, shipControlDevice);
             setLocation(ship, getLocation(player));
+            // P9 atmospheric flight: a ship just placed at rest on a
+            // ground planet never triggers a terrain-collision event, so
+            // the landed flag would otherwise stay false forever and
+            // block leaveStation for non-god players. Mark it landed
+            // immediately when unpacking outside a space scene.
+            if (!isSpaceScene())
+            {
+                setShipLanded(ship, true);
+            }
             setObjVar(shipControlDevice, "ship", ship);
             setObjVar(ship, "shipControlDevice", shipControlDevice);
             obj_id pilotSlotObject = findPilotSlotObjectForShip(player, ship);
