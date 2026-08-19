@@ -4613,28 +4613,15 @@ public class beast_lib extends script.base_script
     }
     public static boolean canBeastGetLevelBasedXP(obj_id beast, obj_id npc) throws InterruptedException
     {
-        int beastLevel = getBeastLevel(beast);
+        // Pre-CU: no high-level beast vs low mob XP shutoff; use mob level XP.
+        // REVERT: restore beastLevel / levelDiff scaling.
         int mobLevel = getLevel(npc);
-        int levelDiff = mobLevel - beastLevel;
-        if (levelDiff > 0)
+        if (mobLevel < 1)
         {
-            beastLevel += levelDiff;
+            mobLevel = 1;
         }
-        int exp = xp.getLevelBasedXP(beastLevel);
-        if (levelDiff < 0)
-        {
-            float maxLevelDiff = 10.0f;
-            if (beastLevel > 20)
-            {
-                maxLevelDiff += (int)((beastLevel - 20) / 6);
-            }
-            exp += (int)(exp * (levelDiff / maxLevelDiff));
-            if (exp < 1)
-            {
-                exp = 1;
-            }
-        }
-        return exp > 1;
+        int exp = xp.getLevelBasedXP(mobLevel);
+        return exp > 0;
     }
     public static int useBeastInjector(obj_id player, obj_id injector, obj_id beast, String beastFamily, String[] injectorFamilies, int mark) throws InterruptedException
     {
