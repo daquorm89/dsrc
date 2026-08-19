@@ -480,16 +480,35 @@ public class xp extends script.base_script
     }
     public static int getLevelBasedXP(obj_id player, obj_id npc) throws InterruptedException
     {
-        int level = getLevel(player);
-        int levelDiff = combat.getAiLevelDiff(npc, player);
-        if (levelDiff > 0)
+        // Pre-CU: combat XP is based on the creature's level, not the player's NGE
+        // level. No reduction for "high level player vs low level mob" — that was
+        // not Pre-CU behavior and blocks skill-box progression on this server.
+        // REVERT: restore getLevel(player) + levelDiff scaling and levelDiff<0 penalty.
+        int level = 1;
+        if (isMob(npc))
         {
-            level += levelDiff;
+            level = getLevel(npc);
+        }
+        else
+        {
+            level = getIntObjVar(npc, "intCombatDifficulty");
+            if (level < 1)
+            {
+                level = getLevel(npc);
+            }
+        }
+        if (level < 1)
+        {
+            level = 1;
         }
         int xp = getLevelBasedXP(level);
         if (!isMob(npc))
         {
-            xp = getIntObjVar(npc, "combat.intCombatXP");
+            int fixed = getIntObjVar(npc, "combat.intCombatXP");
+            if (fixed > 0)
+            {
+                xp = fixed;
+            }
         }
         float bonus = 0.0f;
         if (aiIsKiller(npc) || aiIsAggressive(npc) || aiIsAssist(npc))
@@ -497,18 +516,9 @@ public class xp extends script.base_script
             bonus += 0.05f;
         }
         xp += (int)(xp * bonus);
-        if (levelDiff < 0)
+        if (xp < 1)
         {
-            float maxLevelDiff = 10.0f;
-            if (level > 20)
-            {
-                maxLevelDiff += (level - 20) / 6;
-            }
-            xp += (int)(xp * (levelDiff / maxLevelDiff));
-            if (xp < 1)
-            {
-                xp = 1;
-            }
+            xp = 1;
         }
         return xp;
     }
