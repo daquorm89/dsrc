@@ -832,7 +832,8 @@ public class droid_deed extends script.base_script
             }
             pet_lib.initPCDCraftedStats(petControlDevice, deed);
         }
-        if (!callable.hasCallable(player, callable.CALLABLE_TYPE_COMBAT_PET))
+        // Pre-CU: droids use COMBAT_OTHER; only skip auto-spawn if a droid is already out.
+        if (!pet_lib.hasMaxPets(player, petType))
         {
             obj_id pet = create.object(creatureName, getLocation(player));
             if (!isIdValid(pet))

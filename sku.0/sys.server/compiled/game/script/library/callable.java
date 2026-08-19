@@ -137,6 +137,11 @@ public class callable extends script.base_script
         {
             return CALLABLE_TYPE_RIDEABLE;
         }
+        // Pre-CU fallback: droid pets even if ai.pet.type missing
+        if (pet_lib.isDroidPet(objCallable))
+        {
+            return CALLABLE_TYPE_COMBAT_OTHER;
+        }
         if (hasObjVar(objCallable, "ai.pet.buddy"))
         {
             return CALLABLE_TYPE_COMBAT_OTHER;
