@@ -145,21 +145,43 @@ public class ship_control_device extends script.base_script
             // location on the ground. Same packed-test as the menu: ship
             // must still be contained by this SCD (not already in the world).
             obj_id objShip = space_transition.getShipFromShipControlDevice(self);
-            if (!isIdValid(objShip) || getContainedBy(objShip) != self || isSpaceScene() || !space_utils.isAtmosphericFlightAllowedHere())
+            if (!isIdValid(objShip))
             {
+                sendSystemMessageTestingOnly(player, "Call ship failed: no ship found in this control device. Re-grant or unpack a ship SCD.");
+                return SCRIPT_CONTINUE;
+            }
+            if (getContainedBy(objShip) != self)
+            {
+                sendSystemMessageTestingOnly(player, "Call ship failed: ship is not packed in this control device (already out or lost).");
+                return SCRIPT_CONTINUE;
+            }
+            if (isSpaceScene())
+            {
+                sendSystemMessageTestingOnly(player, "Call ship failed: cannot call a ship while in a space zone. Use a starport / space terminal.");
+                return SCRIPT_CONTINUE;
+            }
+            if (!space_utils.isAtmosphericFlightAllowedHere())
+            {
+                sendSystemMessageTestingOnly(player, "Call ship failed: atmospheric flight is not allowed on this planet.");
                 return SCRIPT_CONTINUE;
             }
             if (getIntObjVar(self, IN_USE_OBJVAR) == 1)
             {
+                sendSystemMessageTestingOnly(player, "Call ship failed: control device is busy (already packing/unpacking). Try again.");
                 return SCRIPT_CONTINUE;
             }
             setObjVar(self, IN_USE_OBJVAR, 1);
             // P9: place only — do not auto-pilot. Player boards via radial on the ship.
-            boolean success = space_transition.placeShipInWorldForPlayer(player, objShip);
+            int result = space_transition.placeShipInWorldForPlayerWithCode(player, objShip);
             removeObjVar(self, IN_USE_OBJVAR);
-            if (!success)
+            if (result != space_transition.PLACE_SHIP_OK)
             {
                 sendSystemMessage(player, SID_CALL_SHIP_FAILED);
+                sendSystemMessageTestingOnly(player, space_transition.getPlaceShipFailureMessage(result));
+            }
+            else
+            {
+                sendSystemMessageTestingOnly(player, "Ship deployed nearby. Use the ship's radial menu to Pilot or Enter.");
             }
             return SCRIPT_CONTINUE;
         }
