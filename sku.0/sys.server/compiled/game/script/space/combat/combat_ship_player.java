@@ -151,13 +151,34 @@ public class combat_ship_player extends script.base_script
                 obj_id building = getTopMostContainer(self);
                 messageTo(building, "continueMainTable", null, 0, false);
             }
-            if (getObjectInSlot(container, POB_SHIP_PILOT_SLOT_NAME) == self)
+            if (getObjectInSlot(container, space_transition.SHIP_PILOT_SLOT_NAME) == self)
+            {
+                // P9 atmospheric flight: regular (non-POB) single-seat
+                // ship -- the pilot is contained directly by the ship
+                // object in slot "ship_pilot" (not "ship_pilot_pob"), so
+                // this needs its own branch, previously missing entirely.
+                // Same planet-side + landed gating as the POB case below.
+                // isShipLanded() needs the actual ShipObject, which here
+                // *is* container, but we resolve it the same way as the
+                // POB branch below for consistency/robustness.
+                obj_id piloted = space_transition.getContainingShip(self);
+                if (!isGod(self) && (isSpaceScene() || !isIdValid(piloted) || !isShipLanded(piloted)))
+                {
+                    return SCRIPT_CONTINUE;
+                }
+                unpilotShip(self);
+            }
+            else if (getObjectInSlot(container, POB_SHIP_PILOT_SLOT_NAME) == self)
             {
                 // P9 atmospheric flight: bailing out of the pilot seat is
                 // only allowed planet-side, and only once the ship has
                 // actually landed -- otherwise this would eject the pilot
                 // in mid-flight. God-mode keeps the existing debug bypass.
-                if (!isGod(self) && (isSpaceScene() || !isShipLanded(container)))
+                // NOTE: container here is the POB interior pilot-seat
+                // sub-object, not the ShipObject itself -- isShipLanded()
+                // needs the real ship, so resolve it via getContainingShip().
+                obj_id piloted = space_transition.getContainingShip(self);
+                if (!isGod(self) && (isSpaceScene() || !isIdValid(piloted) || !isShipLanded(piloted)))
                 {
                     return SCRIPT_CONTINUE;
                 }
