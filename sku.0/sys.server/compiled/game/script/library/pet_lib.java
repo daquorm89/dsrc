@@ -392,6 +392,11 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
             controlDevice = callable.getCallableCD(pet);
         }
         int petType = pet_lib.getPetType(pet);
+        // Prefer type already stored on the control device (crafted droids).
+        if (isIdValid(controlDevice) && hasObjVar(controlDevice, "ai.pet.type"))
+        {
+            petType = getIntObjVar(controlDevice, "ai.pet.type");
+        }
         setObjVar(pet, "ai.pet.type", petType);
         boolean tookIfBranch = (!pet_lib.hasMaxPets(master, petType, pet) || (pet_lib.hasMaxPets(master, petType) && hasObjVar(controlDevice, "ai.pet.trainedMount")));
 //        sendSystemMessageTestingOnly(master, "TAMEDEBUG: makePet branch check petType=" + petType + " tookIfBranch=" + tookIfBranch + " hasMaxPets(this pet)=" + pet_lib.hasMaxPets(master, petType, pet) + " hasMaxPets(any)=" + pet_lib.hasMaxPets(master, petType) + " hasTrainedMount=" + hasObjVar(controlDevice, "ai.pet.trainedMount"));
@@ -2669,6 +2674,12 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
                 }
             }
         }
+        // Pre-CU: classify droids/androids before monster niches so they use the
+        // COMBAT_OTHER callable slot (one pet + one droid), not COMBAT_PET.
+        if (ai_lib.isDroid(pet) || ai_lib.isAndroid(pet) || pet_lib.isDroidPet(pet))
+        {
+            return PET_TYPE_DROID;
+        }
         if (ai_lib.isMonster(pet))
         {
             String creatureName = getCreatureName(pet);
@@ -2684,10 +2695,6 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
             {
                 return PET_TYPE_NON_AGGRO;
             }
-        }
-        else if (pet_lib.isDroidPet(pet))
-        {
-            return PET_TYPE_DROID;
         }
         return PET_TYPE_NPC;
     }
