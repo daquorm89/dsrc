@@ -583,6 +583,20 @@ public class space_transition extends script.base_script
         }
         setShipName(ship, player, shipControlDevice);
         location playerLoc = getLocation(player);
+        // Place slightly above terrain so the hull is not buried in the ground
+        // (player feet location is below a fighter's center of mass).
+        if (!isSpaceScene() && playerLoc != null)
+        {
+            float groundY = getHeightAtLocation(playerLoc.x, playerLoc.z);
+            if (groundY != 0.0f || playerLoc.y != 0.0f)
+            {
+                playerLoc.y = groundY + 4.0f;
+            }
+            else
+            {
+                playerLoc.y = playerLoc.y + 4.0f;
+            }
+        }
         setLocation(ship, playerLoc);
         if (!isSpaceScene())
         {

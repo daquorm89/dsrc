@@ -67,6 +67,8 @@ public class combat_ship extends script.base_script
         {
             mi.addRootMenu(menu_info_types.SERVER_MENU1, SID_ENTER_SHIP);
         }
+        // Pack back into SCD (same as datapad Store) so Launch can show again
+        mi.addRootMenu(menu_info_types.SERVER_MENU2, new string_id("sui", "pack_ship"));
         return SCRIPT_CONTINUE;
     }
 
@@ -76,7 +78,7 @@ public class combat_ship extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
-        if (item != menu_info_types.ITEM_USE && item != menu_info_types.SERVER_MENU1)
+        if (item != menu_info_types.ITEM_USE && item != menu_info_types.SERVER_MENU1 && item != menu_info_types.SERVER_MENU2)
         {
             return SCRIPT_CONTINUE;
         }
@@ -126,6 +128,17 @@ public class combat_ship extends script.base_script
             return SCRIPT_CONTINUE;
         }
 
+        if (item == menu_info_types.SERVER_MENU2)
+        {
+            // Store / pack back into SCD
+            if (isIdValid(getPilotId(self)))
+            {
+                return SCRIPT_CONTINUE;
+            }
+            space_transition.packShip(self);
+            return SCRIPT_CONTINUE;
+        }
+
         // Pilot (fighter or POB cockpit)
         obj_id pilotSlotObject = space_transition.findPilotSlotObjectForShip(player, self);
         if (!isIdValid(pilotSlotObject))
@@ -136,6 +149,35 @@ public class combat_ship extends script.base_script
         if (!isSpaceScene())
         {
             setShipLanded(self, true);
+        }
+        return SCRIPT_CONTINUE;
+    }
+
+    // P9: ships must not be picked up into inventory. Packing is only via SCD / Store.
+    public int OnAboutToBeTransferred(obj_id self, obj_id destContainer, obj_id transferer) throws InterruptedException
+    {
+        if (!isIdValid(destContainer))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        // Allow transfer into the ship's own SCD
+        if (hasObjVar(self, "shipControlDevice"))
+        {
+            obj_id scd = getObjIdObjVar(self, "shipControlDevice");
+            if (isIdValid(scd) && destContainer == scd)
+            {
+                return SCRIPT_CONTINUE;
+            }
+        }
+        // Allow packShip's put-into-SCD path (dest is GOT_data_ship_control_device)
+        if (getGameObjectType(destContainer) == GOT_data_ship_control_device)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        // Block inventory / datapad / world-to-player pickups
+        if (isIdValid(transferer) && isPlayer(transferer))
+        {
+            return SCRIPT_OVERRIDE;
         }
         return SCRIPT_CONTINUE;
     }

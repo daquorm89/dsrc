@@ -90,10 +90,8 @@ public class combat_ship_player extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
-        if (!isGod(self) && getShipCurrentSpeed(ship) > 2.0f)
-        {
-            return SCRIPT_CONTINUE;
-        }
+        // P9: always allow exit on ground when atmospheric flight is enabled.
+        // Speed/landed flags are unreliable for client-authoritative ships.
         unpilotShip(self);
         return SCRIPT_CONTINUE;
     }
@@ -234,12 +232,11 @@ public class combat_ship_player extends script.base_script
                 // flag often never gets set (no server terrain collision
                 // path runs). Near-zero speed is the reliable "settled"
                 // signal available to scripts without a C++ rebuild.
-                if (!isSpaceScene() && !isGod(self))
+                // Ground atmospheric: always allow exit (no speed gate — client-
+                // auth ships often report non-zero residual speed while "parked").
+                if (!isSpaceScene() && !isGod(self) && !isIdValid(piloted))
                 {
-                    if (!isIdValid(piloted) || getShipCurrentSpeed(piloted) > 2.0f)
-                    {
-                        return SCRIPT_CONTINUE;
-                    }
+                    return SCRIPT_CONTINUE;
                 }
                 unpilotShip(self);
             }
@@ -249,12 +246,11 @@ public class combat_ship_player extends script.base_script
                 // container is the POB pilot-seat sub-object; resolve the real
                 // ShipObject for speed checks.
                 obj_id piloted = space_transition.getContainingShip(self);
-                if (!isSpaceScene() && !isGod(self))
+                // Ground atmospheric: always allow exit (no speed gate — client-
+                // auth ships often report non-zero residual speed while "parked").
+                if (!isSpaceScene() && !isGod(self) && !isIdValid(piloted))
                 {
-                    if (!isIdValid(piloted) || getShipCurrentSpeed(piloted) > 2.0f)
-                    {
-                        return SCRIPT_CONTINUE;
-                    }
+                    return SCRIPT_CONTINUE;
                 }
                 unpilotShip(self);
             }
