@@ -1061,10 +1061,16 @@ public class space_utils extends script.base_script
             return true;
         }
         // dataTableGetInt returns 0 for missing table/row — fallback list
-        if (planetName.equals("tatooine") || planetName.equals("naboo") || planetName.equals("corellia")
-            || planetName.equals("rori") || planetName.equals("talus") || planetName.equals("lok")
-            || planetName.equals("dantooine") || planetName.equals("dathomir") || planetName.equals("endor")
-            || planetName.equals("yavin4"))
+        // Also match scene names that start with a core planet (e.g. rare variants).
+        String p = planetName.toLowerCase();
+        if (p.equals("tatooine") || p.equals("naboo") || p.equals("corellia")
+            || p.equals("rori") || p.equals("talus") || p.equals("lok")
+            || p.equals("dantooine") || p.equals("dathomir") || p.equals("endor")
+            || p.equals("yavin4")
+            || p.startsWith("tatooine") || p.startsWith("naboo") || p.startsWith("corellia")
+            || p.startsWith("rori") || p.startsWith("talus") || p.startsWith("lok")
+            || p.startsWith("dantooine") || p.startsWith("dathomir") || p.startsWith("endor")
+            || p.startsWith("yavin4"))
         {
             return true;
         }

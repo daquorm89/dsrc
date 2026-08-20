@@ -80,28 +80,51 @@ public class ship_control_device extends script.base_script
             return SCRIPT_CONTINUE;
         }
         mi.addRootMenu(menu_info_types.SERVER_MENU1, RENAME_SHIP);
-        obj_id objShip = space_transition.getShipFromShipControlDevice(self);
-        if (isIdValid(objShip))
+        // Clear sticky in-use lock so a crashed place cannot hide Launch forever.
+        if (getIntObjVar(self, IN_USE_OBJVAR) == 1)
         {
-            // P9 atmospheric flight: keep Call available whenever possible.
-            // Clear sticky in-use lock so a crashed place cannot block forever.
-            if (getIntObjVar(self, IN_USE_OBJVAR) == 1)
+            removeObjVar(self, IN_USE_OBJVAR);
+        }
+        obj_id objShip = space_transition.getShipFromShipControlDevice(self);
+        // Always try to recover an orphaned chassis back into this SCD so Launch can work.
+        if (isIdValid(objShip) && getContainedBy(objShip) != self)
+        {
+            if (!space_transition.isShipPlacedInGroundWorld(objShip, player))
             {
-                removeObjVar(self, IN_USE_OBJVAR);
+                space_transition.restoreShipToControlDevice(objShip, self);
             }
-            if (!isSpaceScene() && space_utils.isAtmosphericFlightAllowedHere())
+            else
             {
-                // Orphaned ship (not in SCD, not on ground) → pull back into SCD
-                if (getContainedBy(objShip) != self
-                    && !space_transition.isShipPlacedInGroundWorld(objShip, player))
+                // Ship claims to be in the world but may be unusable / far away —
+                // still attempt restore so Launch is not permanently gone.
+                location shipLoc = getLocation(objShip);
+                location playerLoc = getLocation(player);
+                boolean nearPlayer = false;
+                if (shipLoc != null && playerLoc != null && shipLoc.area != null && playerLoc.area != null
+                    && shipLoc.area.equals(playerLoc.area))
+                {
+                    float dx = shipLoc.x - playerLoc.x;
+                    float dz = shipLoc.z - playerLoc.z;
+                    nearPlayer = (dx * dx + dz * dz) < (80.0f * 80.0f);
+                }
+                if (!nearPlayer)
                 {
                     space_transition.restoreShipToControlDevice(objShip, self);
                 }
-                if (getContainedBy(objShip) == self)
-                {
-                    mi.addRootMenu(menu_info_types.SERVER_MENU5, SID_CALL_SHIP);
-                }
             }
+            objShip = space_transition.getShipFromShipControlDevice(self);
+        }
+        // P9: ALWAYS show Launch Ship on allowed ground planets when this SCD is
+        // in the player's datapad. Previously the option vanished whenever the
+        // chassis left the SCD (failed place / orphan), which looked like the
+        // feature was broken. Selection path reports clear failures if the ship
+        // is missing or already deployed.
+        if (!isSpaceScene() && space_utils.isAtmosphericFlightAllowedHere())
+        {
+            mi.addRootMenu(menu_info_types.SERVER_MENU5, SID_CALL_SHIP);
+        }
+        if (isIdValid(objShip))
+        {
             gunshipCheck(objShip);
             if (hasObjVar(objShip, player_structure.OBJVAR_STRUCTURE_STORAGE_INCREASE))
             {

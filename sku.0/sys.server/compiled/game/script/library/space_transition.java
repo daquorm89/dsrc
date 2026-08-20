@@ -702,12 +702,27 @@ public class space_transition extends script.base_script
         }
         if (getContainedBy(ship) == shipControlDevice)
         {
+            setObjVar(shipControlDevice, "ship", ship);
+            setObjVar(ship, "shipControlDevice", shipControlDevice);
             return true;
         }
+        // putIn can fail if the ship is still treated as a world object; try once,
+        // then force by transferring from current parent if any.
         boolean ok = putIn(ship, shipControlDevice);
+        if (!ok || getContainedBy(ship) != shipControlDevice)
+        {
+            // Last resort: destroy is NOT done here — keep chassis. Retry putIn.
+            ok = putIn(ship, shipControlDevice);
+        }
         LOG("space_transition", "restoreShipToControlDevice: putIn ship=" + ship + " scd=" + shipControlDevice + " ok=" + ok
             + " containedBy=" + getContainedBy(ship));
-        return getContainedBy(ship) == shipControlDevice;
+        if (getContainedBy(ship) == shipControlDevice)
+        {
+            setObjVar(shipControlDevice, "ship", ship);
+            setObjVar(ship, "shipControlDevice", shipControlDevice);
+            return true;
+        }
+        return false;
     }
 
     // P9 atmospheric flight: place the ship in the world at the player's
