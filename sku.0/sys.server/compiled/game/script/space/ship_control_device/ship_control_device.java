@@ -16,6 +16,7 @@ public class ship_control_device extends script.base_script
     public static final string_id SID_CALL_SHIP_FAILED = new string_id("pet/pet_menu", "failed_to_call_vehicle");
     // Reuse store vehicle string for recover action label
     public static final string_id SID_RECOVER_SHIP = new string_id("pet/pet_menu", "menu_store");
+    public static final string_id SID_STORE_SHIP = new string_id("pet/pet_menu", "menu_store");
     public static final string_id PROMPT1 = new string_id("sui", "rename_ship_text");
     public static final String[] ignoreRules = new String[]
     {
@@ -122,6 +123,11 @@ public class ship_control_device extends script.base_script
         if (!isSpaceScene() && space_utils.isAtmosphericFlightAllowedHere())
         {
             mi.addRootMenu(menu_info_types.SERVER_MENU5, SID_CALL_SHIP);
+            // Store when chassis is already out of the SCD (put away without redeed)
+            if (isIdValid(objShip) && getContainedBy(objShip) != self)
+            {
+                mi.addRootMenu(menu_info_types.SERVER_MENU6, SID_STORE_SHIP);
+            }
         }
         if (isIdValid(objShip))
         {
@@ -183,18 +189,18 @@ public class ship_control_device extends script.base_script
             }
             if (getContainedBy(objShip) != self)
             {
-                if (!space_transition.isShipPlacedInGroundWorld(objShip, player))
+                // Already in the world: relocate to the player (fixes "stuck at last Call location").
+                if (space_transition.isShipPlacedInGroundWorld(objShip, player)
+                    || (!utils.isNestedWithin(objShip, player) && !isIdValid(getContainedBy(objShip))))
                 {
-                    boolean restored = space_transition.restoreShipToControlDevice(objShip, self);
-                    if (restored && getContainedBy(objShip) == self)
-                    {
-                        sui.msgbox(player, player, "Ship was recovered into the control device. Select Launch Ship again to deploy it.");
-                        return SCRIPT_CONTINUE;
-                    }
+                    space_transition.relocateShipToPlayerAndPrepareBoard(player, objShip);
+                    sui.msgbox(player, player, "Ship moved to your location. Target it and use Pilot.");
+                    return SCRIPT_CONTINUE;
                 }
-                else
+                boolean restored = space_transition.restoreShipToControlDevice(objShip, self);
+                if (restored && getContainedBy(objShip) == self)
                 {
-                    sui.msgbox(player, player, "Your ship is already deployed in the world. Walk up to it and use Pilot, or Pack Ship from this device.");
+                    sui.msgbox(player, player, "Ship was recovered into the control device. Select Launch Ship again to deploy it.");
                     return SCRIPT_CONTINUE;
                 }
                 sendSystemMessage(player, SID_CALL_SHIP_FAILED);
@@ -224,6 +230,41 @@ public class ship_control_device extends script.base_script
             }
             // msgbox owner = player so the dialog always reaches the client
             sui.msgbox(player, player, detail);
+            return SCRIPT_CONTINUE;
+        }
+        if (item == menu_info_types.SERVER_MENU6)
+        {
+            // Store ship back into this SCD (not redeed)
+            obj_id objShip = space_transition.getShipFromShipControlDevice(self);
+            if (!isIdValid(objShip))
+            {
+                sui.msgbox(player, player, "Store failed: no ship linked to this control device.");
+                return SCRIPT_CONTINUE;
+            }
+            if (getContainedBy(objShip) == self)
+            {
+                sui.msgbox(player, player, "Ship is already stored in this control device.");
+                return SCRIPT_CONTINUE;
+            }
+            if (isIdValid(getPilotId(objShip)))
+            {
+                obj_id pilot = getPilotId(objShip);
+                unpilotShip(pilot);
+            }
+            // packShip only works when the ship is topmost (in world)
+            space_transition.packShip(objShip);
+            if (getContainedBy(objShip) != self)
+            {
+                // packShip picks SCD by owner; force into THIS device if needed
+                if (!space_transition.restoreShipToControlDevice(objShip, self))
+                {
+                    sui.msgbox(player, player, "Store failed: could not put the ship into the control device.");
+                    return SCRIPT_CONTINUE;
+                }
+            }
+            setObjVar(self, "ship", objShip);
+            setObjVar(objShip, "shipControlDevice", self);
+            sui.msgbox(player, player, "Ship stored in control device. You can Launch Ship again from here.");
             return SCRIPT_CONTINUE;
         }
         if (item == menu_info_types.SERVER_MENU1)

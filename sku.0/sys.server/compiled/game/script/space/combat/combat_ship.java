@@ -24,6 +24,64 @@ public class combat_ship extends script.base_script
     public static final string_id SID_NO_SHIP_CERT = new string_id("space/space_interaction", "no_ship_certification");
     public static final float BOARD_RANGE = 32.0f;
 
+    public boolean isAtmosBoardAllowedOwner(obj_id ship, obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !isIdValid(player))
+        {
+            return false;
+        }
+        if (isGod(player))
+        {
+            return true;
+        }
+        if (getOwner(ship) == player)
+        {
+            return true;
+        }
+        // Owner may still be SCD / unset right after Call until prep runs
+        if (hasObjVar(ship, "shipControlDevice"))
+        {
+            obj_id scd = getObjIdObjVar(ship, "shipControlDevice");
+            if (isIdValid(scd) && utils.isNestedWithin(scd, player))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public int handleAtmosBoardPrep(obj_id self, dictionary params) throws InterruptedException
+    {
+        // Delayed settle after Call: clear ghost pilot, force landed, set owner.
+        obj_id player = params != null ? params.getObjId("player") : null;
+        if (isIdValid(getPilotId(self)))
+        {
+            obj_id pilot = getPilotId(self);
+            unpilotShip(pilot);
+        }
+        if (!isSpaceScene())
+        {
+            space_transition.snapShipToGroundAndMarkLanded(self);
+        }
+        if (isIdValid(player))
+        {
+            setOwner(self, player);
+            if (getContainingShip(player) == self || utils.isNestedWithin(player, self))
+            {
+                location pl = getLocation(player);
+                if (pl != null)
+                {
+                    setLocation(player, new location(pl.x + 2.0f, pl.y, pl.z, pl.area, pl.cell));
+                }
+                if (isIdValid(getPilotId(self)))
+                {
+                    unpilotShip(player);
+                }
+            }
+        }
+        return SCRIPT_CONTINUE;
+    }
+
     public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
     {
         if (!isIdValid(player) || isSpaceScene())
@@ -39,14 +97,21 @@ public class combat_ship extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
-        if (getOwner(self) != player && !isGod(player))
+        if (!isAtmosBoardAllowedOwner(self, player))
         {
             return SCRIPT_CONTINUE;
         }
-        // Already someone piloting this ship
+        // Residual pilot after Call+unpilot used to hide Pilot until relog
         if (isIdValid(getPilotId(self)))
         {
-            return SCRIPT_CONTINUE;
+            if (getPilotId(self) == player)
+            {
+                unpilotShip(player);
+            }
+            if (isIdValid(getPilotId(self)))
+            {
+                return SCRIPT_CONTINUE;
+            }
         }
         location playerLoc = getLocation(player);
         location shipLoc = getLocation(self);
@@ -61,7 +126,6 @@ public class combat_ship extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
-        // Prefer localized "pilot" if present; fall back is fine if string missing
         mi.addRootMenu(menu_info_types.ITEM_USE, SID_PILOT_SHIP);
         if (space_utils.isShipWithInterior(self))
         {
@@ -80,17 +144,27 @@ public class combat_ship extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
-        if (getOwner(self) != player && !isGod(player))
+        if (!isAtmosBoardAllowedOwner(self, player))
         {
+            sui.msgbox(player, player, "Cannot board: you are not the owner of this ship.");
             return SCRIPT_CONTINUE;
         }
         if (!isInWorld(self) || !isInWorldCell(self))
         {
+            sui.msgbox(player, player, "Cannot board: ship is not in the world. Try Launch Ship again.");
             return SCRIPT_CONTINUE;
         }
         if (isIdValid(getPilotId(self)))
         {
-            return SCRIPT_CONTINUE;
+            if (getPilotId(self) == player)
+            {
+                unpilotShip(player);
+            }
+            if (isIdValid(getPilotId(self)))
+            {
+                sui.msgbox(player, player, "Cannot board: someone is already piloting this ship.");
+                return SCRIPT_CONTINUE;
+            }
         }
         location playerLoc = getLocation(player);
         location shipLoc = getLocation(self);
@@ -103,17 +177,25 @@ public class combat_ship extends script.base_script
         float dz = playerLoc.z - shipLoc.z;
         if ((dx * dx + dy * dy + dz * dz) > (BOARD_RANGE * BOARD_RANGE))
         {
+            sui.msgbox(player, player, "Cannot board: move closer to the ship (within 32m).");
             return SCRIPT_CONTINUE;
         }
         if (!hasCertificationsForItem(player, self) && !isGod(player))
         {
             sendSystemMessage(player, SID_NO_SHIP_CERT);
+            sui.msgbox(player, player, "Cannot board: missing ship certification.");
             return SCRIPT_CONTINUE;
         }
 
+        // Ensure landed flag before pilot so ground exit gates work
+        if (!isSpaceScene())
+        {
+            space_transition.snapShipToGroundAndMarkLanded(self);
+        }
+        setOwner(self, player);
+
         if (item == menu_info_types.SERVER_MENU1 && space_utils.isShipWithInterior(self))
         {
-            // Enter interior: put player in first available cell of the POB ship
             obj_id[] cells = getCellIds(self);
             if (cells != null && cells.length > 0 && isIdValid(cells[0]))
             {
@@ -121,18 +203,25 @@ public class combat_ship extends script.base_script
                 if (dest != null)
                 {
                     setLocation(player, dest);
+                    return SCRIPT_CONTINUE;
                 }
             }
+            sui.msgbox(player, player, "Cannot enter: no interior cells found on this ship.");
             return SCRIPT_CONTINUE;
         }
 
-        // Pilot (fighter or POB cockpit)
         obj_id pilotSlotObject = space_transition.findPilotSlotObjectForShip(player, self);
         if (!isIdValid(pilotSlotObject))
         {
+            sui.msgbox(player, player, "Cannot pilot: no pilot slot available on this ship.");
             return SCRIPT_CONTINUE;
         }
-        pilotShip(player, pilotSlotObject);
+        boolean ok = pilotShip(player, pilotSlotObject);
+        if (!ok)
+        {
+            sui.msgbox(player, player, "Cannot pilot: pilotShip failed. Wait a second after Launch and try again.");
+            return SCRIPT_CONTINUE;
+        }
         if (!isSpaceScene())
         {
             space_transition.snapShipToGroundAndMarkLanded(self);
