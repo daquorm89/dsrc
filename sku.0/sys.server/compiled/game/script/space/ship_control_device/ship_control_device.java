@@ -14,6 +14,8 @@ public class ship_control_device extends script.base_script
     // adding new ones. "launch_ship" reads better than "summon vehicle/toy".
     public static final string_id SID_CALL_SHIP = new string_id("space/space_terminal", "launch_ship");
     public static final string_id SID_CALL_SHIP_FAILED = new string_id("pet/pet_menu", "failed_to_call_vehicle");
+    // Reuse store vehicle string for recover action label
+    public static final string_id SID_RECOVER_SHIP = new string_id("pet/pet_menu", "menu_store");
     public static final string_id PROMPT1 = new string_id("sui", "rename_ship_text");
     public static final String[] ignoreRules = new String[]
     {
@@ -81,14 +83,15 @@ public class ship_control_device extends script.base_script
         obj_id objShip = space_transition.getShipFromShipControlDevice(self);
         if (isIdValid(objShip))
         {
-            // P9 atmospheric flight: Call Ship when packed in this SCD.
-            // If a previous place left the ship orphaned (not in SCD, not
-            // truly in the ground world), try restore on menu open so Call
-            // can reappear instead of vanishing permanently.
-            // NOTE: do NOT use isInWorld(objShip) alone — packed ships in the
-            // datapad can report isInWorld true because the player is in-world.
+            // P9 atmospheric flight: keep Call available whenever possible.
+            // Clear sticky in-use lock so a crashed place cannot block forever.
+            if (getIntObjVar(self, IN_USE_OBJVAR) == 1)
+            {
+                removeObjVar(self, IN_USE_OBJVAR);
+            }
             if (!isSpaceScene() && space_utils.isAtmosphericFlightAllowedHere())
             {
+                // Orphaned ship (not in SCD, not on ground) → pull back into SCD
                 if (getContainedBy(objShip) != self
                     && !space_transition.isShipPlacedInGroundWorld(objShip, player))
                 {
@@ -147,47 +150,48 @@ public class ship_control_device extends script.base_script
         }
         if (item == menu_info_types.SERVER_MENU5)
         {
-            // P9 atmospheric flight: call the ship to the player's current
-            // location on the ground. Same packed-test as the menu: ship
-            // must still be contained by this SCD (not already in the world).
+            // P9 atmospheric flight: Call Ship → unpackShipForPlayer then unpilot.
             obj_id objShip = space_transition.getShipFromShipControlDevice(self);
-            // Always use sui.msgbox for feedback — TestingOnly/console are often invisible.
             if (!isIdValid(objShip))
             {
                 sendSystemMessage(player, SID_CALL_SHIP_FAILED);
-                sui.msgbox(self, player, "Call ship failed: no ship found in this control device. Re-grant the SCD if needed.");
+                sui.msgbox(player, player, "Call ship failed: no ship object linked to this control device. Re-grant a ship SCD.");
                 return SCRIPT_CONTINUE;
             }
             if (getContainedBy(objShip) != self)
             {
-                if (isIdValid(objShip) && !space_transition.isShipPlacedInGroundWorld(objShip, player))
+                if (!space_transition.isShipPlacedInGroundWorld(objShip, player))
                 {
-                    space_transition.restoreShipToControlDevice(objShip, self);
+                    boolean restored = space_transition.restoreShipToControlDevice(objShip, self);
+                    if (restored && getContainedBy(objShip) == self)
+                    {
+                        sui.msgbox(player, player, "Ship was recovered into the control device. Select Launch Ship again to deploy it.");
+                        return SCRIPT_CONTINUE;
+                    }
+                }
+                else
+                {
+                    sui.msgbox(player, player, "Your ship is already deployed in the world. Walk up to it and use Pilot, or Pack Ship from this device.");
+                    return SCRIPT_CONTINUE;
                 }
                 sendSystemMessage(player, SID_CALL_SHIP_FAILED);
-                sui.msgbox(self, player, "Call ship failed: ship is not packed in this control device (already out or lost). If Call returns after OK, try again.");
+                sui.msgbox(player, player, "Call ship failed: ship is not in this control device and could not be recovered.");
                 return SCRIPT_CONTINUE;
             }
             if (isSpaceScene())
             {
                 sendSystemMessage(player, SID_CALL_SHIP_FAILED);
-                sui.msgbox(self, player, "Call ship failed: cannot call a ship while in a space zone.");
+                sui.msgbox(player, player, "Call ship failed: cannot call a ship while in a space zone.");
                 return SCRIPT_CONTINUE;
             }
             if (!space_utils.isAtmosphericFlightAllowedHere())
             {
                 sendSystemMessage(player, SID_CALL_SHIP_FAILED);
-                sui.msgbox(self, player, "Call ship failed: atmospheric flight is not allowed on this planet.");
+                sui.msgbox(player, player, "Call ship failed: atmospheric flight is not allowed on this planet.");
                 return SCRIPT_CONTINUE;
             }
-            if (getIntObjVar(self, IN_USE_OBJVAR) == 1)
-            {
-                sendSystemMessage(player, SID_CALL_SHIP_FAILED);
-                sui.msgbox(self, player, "Call ship failed: control device is busy. Try again in a moment.");
-                return SCRIPT_CONTINUE;
-            }
+            removeObjVar(self, IN_USE_OBJVAR);
             setObjVar(self, IN_USE_OBJVAR, 1);
-            // P9: place only — do not auto-pilot. Player boards via radial on the ship.
             int result = space_transition.placeShipInWorldForPlayerWithCode(player, objShip);
             removeObjVar(self, IN_USE_OBJVAR);
             String detail = space_transition.getPlaceShipFailureMessage(result);
@@ -195,7 +199,8 @@ public class ship_control_device extends script.base_script
             {
                 sendSystemMessage(player, SID_CALL_SHIP_FAILED);
             }
-            sui.msgbox(self, player, detail);
+            // msgbox owner = player so the dialog always reaches the client
+            sui.msgbox(player, player, detail);
             return SCRIPT_CONTINUE;
         }
         if (item == menu_info_types.SERVER_MENU1)

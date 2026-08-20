@@ -654,185 +654,113 @@ public class space_transition extends script.base_script
     {
         if (!isIdValid(ship) || !isIdValid(player))
         {
-            LOG("space_transition", "placeShip: invalid ship/player ship=" + ship + " player=" + player);
+            LOG("space_transition", "placeShip: invalid ship/player");
             return PLACE_SHIP_INVALID;
         }
+
         obj_id shipControlDevice = getContainedBy(ship);
+        if (!isIdValid(shipControlDevice) && hasObjVar(ship, "shipControlDevice"))
+        {
+            shipControlDevice = getObjIdObjVar(ship, "shipControlDevice");
+        }
         if (!isIdValid(shipControlDevice))
         {
+            // Ship already outside any SCD
             if (isShipPlacedInGroundWorld(ship, player))
             {
                 return PLACE_SHIP_OK;
             }
-            LOG("space_transition", "placeShip: ship has no SCD parent and is not placed ship=" + ship);
             return PLACE_SHIP_NOT_IN_WORLD;
         }
-        // already out?
+
+        // Ensure packed before unpack path
         if (getContainedBy(ship) != shipControlDevice)
         {
             if (isShipPlacedInGroundWorld(ship, player))
             {
                 return PLACE_SHIP_OK;
             }
-            // Orphaned — try to restore so Call does not vanish permanently
             if (!restoreShipToControlDevice(ship, shipControlDevice))
             {
                 return PLACE_SHIP_RESTORE_FAILED;
             }
-            return PLACE_SHIP_ALREADY_OUT;
         }
-
-        setShipName(ship, player, shipControlDevice);
 
         location playerLoc = getLocation(player);
         if (playerLoc == null || playerLoc.area == null || playerLoc.area.length() == 0)
         {
-            LOG("space_transition", "placeShip: bad player location player=" + player);
             return PLACE_SHIP_BAD_LOCATION;
         }
 
         // ------------------------------------------------------------------
-        // Real spawn path (same as unpackShipForPlayer, which is known to work
-        // on planetside): setLocation + pilotShip activates the ship object in
-        // the world. Pets/droids use createObject into the world; ships already
-        // exist nested in the SCD and only become a proper ground object when
-        // the engine pilot path runs.
-        //
-        // We then unpilotShip immediately so the player is NOT left flying —
-        // ship stays in the world (same as exiting a ship after the old
-        // auto-pilot call). Board later via combat_ship radial.
+        // Use the EXACT working path: unpackShipForPlayer (setLocation +
+        // pilotShip). That is what successfully puts a chassis in the ground
+        // world. Then unpilot immediately so the player is not left flying.
         // ------------------------------------------------------------------
-        location shipLoc = new location(playerLoc.x, playerLoc.y + 0.75f, playerLoc.z, playerLoc.area, playerLoc.cell);
+        LOG("space_transition", "placeShip: calling unpackShipForPlayer ship=" + ship + " player=" + player);
+        boolean unpacked = unpackShipForPlayer(player, ship);
+        LOG("space_transition", "placeShip: unpackShipForPlayer returned " + unpacked
+            + " containedBy=" + getContainedBy(ship)
+            + " pilotId=" + getPilotId(ship)
+            + " nestedInPlayer=" + utils.isNestedWithin(ship, player));
 
-        LOG("space_transition", "placeShip: activating ship=" + ship + " at " + shipLoc + " from SCD=" + shipControlDevice);
-        setLocation(ship, shipLoc);
+        if (!unpacked)
+        {
+            // unpack failed (often no pilot slot / pilotShip failed) — restore SCD
+            restoreShipToControlDevice(ship, shipControlDevice);
+            return PLACE_SHIP_NOT_IN_WORLD;
+        }
 
+        // Successfully piloted — leave the ship in the world, exit pilot seat
+        if (isIdValid(getPilotId(ship)) || getContainingShip(player) == ship)
+        {
+            unpilotShip(player);
+        }
         if (!isSpaceScene())
         {
             setShipLanded(ship, true);
         }
-
-        setObjVar(shipControlDevice, "ship", ship);
-        setObjVar(ship, "shipControlDevice", shipControlDevice);
         if (getOwner(ship) != player)
         {
             setOwner(ship, player);
         }
-
-        obj_id pilotSlotObject = findPilotSlotObjectForShip(player, ship);
-        LOG("space_transition", "placeShip: pilotSlotObject=" + pilotSlotObject + " for ship=" + ship);
-
-        boolean activated = false;
-        if (isIdValid(pilotSlotObject))
+        // Stand the player beside the ship
+        location standLoc = new location(playerLoc.x + 2.0f, playerLoc.y, playerLoc.z, playerLoc.area, playerLoc.cell);
+        if (!isSpaceScene() && (utils.isNestedWithin(player, ship) || getContainingShip(player) == ship))
         {
-            // Same activation as unpackShipForPlayer
-            if (pilotShip(player, pilotSlotObject))
+            setLocation(player, standLoc);
+        }
+        else if (!isSpaceScene())
+        {
+            // Player may already be on ground after unpilot
+            location pl = getLocation(player);
+            if (pl != null && pl.cell == null)
             {
-                activated = true;
-                // Immediately leave the pilot seat; ship remains in the world.
-                unpilotShip(player);
-                // Re-assert landed after unpilot (ground only)
-                if (!isSpaceScene())
-                {
-                    setShipLanded(ship, true);
-                }
-                // Put player next to the ship (unpilot can leave them oddly)
-                if (utils.isNestedWithin(player, ship) || getContainingShip(player) == ship)
-                {
-                    setLocation(player, shipLoc);
-                }
-                else
-                {
-                    // Ensure player is on the ground near the ship
-                    location standLoc = new location(shipLoc.x + 2.0f, shipLoc.y, shipLoc.z, shipLoc.area, shipLoc.cell);
-                    if (!isSpaceScene())
-                    {
-                        setLocation(player, standLoc);
-                    }
-                }
+                // ok
             }
             else
             {
-                LOG("space_transition", "placeShip: pilotShip FAILED ship=" + ship + " slot=" + pilotSlotObject);
-            }
-        }
-        else
-        {
-            LOG("space_transition", "placeShip: no pilot slot on ship=" + ship);
-        }
-
-        updateShipFaction(ship, player);
-        doAIImmunityCheck(ship);
-
-        // Flight droid after ship is activated (optional)
-        obj_id droidControlDevice = getDroidControlDeviceForShip(ship);
-        if (isIdValid(droidControlDevice) && activated)
-        {
-            obj_id objDroid = callable.getCDCallable(droidControlDevice);
-            if (isIdValid(objDroid))
-            {
-                space_combat.removeFlightDroidFromShip(droidControlDevice, objDroid);
-            }
-            if (isIdValid(pilotSlotObject))
-            {
-                space_combat.createFlightDroidFromData(droidControlDevice, pilotSlotObject);
-                objDroid = callable.getCDCallable(droidControlDevice);
-                if (isIdValid(objDroid))
-                {
-                    setAnimationMood(objDroid, "ship");
-                }
-                utils.setLocalVar(ship, "droidPcdId", droidControlDevice);
+                setLocation(player, standLoc);
             }
         }
 
-        obj_id[] shipContents = trial.getAllObjectsInDungeon(ship);
-        if (shipContents != null && shipContents.length > 0)
-        {
-            for (obj_id shipContent : shipContents)
-            {
-                if (isIdValid(shipContent))
-                {
-                    messageTo(shipContent, "OnShipUnpack", null, 1.0f, false);
-                }
-            }
-        }
-
-        // Ensure combat_ship radial scripts present for board
         if (!hasScript(ship, "space.combat.combat_ship"))
         {
             attachScript(ship, "space.combat.combat_ship");
         }
 
-        boolean placed = isShipPlacedInGroundWorld(ship, player);
-        // Also accept: not nested in player and not in SCD (activated but nested check lag)
-        if (!placed && activated && getContainedBy(ship) != shipControlDevice && !utils.isNestedWithin(ship, player))
-        {
-            placed = true;
-        }
+        boolean placed = isShipPlacedInGroundWorld(ship, player)
+            || (getContainedBy(ship) != shipControlDevice && !utils.isNestedWithin(ship, player));
 
-        LOG("space_transition", "placeShip: after activate ship=" + ship
-            + " activated=" + activated
-            + " isInWorld=" + isInWorld(ship)
-            + " isInWorldCell=" + isInWorldCell(ship)
-            + " nestedInPlayer=" + utils.isNestedWithin(ship, player)
-            + " containedBy=" + getContainedBy(ship)
-            + " pilotId=" + getPilotId(ship)
-            + " placed=" + placed);
+        LOG("space_transition", "placeShip: final placed=" + placed + " ship=" + ship
+            + " containedBy=" + getContainedBy(ship) + " pilotId=" + getPilotId(ship));
 
         if (placed)
         {
             return PLACE_SHIP_OK;
         }
 
-        LOG("space_transition", "placeShip: FAILED — restoring ship to SCD ship=" + ship + " scd=" + shipControlDevice);
-        if (isIdValid(getPilotId(ship)))
-        {
-            unpilotShip(player);
-        }
-        if (!restoreShipToControlDevice(ship, shipControlDevice))
-        {
-            return PLACE_SHIP_RESTORE_FAILED;
-        }
+        restoreShipToControlDevice(ship, shipControlDevice);
         return PLACE_SHIP_NOT_IN_WORLD;
     }
 
