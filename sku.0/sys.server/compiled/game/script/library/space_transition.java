@@ -578,6 +578,75 @@ public class space_transition extends script.base_script
             setName(ship, getName(player) + " (" + strName + ")");
         }
     }
+    // P9 atmospheric flight: snap a ground drop point to terrain height.
+    // Player ships often get no server terrain-collision event, so placement
+    // at the player's raw Y can bury the chassis. getHeightAtLocation is the
+    // script-side fix; setShipLanded still forced after place/unpack.
+    public static location getAtmosphericShipDropLocation(obj_id player) throws InterruptedException
+    {
+        location loc = getLocation(player);
+        if (loc == null)
+        {
+            return null;
+        }
+        if (isSpaceScene())
+        {
+            return loc;
+        }
+        // Inside a building/cell: keep player cell location
+        if (isIdValid(loc.cell))
+        {
+            return loc;
+        }
+        location drop = new location(loc.x, loc.y, loc.z, loc.area, loc.cell);
+        float terrainY = getHeightAtLocation(drop.x, drop.z);
+        // Sanity: if height query looks valid relative to player, snap to it
+        if (terrainY == terrainY) // not NaN
+        {
+            float delta = terrainY - drop.y;
+            if (delta < 40.0f && delta > -40.0f)
+            {
+                // Clearance so the chassis rests above the ground mesh
+                drop.y = terrainY + 1.25f;
+            }
+            else
+            {
+                drop.y = drop.y + 0.75f;
+            }
+        }
+        else
+        {
+            drop.y = drop.y + 0.75f;
+        }
+        LOG("space_transition", "getAtmosphericShipDropLocation: playerY=" + loc.y + " terrainY=" + terrainY + " dropY=" + drop.y);
+        return drop;
+    }
+
+    public static void snapShipToGroundAndMarkLanded(obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(ship) || isSpaceScene())
+        {
+            return;
+        }
+        location loc = getLocation(ship);
+        if (loc == null || isIdValid(loc.cell))
+        {
+            setShipLanded(ship, true);
+            return;
+        }
+        float terrainY = getHeightAtLocation(loc.x, loc.z);
+        if (terrainY == terrainY)
+        {
+            float delta = terrainY - loc.y;
+            if (delta < 40.0f && delta > -40.0f)
+            {
+                loc.y = terrainY + 1.25f;
+                setLocation(ship, loc);
+            }
+        }
+        setShipLanded(ship, true);
+    }
+
     // P9 atmospheric flight: place-ship result codes for player feedback.
     public static final int PLACE_SHIP_OK = 0;
     public static final int PLACE_SHIP_INVALID = 1;
@@ -718,7 +787,7 @@ public class space_transition extends script.base_script
         }
         if (!isSpaceScene())
         {
-            setShipLanded(ship, true);
+            snapShipToGroundAndMarkLanded(ship);
         }
         if (getOwner(ship) != player)
         {
@@ -795,15 +864,17 @@ public class space_transition extends script.base_script
         if (isIdValid(shipControlDevice) && isIdValid(ship))
         {
             setShipName(ship, player, shipControlDevice);
-            setLocation(ship, getLocation(player));
-            // P9 atmospheric flight: a ship just placed at rest on a
-            // ground planet never triggers a terrain-collision event, so
-            // the landed flag would otherwise stay false forever and
-            // block leaveStation for non-god players. Mark it landed
-            // immediately when unpacking outside a space scene.
+            // P9: snap to terrain height — player ships often never get a
+            // server terrain-collision callback, so raw player Y can bury the ship.
+            location dropLoc = getAtmosphericShipDropLocation(player);
+            if (dropLoc == null)
+            {
+                dropLoc = getLocation(player);
+            }
+            setLocation(ship, dropLoc);
             if (!isSpaceScene())
             {
-                setShipLanded(ship, true);
+                snapShipToGroundAndMarkLanded(ship);
             }
             setObjVar(shipControlDevice, "ship", ship);
             setObjVar(ship, "shipControlDevice", shipControlDevice);

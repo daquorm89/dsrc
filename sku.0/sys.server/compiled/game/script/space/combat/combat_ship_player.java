@@ -229,14 +229,15 @@ public class combat_ship_player extends script.base_script
                 // previous gate incorrectly blocked leaveStation in space
                 // for non-god players.
                 obj_id piloted = space_transition.getContainingShip(self);
-                // P9: ground exit gate is speed-based, not isShipLanded().
-                // Player ships are client-authoritative so the C++ landed
-                // flag often never gets set (no server terrain collision
-                // path runs). Near-zero speed is the reliable "settled"
-                // signal available to scripts without a C++ rebuild.
+                // P9: ground exit — allow if landed (script-forced after place)
+                // OR near-zero speed. Player ships often never get server
+                // terrain collision, so isShipLanded alone used to fail;
+                // speed alone fails if the client reports residual velocity.
                 if (!isSpaceScene() && !isGod(self))
                 {
-                    if (!isIdValid(piloted) || getShipCurrentSpeed(piloted) > 2.0f)
+                    boolean landed = isIdValid(piloted) && isShipLanded(piloted);
+                    boolean slow = isIdValid(piloted) && getShipCurrentSpeed(piloted) <= 2.0f;
+                    if (!isIdValid(piloted) || (!landed && !slow))
                     {
                         return SCRIPT_CONTINUE;
                     }
@@ -245,13 +246,13 @@ public class combat_ship_player extends script.base_script
             }
             else if (getObjectInSlot(container, POB_SHIP_PILOT_SLOT_NAME) == self)
             {
-                // Same speed-based ground gate as the regular fighter branch.
-                // container is the POB pilot-seat sub-object; resolve the real
-                // ShipObject for speed checks.
+                // Same ground exit gate as the regular fighter branch.
                 obj_id piloted = space_transition.getContainingShip(self);
                 if (!isSpaceScene() && !isGod(self))
                 {
-                    if (!isIdValid(piloted) || getShipCurrentSpeed(piloted) > 2.0f)
+                    boolean landed = isIdValid(piloted) && isShipLanded(piloted);
+                    boolean slow = isIdValid(piloted) && getShipCurrentSpeed(piloted) <= 2.0f;
+                    if (!isIdValid(piloted) || (!landed && !slow))
                     {
                         return SCRIPT_CONTINUE;
                     }

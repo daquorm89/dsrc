@@ -135,7 +135,7 @@ public class combat_ship extends script.base_script
         pilotShip(player, pilotSlotObject);
         if (!isSpaceScene())
         {
-            setShipLanded(self, true);
+            space_transition.snapShipToGroundAndMarkLanded(self);
         }
         return SCRIPT_CONTINUE;
     }
