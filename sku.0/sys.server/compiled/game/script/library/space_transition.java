@@ -332,10 +332,23 @@ public class space_transition extends script.base_script
     }
     public static obj_id getShipFromShipControlDevice(obj_id shipControlDevice) throws InterruptedException
     {
+        if (!isIdValid(shipControlDevice))
+        {
+            return null;
+        }
         obj_id[] contents = getContents(shipControlDevice);
         if (contents != null && contents.length > 0)
         {
             return contents[0];
+        }
+        // Fallback: ship may have been placed/orphaned but SCD still has objvar link
+        if (hasObjVar(shipControlDevice, "ship"))
+        {
+            obj_id linked = getObjIdObjVar(shipControlDevice, "ship");
+            if (isIdValid(linked) && exists(linked))
+            {
+                return linked;
+            }
         }
         return null;
     }

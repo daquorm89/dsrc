@@ -81,17 +81,23 @@ public class ship_control_device extends script.base_script
         obj_id objShip = space_transition.getShipFromShipControlDevice(self);
         if (isIdValid(objShip))
         {
-            // P9 atmospheric flight: offer to summon the ship to the
-            // player's location on the ground if it is still packed inside
-            // this control device (not yet placed in the world) and the
-            // current planet allows atmospheric flight.
-            // NOTE: do NOT use isInWorld(objShip) -- packed ships nested in
-            // the datapad can still report isInWorld() true because the
-            // player carrying them is in-world. Containment by this SCD is
-            // the unambiguous "still packed" test.
-            if (getContainedBy(objShip) == self && !isSpaceScene() && space_utils.isAtmosphericFlightAllowedHere())
+            // P9 atmospheric flight: Call Ship when packed in this SCD.
+            // If a previous place left the ship orphaned (not in SCD, not
+            // truly in the ground world), try restore on menu open so Call
+            // can reappear instead of vanishing permanently.
+            // NOTE: do NOT use isInWorld(objShip) alone — packed ships in the
+            // datapad can report isInWorld true because the player is in-world.
+            if (!isSpaceScene() && space_utils.isAtmosphericFlightAllowedHere())
             {
-                mi.addRootMenu(menu_info_types.SERVER_MENU5, SID_CALL_SHIP);
+                if (getContainedBy(objShip) != self
+                    && !space_transition.isShipPlacedInGroundWorld(objShip, player))
+                {
+                    space_transition.restoreShipToControlDevice(objShip, self);
+                }
+                if (getContainedBy(objShip) == self)
+                {
+                    mi.addRootMenu(menu_info_types.SERVER_MENU5, SID_CALL_SHIP);
+                }
             }
             gunshipCheck(objShip);
             if (hasObjVar(objShip, player_structure.OBJVAR_STRUCTURE_STORAGE_INCREASE))

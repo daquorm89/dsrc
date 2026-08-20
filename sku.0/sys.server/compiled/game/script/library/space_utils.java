@@ -1053,8 +1053,22 @@ public class space_utils extends script.base_script
         {
             return false;
         }
+        // Prefer datatable when installed; if missing/unloaded, allow the core
+        // ground planets from the design table so Call Ship is not silently gone.
         int allow = dataTableGetInt(ATMOSPHERIC_FLIGHT_PLANETS_TABLE, planetName, "allowAtmosphericFlight");
-        return allow == 1;
+        if (allow == 1)
+        {
+            return true;
+        }
+        // dataTableGetInt returns 0 for missing table/row — fallback list
+        if (planetName.equals("tatooine") || planetName.equals("naboo") || planetName.equals("corellia")
+            || planetName.equals("rori") || planetName.equals("talus") || planetName.equals("lok")
+            || planetName.equals("dantooine") || planetName.equals("dathomir") || planetName.equals("endor")
+            || planetName.equals("yavin4"))
+        {
+            return true;
+        }
+        return false;
     }
 
     // Convenience overload for the current scene the caller is standing in.
