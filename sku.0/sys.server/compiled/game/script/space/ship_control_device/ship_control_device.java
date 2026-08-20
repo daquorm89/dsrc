@@ -145,40 +145,39 @@ public class ship_control_device extends script.base_script
             // location on the ground. Same packed-test as the menu: ship
             // must still be contained by this SCD (not already in the world).
             obj_id objShip = space_transition.getShipFromShipControlDevice(self);
+            // Always use sui.msgbox for feedback — TestingOnly/console are often invisible.
             if (!isIdValid(objShip))
             {
-                // Visible to all clients (TestingOnly is often silent for normal players)
                 sendSystemMessage(player, SID_CALL_SHIP_FAILED);
-                sendConsoleMessage(player, "Call ship failed: no ship found in this control device.");
+                sui.msgbox(self, player, "Call ship failed: no ship found in this control device. Re-grant the SCD if needed.");
                 return SCRIPT_CONTINUE;
             }
             if (getContainedBy(objShip) != self)
             {
-                // Attempt recovery if we still know the ship id
                 if (isIdValid(objShip) && !space_transition.isShipPlacedInGroundWorld(objShip, player))
                 {
                     space_transition.restoreShipToControlDevice(objShip, self);
                 }
                 sendSystemMessage(player, SID_CALL_SHIP_FAILED);
-                sendConsoleMessage(player, "Call ship failed: ship is not packed in this control device (already out or lost).");
+                sui.msgbox(self, player, "Call ship failed: ship is not packed in this control device (already out or lost). If Call returns after OK, try again.");
                 return SCRIPT_CONTINUE;
             }
             if (isSpaceScene())
             {
                 sendSystemMessage(player, SID_CALL_SHIP_FAILED);
-                sendConsoleMessage(player, "Call ship failed: cannot call a ship in a space zone.");
+                sui.msgbox(self, player, "Call ship failed: cannot call a ship while in a space zone.");
                 return SCRIPT_CONTINUE;
             }
             if (!space_utils.isAtmosphericFlightAllowedHere())
             {
                 sendSystemMessage(player, SID_CALL_SHIP_FAILED);
-                sendConsoleMessage(player, "Call ship failed: atmospheric flight is not allowed on this planet.");
+                sui.msgbox(self, player, "Call ship failed: atmospheric flight is not allowed on this planet.");
                 return SCRIPT_CONTINUE;
             }
             if (getIntObjVar(self, IN_USE_OBJVAR) == 1)
             {
                 sendSystemMessage(player, SID_CALL_SHIP_FAILED);
-                sendConsoleMessage(player, "Call ship failed: control device is busy. Try again.");
+                sui.msgbox(self, player, "Call ship failed: control device is busy. Try again in a moment.");
                 return SCRIPT_CONTINUE;
             }
             setObjVar(self, IN_USE_OBJVAR, 1);
@@ -189,12 +188,8 @@ public class ship_control_device extends script.base_script
             if (result != space_transition.PLACE_SHIP_OK)
             {
                 sendSystemMessage(player, SID_CALL_SHIP_FAILED);
-                sendConsoleMessage(player, detail);
             }
-            else
-            {
-                sendConsoleMessage(player, detail);
-            }
+            sui.msgbox(self, player, detail);
             return SCRIPT_CONTINUE;
         }
         if (item == menu_info_types.SERVER_MENU1)
