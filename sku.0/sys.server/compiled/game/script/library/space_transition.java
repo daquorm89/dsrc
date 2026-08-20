@@ -571,15 +571,67 @@ public class space_transition extends script.base_script
     public static final int PLACE_SHIP_ALREADY_OUT = 2;
     public static final int PLACE_SHIP_BAD_LOCATION = 3;
     public static final int PLACE_SHIP_NOT_IN_WORLD = 4;
+    public static final int PLACE_SHIP_RESTORE_FAILED = 5;
+
+    // True when the ship is a ground object the player can walk up to —
+    // NOT when it is still nested under the player/datapad/SCD.
+    // IMPORTANT: isInWorld() is TRUE for objects inside a player's datapad
+    // (because the player is in the world). Do not use isInWorld alone.
+    public static boolean isShipPlacedInGroundWorld(obj_id ship, obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !exists(ship))
+        {
+            return false;
+        }
+        // Packed under player (datapad/SCD/inventory) — NOT placed in the world.
+        // isInWorld() is unreliable here because the player is in the world.
+        if (utils.isNestedWithin(ship, player))
+        {
+            return false;
+        }
+        obj_id parent = getContainedBy(ship);
+        if (isIdValid(parent) && hasScript(parent, "space.ship_control_device.ship_control_device"))
+        {
+            return false;
+        }
+        if (isIdValid(parent))
+        {
+            String parentTemplate = getTemplateName(parent);
+            if (parentTemplate != null && (parentTemplate.indexOf("ship_control_device") >= 0
+                || parentTemplate.indexOf("datapad") >= 0
+                || parentTemplate.indexOf("player_inventory") >= 0))
+            {
+                return false;
+            }
+        }
+        // Must be in a world cell (outdoor world cell counts)
+        if (!isInWorldCell(ship))
+        {
+            return false;
+        }
+        return true;
+    }
+
+    public static boolean restoreShipToControlDevice(obj_id ship, obj_id shipControlDevice) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !isIdValid(shipControlDevice) || !exists(ship) || !exists(shipControlDevice))
+        {
+            return false;
+        }
+        if (getContainedBy(ship) == shipControlDevice)
+        {
+            return true;
+        }
+        boolean ok = putIn(ship, shipControlDevice);
+        LOG("space_transition", "restoreShipToControlDevice: putIn ship=" + ship + " scd=" + shipControlDevice + " ok=" + ok
+            + " containedBy=" + getContainedBy(ship));
+        return getContainedBy(ship) == shipControlDevice;
+    }
 
     // P9 atmospheric flight: place the ship in the world at the player's
     // location WITHOUT auto-piloting. The player boards later via radial
     // on the ship object (combat_ship). Space launch still uses
     // unpackShipForPlayer which pilots immediately.
-    //
-    // Success requires the ship to be in a real world cell (isInWorld +
-    // isInWorldCell). Merely leaving the SCD is not enough — that left
-    // players with a missing Call option and no visible ship.
     public static boolean placeShipInWorldForPlayer(obj_id player, obj_id ship) throws InterruptedException
     {
         return placeShipInWorldForPlayerWithCode(player, ship) == PLACE_SHIP_OK;
@@ -595,20 +647,24 @@ public class space_transition extends script.base_script
         obj_id shipControlDevice = getContainedBy(ship);
         if (!isIdValid(shipControlDevice))
         {
-            // Already not in an SCD — treat as success only if truly in world.
-            if (isInWorld(ship) && isInWorldCell(ship))
+            if (isShipPlacedInGroundWorld(ship, player))
             {
                 return PLACE_SHIP_OK;
             }
-            LOG("space_transition", "placeShip: ship has no SCD parent and is not in world ship=" + ship);
+            LOG("space_transition", "placeShip: ship has no SCD parent and is not placed ship=" + ship);
             return PLACE_SHIP_NOT_IN_WORLD;
         }
-        // already out in the world?
+        // already out?
         if (getContainedBy(ship) != shipControlDevice)
         {
-            if (isInWorld(ship) && isInWorldCell(ship))
+            if (isShipPlacedInGroundWorld(ship, player))
             {
                 return PLACE_SHIP_OK;
+            }
+            // Orphaned — try to restore so Call does not vanish permanently
+            if (!restoreShipToControlDevice(ship, shipControlDevice))
+            {
+                return PLACE_SHIP_RESTORE_FAILED;
             }
             return PLACE_SHIP_ALREADY_OUT;
         }
@@ -622,22 +678,21 @@ public class space_transition extends script.base_script
             return PLACE_SHIP_BAD_LOCATION;
         }
 
-        // Place slightly above the player's feet so the chassis is less likely
-        // to fall under terrain; same scene/cell as the player.
+        // Same placement pattern as unpackShipForPlayer (which worked with auto-pilot),
+        // but without pilotShip(). Outdoor cell: use null cell like player ground loc.
         location shipLoc = new location(playerLoc.x, playerLoc.y + 0.75f, playerLoc.z, playerLoc.area, playerLoc.cell);
 
-        LOG("space_transition", "placeShip: placing ship=" + ship + " at " + shipLoc + " from SCD=" + shipControlDevice);
+        LOG("space_transition", "placeShip: placing ship=" + ship + " at " + shipLoc + " from SCD=" + shipControlDevice
+            + " nestedBefore=" + utils.isNestedWithin(ship, player));
         setLocation(ship, shipLoc);
 
         if (!isSpaceScene())
         {
-            // Requires matching engine native; safe no-op if already landed.
             setShipLanded(ship, true);
         }
 
         setObjVar(shipControlDevice, "ship", ship);
         setObjVar(ship, "shipControlDevice", shipControlDevice);
-        // Ensure board radial ownership checks pass
         if (getOwner(ship) != player)
         {
             setOwner(ship, player);
@@ -645,7 +700,6 @@ public class space_transition extends script.base_script
         updateShipFaction(ship, player);
         doAIImmunityCheck(ship);
 
-        // Flight droid: optional; do not fail placement if droid setup fails
         obj_id droidControlDevice = getDroidControlDeviceForShip(ship);
         if (isIdValid(droidControlDevice))
         {
@@ -679,24 +733,24 @@ public class space_transition extends script.base_script
             }
         }
 
-        boolean inWorld = isInWorld(ship) && isInWorldCell(ship);
-        boolean leftScd = getContainedBy(ship) != shipControlDevice;
+        boolean placed = isShipPlacedInGroundWorld(ship, player);
         LOG("space_transition", "placeShip: after place ship=" + ship
-            + " inWorld=" + isInWorld(ship)
-            + " inWorldCell=" + isInWorldCell(ship)
+            + " isInWorld=" + isInWorld(ship)
+            + " isInWorldCell=" + isInWorldCell(ship)
+            + " nestedInPlayer=" + utils.isNestedWithin(ship, player)
             + " containedBy=" + getContainedBy(ship)
-            + " leftScd=" + leftScd);
+            + " placed=" + placed);
 
-        if (inWorld && leftScd)
+        if (placed)
         {
             return PLACE_SHIP_OK;
         }
 
-        // Failed placement: put the ship back in the SCD so Call remains available
+        // Failed: always try to put the ship back so Call does not disappear
         LOG("space_transition", "placeShip: FAILED — restoring ship to SCD ship=" + ship + " scd=" + shipControlDevice);
-        if (isIdValid(shipControlDevice) && exists(shipControlDevice))
+        if (!restoreShipToControlDevice(ship, shipControlDevice))
         {
-            putIn(ship, shipControlDevice);
+            return PLACE_SHIP_RESTORE_FAILED;
         }
         return PLACE_SHIP_NOT_IN_WORLD;
     }
@@ -706,17 +760,19 @@ public class space_transition extends script.base_script
         switch (code)
         {
             case PLACE_SHIP_OK:
-                return "Ship deployed.";
+                return "Ship deployed. Use the ship's radial menu to Pilot or Enter.";
             case PLACE_SHIP_INVALID:
                 return "Call ship failed: invalid ship or player.";
             case PLACE_SHIP_ALREADY_OUT:
-                return "Call ship failed: ship is not packed in the control device (may already be in the world).";
+                return "Call ship failed: ship was not packed correctly. Try Call again or relog.";
             case PLACE_SHIP_BAD_LOCATION:
                 return "Call ship failed: cannot read your location.";
             case PLACE_SHIP_NOT_IN_WORLD:
-                return "Call ship failed: ship could not be placed in the world. It has been returned to your datapad.";
+                return "Call ship failed: ship could not be placed in the world. Returned to control device.";
+            case PLACE_SHIP_RESTORE_FAILED:
+                return "Call ship failed: ship left the control device and could not be restored. Relog or re-grant SCD.";
             default:
-                return "Call ship failed (unknown error " + code + ").";
+                return "Call ship failed (error " + code + ").";
         }
     }
 

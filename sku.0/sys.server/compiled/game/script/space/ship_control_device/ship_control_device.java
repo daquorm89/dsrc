@@ -147,41 +147,53 @@ public class ship_control_device extends script.base_script
             obj_id objShip = space_transition.getShipFromShipControlDevice(self);
             if (!isIdValid(objShip))
             {
-                sendSystemMessageTestingOnly(player, "Call ship failed: no ship found in this control device. Re-grant or unpack a ship SCD.");
+                // Visible to all clients (TestingOnly is often silent for normal players)
+                sendSystemMessage(player, SID_CALL_SHIP_FAILED);
+                sendConsoleMessage(player, "Call ship failed: no ship found in this control device.");
                 return SCRIPT_CONTINUE;
             }
             if (getContainedBy(objShip) != self)
             {
-                sendSystemMessageTestingOnly(player, "Call ship failed: ship is not packed in this control device (already out or lost).");
+                // Attempt recovery if we still know the ship id
+                if (isIdValid(objShip) && !space_transition.isShipPlacedInGroundWorld(objShip, player))
+                {
+                    space_transition.restoreShipToControlDevice(objShip, self);
+                }
+                sendSystemMessage(player, SID_CALL_SHIP_FAILED);
+                sendConsoleMessage(player, "Call ship failed: ship is not packed in this control device (already out or lost).");
                 return SCRIPT_CONTINUE;
             }
             if (isSpaceScene())
             {
-                sendSystemMessageTestingOnly(player, "Call ship failed: cannot call a ship while in a space zone. Use a starport / space terminal.");
+                sendSystemMessage(player, SID_CALL_SHIP_FAILED);
+                sendConsoleMessage(player, "Call ship failed: cannot call a ship in a space zone.");
                 return SCRIPT_CONTINUE;
             }
             if (!space_utils.isAtmosphericFlightAllowedHere())
             {
-                sendSystemMessageTestingOnly(player, "Call ship failed: atmospheric flight is not allowed on this planet.");
+                sendSystemMessage(player, SID_CALL_SHIP_FAILED);
+                sendConsoleMessage(player, "Call ship failed: atmospheric flight is not allowed on this planet.");
                 return SCRIPT_CONTINUE;
             }
             if (getIntObjVar(self, IN_USE_OBJVAR) == 1)
             {
-                sendSystemMessageTestingOnly(player, "Call ship failed: control device is busy (already packing/unpacking). Try again.");
+                sendSystemMessage(player, SID_CALL_SHIP_FAILED);
+                sendConsoleMessage(player, "Call ship failed: control device is busy. Try again.");
                 return SCRIPT_CONTINUE;
             }
             setObjVar(self, IN_USE_OBJVAR, 1);
             // P9: place only — do not auto-pilot. Player boards via radial on the ship.
             int result = space_transition.placeShipInWorldForPlayerWithCode(player, objShip);
             removeObjVar(self, IN_USE_OBJVAR);
+            String detail = space_transition.getPlaceShipFailureMessage(result);
             if (result != space_transition.PLACE_SHIP_OK)
             {
                 sendSystemMessage(player, SID_CALL_SHIP_FAILED);
-                sendSystemMessageTestingOnly(player, space_transition.getPlaceShipFailureMessage(result));
+                sendConsoleMessage(player, detail);
             }
             else
             {
-                sendSystemMessageTestingOnly(player, "Ship deployed nearby. Use the ship's radial menu to Pilot or Enter.");
+                sendConsoleMessage(player, detail);
             }
             return SCRIPT_CONTINUE;
         }
