@@ -576,10 +576,30 @@ public class space_transition extends script.base_script
         {
             return false;
         }
-        // already out in the world?
+        // Already in the world (e.g. parked after exit): move to the player
+        // and force client resync via setShipLanded -> forceOwnerObserve.
         if (getContainedBy(ship) != shipControlDevice)
         {
-            return isInWorld(ship);
+            if (!isInWorld(ship))
+            {
+                return false;
+            }
+            location playerLoc = getLocation(player);
+            if (playerLoc != null && !isSpaceScene())
+            {
+                float groundY = getHeightAtLocation(playerLoc.x, playerLoc.z);
+                if (groundY != 0.0f || playerLoc.y != 0.0f)
+                {
+                    playerLoc.y = groundY + 4.0f;
+                }
+                else
+                {
+                    playerLoc.y = playerLoc.y + 4.0f;
+                }
+                setLocation(ship, playerLoc);
+                setShipLanded(ship, true);
+            }
+            return true;
         }
         setShipName(ship, player, shipControlDevice);
         location playerLoc = getLocation(player);
