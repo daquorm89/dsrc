@@ -18,6 +18,128 @@ public class combat_ship extends script.base_script
     public static final int SHIP_FIRED_SKILLMOD_PENALTY_TIME = 5;
     public static final float STUNNED_COMPONENT_LOOP_TIME = 5.0f;
     public static final String NO_DAMAGE_WARN = "clienteffect/cbt_friendlyfire_warn.cef";
+    // P9 atmospheric flight: board a landed ship from the ground
+    public static final string_id SID_PILOT_SHIP = new string_id("space/space_interaction", "pilot_ship");
+    public static final string_id SID_ENTER_SHIP = new string_id("sui", "enter");
+    public static final string_id SID_NO_SHIP_CERT = new string_id("space/space_interaction", "no_ship_certification");
+    public static final float BOARD_RANGE = 32.0f;
+
+    public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
+    {
+        if (!isIdValid(player) || isSpaceScene())
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (!space_utils.isAtmosphericFlightAllowedHere())
+        {
+            return SCRIPT_CONTINUE;
+        }
+        // Ship must be in the world cell (landed/parked), not packed in SCD
+        if (!isInWorld(self) || !isInWorldCell(self))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (getOwner(self) != player && !isGod(player))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        // Already someone piloting this ship
+        if (isIdValid(getPilotId(self)))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        location playerLoc = getLocation(player);
+        location shipLoc = getLocation(self);
+        if (playerLoc == null || shipLoc == null || playerLoc.area == null || !playerLoc.area.equals(shipLoc.area))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        float dx = playerLoc.x - shipLoc.x;
+        float dy = playerLoc.y - shipLoc.y;
+        float dz = playerLoc.z - shipLoc.z;
+        if ((dx * dx + dy * dy + dz * dz) > (BOARD_RANGE * BOARD_RANGE))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        // Prefer localized "pilot" if present; fall back is fine if string missing
+        mi.addRootMenu(menu_info_types.ITEM_USE, SID_PILOT_SHIP);
+        if (space_utils.isShipWithInterior(self))
+        {
+            mi.addRootMenu(menu_info_types.SERVER_MENU1, SID_ENTER_SHIP);
+        }
+        return SCRIPT_CONTINUE;
+    }
+
+    public int OnObjectMenuSelect(obj_id self, obj_id player, int item) throws InterruptedException
+    {
+        if (!isIdValid(player) || isSpaceScene())
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (item != menu_info_types.ITEM_USE && item != menu_info_types.SERVER_MENU1)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (getOwner(self) != player && !isGod(player))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (!isInWorld(self) || !isInWorldCell(self))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (isIdValid(getPilotId(self)))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        location playerLoc = getLocation(player);
+        location shipLoc = getLocation(self);
+        if (playerLoc == null || shipLoc == null)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        float dx = playerLoc.x - shipLoc.x;
+        float dy = playerLoc.y - shipLoc.y;
+        float dz = playerLoc.z - shipLoc.z;
+        if ((dx * dx + dy * dy + dz * dz) > (BOARD_RANGE * BOARD_RANGE))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (!hasCertificationsForItem(player, self) && !isGod(player))
+        {
+            sendSystemMessage(player, SID_NO_SHIP_CERT);
+            return SCRIPT_CONTINUE;
+        }
+
+        if (item == menu_info_types.SERVER_MENU1 && space_utils.isShipWithInterior(self))
+        {
+            // Enter interior: put player in first available cell of the POB ship
+            obj_id[] cells = getCellIds(self);
+            if (cells != null && cells.length > 0 && isIdValid(cells[0]))
+            {
+                location dest = getLocation(cells[0]);
+                if (dest != null)
+                {
+                    setLocation(player, dest);
+                }
+            }
+            return SCRIPT_CONTINUE;
+        }
+
+        // Pilot (fighter or POB cockpit)
+        obj_id pilotSlotObject = space_transition.findPilotSlotObjectForShip(player, self);
+        if (!isIdValid(pilotSlotObject))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        pilotShip(player, pilotSlotObject);
+        if (!isSpaceScene())
+        {
+            setShipLanded(self, true);
+        }
+        return SCRIPT_CONTINUE;
+    }
+
     public int OnAttach(obj_id self) throws InterruptedException
     {
         int[] intSlots = getShipChassisSlots(self);

@@ -23606,6 +23606,22 @@ public class base_class
     {
         return _getShipHasWings(getLongWithNull(shipId));
     }
+    // P9 atmospheric flight: true once a piloted ship has settled onto
+    // the ground (see ShipController::respondToTerrainCollision()).
+    // Always false in space.
+    private static native boolean _isShipLanded(long shipId);
+    public static boolean isShipLanded(obj_id shipId)
+    {
+        return _isShipLanded(getLongWithNull(shipId));
+    }
+    // P9 atmospheric flight: mark a ship as landed (or clear the flag).
+    // Used after unpackShip places a ship at rest on the ground without a
+    // collision event having fired, so exit-gating can work immediately.
+    private static native boolean _setShipLanded(long shipId, boolean landed);
+    public static boolean setShipLanded(obj_id shipId, boolean landed)
+    {
+        return _setShipLanded(getLongWithNull(shipId), landed);
+    }
     private static native float _getShipCurrentSpeed(long shipId);
     public static float getShipCurrentSpeed(obj_id shipId)
     {

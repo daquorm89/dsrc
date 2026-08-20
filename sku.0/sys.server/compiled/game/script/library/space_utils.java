@@ -1038,6 +1038,48 @@ public class space_utils extends script.base_script
     {
         return isPobType(getContainedBy(player));
     }
+
+    // P9 atmospheric flight.
+    public static final String ATMOSPHERIC_FLIGHT_PLANETS_TABLE = "datatables/space/atmospheric_flight_planets.iff";
+
+    // True if the given ground scene (planet name, e.g. "tatooine",
+    // "kashyyyk_main") allows atmospheric flight per
+    // atmospheric_flight_planets.tab. Unknown/unlisted scenes default to
+    // false -- new planets/instances must be explicitly added to the table
+    // to opt in, rather than silently allowing flight everywhere.
+    public static boolean isAtmosphericFlightAllowedOnPlanet(String planetName) throws InterruptedException
+    {
+        if (planetName == null || planetName.length() == 0)
+        {
+            return false;
+        }
+        int allow = dataTableGetInt(ATMOSPHERIC_FLIGHT_PLANETS_TABLE, planetName, "allowAtmosphericFlight");
+        return allow == 1;
+    }
+
+    // Convenience overload for the current scene the caller is standing in.
+    public static boolean isAtmosphericFlightAllowedHere() throws InterruptedException
+    {
+        if (isSpaceScene())
+        {
+            return false;
+        }
+        return isAtmosphericFlightAllowedOnPlanet(getCurrentSceneName());
+    }
+
+    // Altitude (meters above terrain) at which a piloted ship on the
+    // current planet should transition into that planet's space scene.
+    // Returns -1 if the current scene isn't in the table (i.e. atmospheric
+    // flight isn't allowed here at all -- callers should check
+    // isAtmosphericFlightAllowedHere() first).
+    public static float getAtmosphericSpaceTransitionAltitude(String planetName) throws InterruptedException
+    {
+        if (planetName == null || planetName.length() == 0)
+        {
+            return -1;
+        }
+        return dataTableGetFloat(ATMOSPHERIC_FLIGHT_PLANETS_TABLE, planetName, "spaceTransitionAltitude");
+    }
     public static boolean isNestedWithinPobShip(obj_id item) throws InterruptedException {
         if (!isIdValid(item)) {
             return false;

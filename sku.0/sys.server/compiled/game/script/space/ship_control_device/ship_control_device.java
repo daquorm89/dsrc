@@ -10,6 +10,10 @@ public class ship_control_device extends script.base_script
     }
     public static final string_id RENAME_SHIP = new string_id("sui", "rename_ship");
     public static final string_id PACK_SHIP = new string_id("sui", "pack_ship");
+    // P9 atmospheric flight: reuse existing localized strings rather than
+    // adding new ones. "launch_ship" reads better than "summon vehicle/toy".
+    public static final string_id SID_CALL_SHIP = new string_id("space/space_terminal", "launch_ship");
+    public static final string_id SID_CALL_SHIP_FAILED = new string_id("pet/pet_menu", "failed_to_call_vehicle");
     public static final string_id PROMPT1 = new string_id("sui", "rename_ship_text");
     public static final String[] ignoreRules = new String[]
     {
@@ -77,6 +81,18 @@ public class ship_control_device extends script.base_script
         obj_id objShip = space_transition.getShipFromShipControlDevice(self);
         if (isIdValid(objShip))
         {
+            // P9 atmospheric flight: offer to summon the ship to the
+            // player's location on the ground if it is still packed inside
+            // this control device (not yet placed in the world) and the
+            // current planet allows atmospheric flight.
+            // NOTE: do NOT use isInWorld(objShip) -- packed ships nested in
+            // the datapad can still report isInWorld() true because the
+            // player carrying them is in-world. Containment by this SCD is
+            // the unambiguous "still packed" test.
+            if (getContainedBy(objShip) == self && !isSpaceScene() && space_utils.isAtmosphericFlightAllowedHere())
+            {
+                mi.addRootMenu(menu_info_types.SERVER_MENU5, SID_CALL_SHIP);
+            }
             gunshipCheck(objShip);
             if (hasObjVar(objShip, player_structure.OBJVAR_STRUCTURE_STORAGE_INCREASE))
             {
@@ -122,6 +138,52 @@ public class ship_control_device extends script.base_script
                     space_crafting.repairDamage(player, objShip, 1.0f);
                 }
             }
+        }
+        if (item == menu_info_types.SERVER_MENU5)
+        {
+            // P9 atmospheric flight: call the ship to the player's current
+            // location on the ground. Same packed-test as the menu: ship
+            // must still be contained by this SCD (not already in the world).
+            obj_id objShip = space_transition.getShipFromShipControlDevice(self);
+            if (!isIdValid(objShip))
+            {
+                sendSystemMessageTestingOnly(player, "Call ship failed: no ship found in this control device. Re-grant or unpack a ship SCD.");
+                return SCRIPT_CONTINUE;
+            }
+            if (getContainedBy(objShip) != self)
+            {
+                sendSystemMessageTestingOnly(player, "Call ship failed: ship is not packed in this control device (already out or lost).");
+                return SCRIPT_CONTINUE;
+            }
+            if (isSpaceScene())
+            {
+                sendSystemMessageTestingOnly(player, "Call ship failed: cannot call a ship while in a space zone. Use a starport / space terminal.");
+                return SCRIPT_CONTINUE;
+            }
+            if (!space_utils.isAtmosphericFlightAllowedHere())
+            {
+                sendSystemMessageTestingOnly(player, "Call ship failed: atmospheric flight is not allowed on this planet.");
+                return SCRIPT_CONTINUE;
+            }
+            if (getIntObjVar(self, IN_USE_OBJVAR) == 1)
+            {
+                sendSystemMessageTestingOnly(player, "Call ship failed: control device is busy (already packing/unpacking). Try again.");
+                return SCRIPT_CONTINUE;
+            }
+            setObjVar(self, IN_USE_OBJVAR, 1);
+            // P9: place only — do not auto-pilot. Player boards via radial on the ship.
+            int result = space_transition.placeShipInWorldForPlayerWithCode(player, objShip);
+            removeObjVar(self, IN_USE_OBJVAR);
+            if (result != space_transition.PLACE_SHIP_OK)
+            {
+                sendSystemMessage(player, SID_CALL_SHIP_FAILED);
+                sendSystemMessageTestingOnly(player, space_transition.getPlaceShipFailureMessage(result));
+            }
+            else
+            {
+                sendSystemMessageTestingOnly(player, "Ship deployed nearby. Use the ship's radial menu to Pilot or Enter.");
+            }
+            return SCRIPT_CONTINUE;
         }
         if (item == menu_info_types.SERVER_MENU1)
         {

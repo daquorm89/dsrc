@@ -38,6 +38,65 @@ public class combat_ship_player extends script.base_script
     public static final String POB_SHIP_OPERATIONS_SLOT_NAME = "ship_operations_pob";
     public static final string_id SID_SHIP_DOESNT_HAVE_WINGS = new string_id("space/space_interaction", "ship_doesnt_have_wings");
     public static final string_id SID_NOT_PILOTING_A_SHIP = new string_id("space/space_interaction", "not_piloting_a_ship");
+    // P9 atmospheric flight: radial "Exit Ship" while piloting on the ground
+    // (L/leaveStation may not be bound on the ground client command set).
+    public static final string_id SID_EXIT_SHIP = new string_id("sui", "exit");
+    public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
+    {
+        if (player != self)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (isSpaceScene())
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (!space_utils.isAtmosphericFlightAllowedHere())
+        {
+            return SCRIPT_CONTINUE;
+        }
+        obj_id ship = space_transition.getContainingShip(self);
+        if (!isIdValid(ship))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        // Only when actually piloting (fighter or POB pilot seat)
+        obj_id container = getContainedBy(self);
+        if (!isIdValid(container))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        boolean isPilot = (getObjectInSlot(container, space_transition.SHIP_PILOT_SLOT_NAME) == self)
+            || (getObjectInSlot(container, POB_SHIP_PILOT_SLOT_NAME) == self);
+        if (!isPilot)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        mi.addRootMenu(menu_info_types.SERVER_MENU9, SID_EXIT_SHIP);
+        return SCRIPT_CONTINUE;
+    }
+    public int OnObjectMenuSelect(obj_id self, obj_id player, int item) throws InterruptedException
+    {
+        if (player != self || item != menu_info_types.SERVER_MENU9)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (isSpaceScene())
+        {
+            return SCRIPT_CONTINUE;
+        }
+        obj_id ship = space_transition.getContainingShip(self);
+        if (!isIdValid(ship))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (!isGod(self) && getShipCurrentSpeed(ship) > 2.0f)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        unpilotShip(self);
+        return SCRIPT_CONTINUE;
+    }
     public int OnAttach(obj_id self) throws InterruptedException
     {
         if (!hasObjVar(self, "jtlNewbie"))
@@ -137,7 +196,14 @@ public class combat_ship_player extends script.base_script
         obj_id container = getContainedBy(self);
         if (isIdValid(container))
         {
-            if (!isGod(self) && !isIdValid(getContainedBy(container)))
+            // Original space behaviour: non-god players may only leaveStation
+            // when their seat/container is itself contained (e.g. ship is
+            // docked). On a ground planet with atmospheric flight allowed,
+            // the ship is top-level in the world cell, so that check would
+            // permanently block exit -- allow top-level exit there; the
+            // pilot-slot branches below still require isShipLanded().
+            boolean allowTopLevelExit = !isSpaceScene() && space_utils.isAtmosphericFlightAllowedHere();
+            if (!isGod(self) && !isIdValid(getContainedBy(container)) && !allowTopLevelExit)
             {
                 return SCRIPT_CONTINUE;
             }
@@ -151,8 +217,45 @@ public class combat_ship_player extends script.base_script
                 obj_id building = getTopMostContainer(self);
                 messageTo(building, "continueMainTable", null, 0, false);
             }
-            if (getObjectInSlot(container, POB_SHIP_PILOT_SLOT_NAME) == self)
+            if (getObjectInSlot(container, space_transition.SHIP_PILOT_SLOT_NAME) == self)
             {
+                // P9 atmospheric flight: regular (non-POB) single-seat
+                // ship -- the pilot is contained directly by the ship
+                // object in slot "ship_pilot" (not "ship_pilot_pob"), so
+                // this needs its own branch, previously missing entirely.
+                // Ground-side only: require the ship to be landed before
+                // allowing exit (god-mode bypass preserved). Space scenes
+                // keep the original unrestricted exit behaviour -- the
+                // previous gate incorrectly blocked leaveStation in space
+                // for non-god players.
+                obj_id piloted = space_transition.getContainingShip(self);
+                // P9: ground exit gate is speed-based, not isShipLanded().
+                // Player ships are client-authoritative so the C++ landed
+                // flag often never gets set (no server terrain collision
+                // path runs). Near-zero speed is the reliable "settled"
+                // signal available to scripts without a C++ rebuild.
+                if (!isSpaceScene() && !isGod(self))
+                {
+                    if (!isIdValid(piloted) || getShipCurrentSpeed(piloted) > 2.0f)
+                    {
+                        return SCRIPT_CONTINUE;
+                    }
+                }
+                unpilotShip(self);
+            }
+            else if (getObjectInSlot(container, POB_SHIP_PILOT_SLOT_NAME) == self)
+            {
+                // Same speed-based ground gate as the regular fighter branch.
+                // container is the POB pilot-seat sub-object; resolve the real
+                // ShipObject for speed checks.
+                obj_id piloted = space_transition.getContainingShip(self);
+                if (!isSpaceScene() && !isGod(self))
+                {
+                    if (!isIdValid(piloted) || getShipCurrentSpeed(piloted) > 2.0f)
+                    {
+                        return SCRIPT_CONTINUE;
+                    }
+                }
                 unpilotShip(self);
             }
             else if (getObjectInSlot(container, POB_SHIP_OPERATIONS_SLOT_NAME) == self)
