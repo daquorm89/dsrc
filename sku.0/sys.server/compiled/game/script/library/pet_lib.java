@@ -510,7 +510,12 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
     public static boolean hasMaxPets(obj_id master, int petType, obj_id pet) throws InterruptedException
     {
         int callableType = callable.CALLABLE_TYPE_COMBAT_PET;
-        if (petType == PET_TYPE_FAMILIAR)
+        if (petType == PET_TYPE_DROID)
+        {
+            // Separate active slot from combat pets (1 pet + 1 droid)
+            callableType = callable.CALLABLE_TYPE_COMBAT_OTHER;
+        }
+        else if (petType == PET_TYPE_FAMILIAR)
         {
             callableType = callable.CALLABLE_TYPE_FAMILIAR;
         }
@@ -2188,8 +2193,10 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
             case PET_TYPE_NON_AGGRO:
             case PET_TYPE_AGGRO:
             case PET_TYPE_NPC:
-            case PET_TYPE_DROID:
             callableType = callable.CALLABLE_TYPE_COMBAT_PET;
+            break;
+            case PET_TYPE_DROID:
+            callableType = callable.CALLABLE_TYPE_COMBAT_OTHER;
             break;
             case PET_TYPE_FAMILIAR:
             callableType = callable.CALLABLE_TYPE_FAMILIAR;

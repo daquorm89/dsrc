@@ -58,8 +58,10 @@ public class callable extends script.base_script
             case pet_lib.PET_TYPE_NON_AGGRO:
             case pet_lib.PET_TYPE_AGGRO:
             case pet_lib.PET_TYPE_NPC:
-            case pet_lib.PET_TYPE_DROID:
             return CALLABLE_TYPE_COMBAT_PET;
+            // Pre-CU: one combat pet AND one droid out at once (separate slots)
+            case pet_lib.PET_TYPE_DROID:
+            return CALLABLE_TYPE_COMBAT_OTHER;
             case pet_lib.PET_TYPE_FAMILIAR:
             return CALLABLE_TYPE_FAMILIAR;
         }
@@ -88,8 +90,9 @@ public class callable extends script.base_script
                     case pet_lib.PET_TYPE_NON_AGGRO:
                     case pet_lib.PET_TYPE_AGGRO:
                     case pet_lib.PET_TYPE_NPC:
-                    case pet_lib.PET_TYPE_DROID:
                         return CALLABLE_TYPE_COMBAT_PET;
+                    case pet_lib.PET_TYPE_DROID:
+                        return CALLABLE_TYPE_COMBAT_OTHER;
                     case pet_lib.PET_TYPE_FAMILIAR:
                         return CALLABLE_TYPE_FAMILIAR;
                     case pet_lib.PET_TYPE_MOUNT:
@@ -108,8 +111,9 @@ public class callable extends script.base_script
                 case pet_lib.PET_TYPE_NON_AGGRO:
                 case pet_lib.PET_TYPE_AGGRO:
                 case pet_lib.PET_TYPE_NPC:
-                case pet_lib.PET_TYPE_DROID:
                     return CALLABLE_TYPE_COMBAT_PET;
+                case pet_lib.PET_TYPE_DROID:
+                    return CALLABLE_TYPE_COMBAT_OTHER;
                 case pet_lib.PET_TYPE_FAMILIAR:
                     return CALLABLE_TYPE_FAMILIAR;
                 case pet_lib.PET_TYPE_MOUNT:
