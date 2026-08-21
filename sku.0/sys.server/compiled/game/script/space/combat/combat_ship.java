@@ -211,33 +211,22 @@ public class combat_ship extends script.base_script
             return SCRIPT_CONTINUE;
         }
 
-        // Pilot from outside
+        // Pilot from outside — use shared board helper (clears residual, no relog)
         if (isIdValid(getPilotId(self)) && getPilotId(self) != player)
         {
             sui.msgbox(player, player, "Someone is already piloting this ship.");
             return SCRIPT_CONTINUE;
         }
-        if (getPilotId(self) == player)
+        if (getPilotId(self) == player && space_transition.getContainingShip(player) == self)
         {
             sui.msgbox(player, player, "You are already piloting.");
             return SCRIPT_CONTINUE;
         }
-        obj_id pilotSlotObject = space_transition.findPilotSlotObjectForShip(player, self);
-        if (!isIdValid(pilotSlotObject))
-        {
-            sui.msgbox(player, player, "Cannot pilot: no pilot slot available on this ship.");
-            return SCRIPT_CONTINUE;
-        }
-        boolean ok = pilotShip(player, pilotSlotObject);
+        boolean ok = space_transition.boardShipAsPilotOnGround(player, self);
         if (!ok)
         {
-            sui.msgbox(player, player, "Cannot pilot: pilotShip failed. Try Launch again (auto-enters) or wait a moment.");
+            sui.msgbox(player, player, "Cannot pilot yet. Wait 1s, target the ship again, and choose Pilot. If it still fails, Store and Launch once.");
             return SCRIPT_CONTINUE;
-        }
-        space_transition.updateShipFaction(self, player);
-        if (!isSpaceScene())
-        {
-            setShipLanded(self, true);
         }
         return SCRIPT_CONTINUE;
     }
