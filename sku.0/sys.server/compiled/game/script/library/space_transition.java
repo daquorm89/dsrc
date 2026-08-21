@@ -1145,30 +1145,38 @@ public class space_transition extends script.base_script
             return PLACE_SHIP_NOT_IN_WORLD;
         }
 
-        // Launch: activate chassis via unpack (pilotShip), then stay in the seat.
-        // Atmospheric client only enters pilot mode through this stream; re-board
-        // after unpilot without relog is unreliable. Auto-enter is the working path.
-        // Pilot radial still tries pack+unpack reactivation as a second chance.
+        // Launch: activate chassis via unpack (uses pilotShip internally), then
+        // IMMEDIATELY eject — never leave the player in the pilot seat.
+        // Then force a client world reload (warp to same coords + load screen)
+        // so the parked ship is fully re-created on the client — same idea as
+        // a space transition / relog, without changing scene.
         setOwner(ship, player);
         if (!hasScript(ship, "space.combat.combat_ship"))
         {
             attachScript(ship, "space.combat.combat_ship");
         }
+        utils.removeScriptVar(player, "atmos.postLaunchEjectPending");
         if (!isSpaceScene())
         {
             snapShipToGroundAndMarkLanded(ship);
             setShipLanded(ship, true);
+            forceEjectPlayerFromShipOnGround(player, ship);
+            if (getPilotId(ship) == player)
+            {
+                unpilotShip(player);
+            }
+            setShipLanded(ship, true);
+            // Soft client "world reload" — same planet/coords, force load screen
+            refreshClientWorldAtPlayer(player);
         }
-        utils.removeScriptVar(player, "atmos.postLaunchEjectPending");
 
-        boolean placed = isIdValid(getPilotId(ship))
-            || isShipPlacedInGroundWorld(ship, player)
+        boolean placed = isShipPlacedInGroundWorld(ship, player)
             || (getContainedBy(ship) != shipControlDevice && !utils.isNestedWithin(ship, player));
 
         LOG("space_transition", "placeShip: final placed=" + placed + " ship=" + ship
             + " containedBy=" + getContainedBy(ship) + " pilotId=" + getPilotId(ship)
             + " owner=" + getOwner(ship) + " playerContainingShip=" + getContainingShip(player)
-            + " (auto-enter)");
+            + " (ejected + client world refresh)");
 
         if (placed)
         {
@@ -1179,12 +1187,41 @@ public class space_transition extends script.base_script
         return PLACE_SHIP_NOT_IN_WORLD;
     }
 
+    /**
+     * Force the client to reload the current ground scene around the player
+     * (load screen + full object stream). Does not change planet or put the
+     * player in a ship. Used after atmospheric Launch so Pilot works without relog.
+     */
+    public static void refreshClientWorldAtPlayer(obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(player) || !exists(player) || isSpaceScene())
+        {
+            return;
+        }
+        location loc = getLocation(player);
+        if (loc == null || loc.area == null || loc.area.length() == 0)
+        {
+            return;
+        }
+        // Outdoor world cell
+        if (!isIdValid(loc.cell))
+        {
+            LOG("space_transition", "refreshClientWorldAtPlayer: warp forceLoadScreen area="
+                + loc.area + " @ " + loc.x + "," + loc.y + "," + loc.z);
+            warpPlayer(player, loc.area, loc.x, loc.y, loc.z, null, 0.0f, 0.0f, 0.0f, null, true);
+            return;
+        }
+        // Inside a cell — warp within same cell
+        LOG("space_transition", "refreshClientWorldAtPlayer: warp in-cell forceLoadScreen cell=" + loc.cell);
+        warpPlayer(player, loc.area, loc.x, loc.y, loc.z, loc.cell, 0.0f, 0.0f, 0.0f, null, true);
+    }
+
     public static String getPlaceShipFailureMessage(int code) throws InterruptedException
     {
         switch (code)
         {
             case PLACE_SHIP_OK:
-                return "Ship deployed — you are in the pilot seat. Leave Station to exit beside the ship; Pilot (or Launch again) to re-board. Store puts the ship away.";
+                return "Ship deployed beside you (client world refresh). Target the ship and choose Pilot to board. Store puts it away.";
             case PLACE_SHIP_INVALID:
                 return "Call ship failed: invalid ship or player.";
             case PLACE_SHIP_ALREADY_OUT:
