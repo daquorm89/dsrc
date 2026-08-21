@@ -170,7 +170,8 @@ public class combat_ship_player extends script.base_script
         {
             unpilotShip(player);
         }
-        space_transition.exitBesideShipOnGround(player, ship);
+        // exitBeside is local static on this class (not on space_transition)
+        exitBesideShipOnGround(player, ship);
         if (exists(ship) && !isSpaceScene())
         {
             setShipLanded(ship, true);

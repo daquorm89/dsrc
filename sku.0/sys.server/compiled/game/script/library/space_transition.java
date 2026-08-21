@@ -961,11 +961,6 @@ public class space_transition extends script.base_script
         {
             return false;
         }
-        if (!isInWorld(ship) || !isInWorldCell(ship))
-        {
-            LOG("space_transition", "boardShipAsPilotOnGround: ship not in world ship=" + ship);
-            return false;
-        }
         // Wait out post-Launch delayed eject if still scheduled
         if (utils.hasScriptVar(player, "atmos.postLaunchEjectPending"))
         {
@@ -975,46 +970,108 @@ public class space_transition extends script.base_script
         obj_id currentPilot = getPilotId(ship);
         if (isIdValid(currentPilot) && currentPilot != player)
         {
+            LOG("space_transition", "boardShipAsPilotOnGround: other pilot=" + currentPilot);
             return false;
         }
-        // Clear half-state from a previous failed board / Launch eject
-        if (currentPilot == player)
+        if (currentPilot == player && getContainingShip(player) == ship)
         {
-            unpilotShip(player);
+            setShipLanded(ship, true);
+            return true;
         }
-        if (getContainingShip(player) == ship)
+
+        // Clear residual containment before board
+        if (getContainingShip(player) == ship || currentPilot == player)
         {
             forceEjectPlayerFromShipOnGround(player, ship);
         }
+
+        // Fast path: pilotShip in place (works after relog when client is fully synced)
         setOwner(ship, player);
-        setShipLanded(ship, true);
+        if (!isSpaceScene())
+        {
+            setShipLanded(ship, true);
+        }
         if (!hasScript(ship, "space.combat.combat_ship"))
         {
             attachScript(ship, "space.combat.combat_ship");
         }
         obj_id pilotSlotObject = findPilotSlotObjectForShip(player, ship);
-        if (!isIdValid(pilotSlotObject))
+        if (isIdValid(pilotSlotObject))
         {
-            LOG("space_transition", "boardShipAsPilotOnGround: no pilot slot ship=" + ship);
+            boolean ok = pilotShip(player, pilotSlotObject);
+            if (ok && getPilotId(ship) == player)
+            {
+                updateShipFaction(ship, player);
+                doAIImmunityCheck(ship);
+                if (!isSpaceScene())
+                {
+                    setShipLanded(ship, true);
+                }
+                LOG("space_transition", "boardShipAsPilotOnGround: fast pilotShip OK");
+                return true;
+            }
+        }
+
+        // Client desync path (the usual case after Launch/eject without relog):
+        // Re-run the same activation stream as Launch — pack into SCD then
+        // unpackShipForPlayer (setLocation + pilotShip). That is the only path
+        // proven to put the client into pilot mode without a full relog.
+        obj_id scd = null;
+        if (hasObjVar(ship, "shipControlDevice"))
+        {
+            scd = getObjIdObjVar(ship, "shipControlDevice");
+        }
+        if (!isIdValid(scd) || !exists(scd))
+        {
+            obj_id[] scds = findShipControlDevicesForPlayer(player);
+            if (scds != null && scds.length > 0)
+            {
+                scd = scds[0];
+            }
+        }
+        if (!isIdValid(scd))
+        {
+            LOG("space_transition", "boardShipAsPilotOnGround: no SCD for re-activate");
             return false;
         }
-        boolean ok = pilotShip(player, pilotSlotObject);
-        if (!ok || getPilotId(ship) != player)
+
+        LOG("space_transition", "boardShipAsPilotOnGround: re-activate via pack+unpack ship=" + ship + " scd=" + scd);
+        forceEjectPlayerFromShipOnGround(player, ship);
+        if (!restoreShipToControlDevice(ship, scd))
         {
-            forceEjectPlayerFromShipOnGround(player, ship);
-            setShipLanded(ship, true);
-            ok = pilotShip(player, pilotSlotObject);
+            LOG("space_transition", "boardShipAsPilotOnGround: restore to SCD failed");
+            // Ship may still be in world — try pilot again
+            pilotSlotObject = findPilotSlotObjectForShip(player, ship);
+            if (isIdValid(pilotSlotObject) && pilotShip(player, pilotSlotObject) && getPilotId(ship) == player)
+            {
+                if (!isSpaceScene())
+                {
+                    setShipLanded(ship, true);
+                }
+                return true;
+            }
+            return false;
         }
-        if (ok && getPilotId(ship) == player)
+
+        boolean unpacked = unpackShipForPlayer(player, ship);
+        if (unpacked && getPilotId(ship) == player)
         {
-            updateShipFaction(ship, player);
-            doAIImmunityCheck(ship);
-            setShipLanded(ship, true);
-            LOG("space_transition", "boardShipAsPilotOnGround: SUCCESS pilotId=" + getPilotId(ship));
+            setOwner(ship, player);
+            if (!isSpaceScene())
+            {
+                snapShipToGroundAndMarkLanded(ship);
+                setShipLanded(ship, true);
+            }
+            if (!hasScript(ship, "space.combat.combat_ship"))
+            {
+                attachScript(ship, "space.combat.combat_ship");
+            }
+            LOG("space_transition", "boardShipAsPilotOnGround: pack+unpack SUCCESS");
             return true;
         }
-        LOG("space_transition", "boardShipAsPilotOnGround: FAIL ok=" + ok + " pilotId=" + getPilotId(ship)
-            + " containingShip=" + getContainingShip(player));
+
+        LOG("space_transition", "boardShipAsPilotOnGround: pack+unpack FAIL unpacked=" + unpacked
+            + " pilotId=" + getPilotId(ship));
         return false;
     }
 
