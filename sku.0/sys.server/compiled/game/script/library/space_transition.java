@@ -530,11 +530,20 @@ public class space_transition extends script.base_script
                 return;
             }
         }
-        if (debugSpaceTransition)
+        // Do NOT destroy player ships on ground pack failure — that was deleting
+        // chassis after a failed atmospheric Store and leaving residual pilot state.
+        if (isSpaceScene())
         {
-            LOG("space_transition", "packShip failed to clean up ship properly, destroying");
+            if (debugSpaceTransition)
+            {
+                LOG("space_transition", "packShip failed to clean up ship properly, destroying");
+            }
+            destroyObject(ship);
         }
-        destroyObject(ship);
+        else
+        {
+            LOG("space_transition", "packShip failed on ground — leaving ship intact ship=" + ship);
+        }
     }
     public static obj_id[] getAllObjectsInPob(obj_id pob) throws InterruptedException
     {
@@ -706,16 +715,59 @@ public class space_transition extends script.base_script
             setObjVar(ship, "shipControlDevice", shipControlDevice);
             return true;
         }
-        // putIn can fail if the ship is still treated as a world object; try once,
-        // then force by transferring from current parent if any.
+
+        // Anyone still inside the chassis will block container transfer and leave
+        // residual pilot state (pets/combat blocked, stuck after Store).
+        Vector players = getContainedPlayers(ship, null);
+        if (players != null)
+        {
+            location shipLoc = getLocation(ship);
+            for (Object player1 : players)
+            {
+                obj_id p = (obj_id) player1;
+                if (!isIdValid(p))
+                {
+                    continue;
+                }
+                if (getPilotId(ship) == p)
+                {
+                    unpilotShip(p);
+                }
+                if (shipLoc != null)
+                {
+                    location dest = new location(shipLoc.x + 2.0f, shipLoc.y, shipLoc.z + 2.0f, shipLoc.area, shipLoc.cell);
+                    if (!isIdValid(shipLoc.cell))
+                    {
+                        float terrainY = getHeightAtLocation(dest.x, dest.z);
+                        if (terrainY == terrainY)
+                        {
+                            dest.y = terrainY + 0.5f;
+                        }
+                    }
+                    setLocation(p, dest);
+                }
+            }
+        }
+        else
+        {
+            obj_id pilot = getPilotId(ship);
+            if (isIdValid(pilot))
+            {
+                unpilotShip(pilot);
+            }
+        }
+
+        int can = canPutIn(ship, shipControlDevice);
+        LOG("space_transition", "restoreShipToControlDevice: canPutIn=" + can + " ship=" + ship + " scd=" + shipControlDevice
+            + " containedBy=" + getContainedBy(ship) + " topMost=" + getTopMostContainer(ship));
+
         boolean ok = putIn(ship, shipControlDevice);
         if (!ok || getContainedBy(ship) != shipControlDevice)
         {
-            // Last resort: destroy is NOT done here — keep chassis. Retry putIn.
-            ok = putIn(ship, shipControlDevice);
+            // Volume limits on SCD templates can fail normal putIn; overloaded still respects other rules.
+            ok = putInOverloaded(ship, shipControlDevice);
         }
-        LOG("space_transition", "restoreShipToControlDevice: putIn ship=" + ship + " scd=" + shipControlDevice + " ok=" + ok
-            + " containedBy=" + getContainedBy(ship));
+        LOG("space_transition", "restoreShipToControlDevice: after putIn ok=" + ok + " containedBy=" + getContainedBy(ship));
         if (getContainedBy(ship) == shipControlDevice)
         {
             setObjVar(shipControlDevice, "ship", ship);
@@ -723,6 +775,126 @@ public class space_transition extends script.base_script
             return true;
         }
         return false;
+    }
+
+    /**
+     * Fully eject a player from a ground ship: unpilot + stand beside chassis.
+     * Returns true if the player is no longer contained by the ship afterward.
+     */
+    public static boolean forceEjectPlayerFromShipOnGround(obj_id player, obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(player) || !isIdValid(ship) || isSpaceScene())
+        {
+            return !isIdValid(player) || getContainingShip(player) != ship;
+        }
+        if (getPilotId(ship) == player)
+        {
+            unpilotShip(player);
+        }
+        // Also unpilot if engine still reports us as pilot via slot
+        obj_id container = getContainedBy(player);
+        if (isIdValid(container))
+        {
+            if (getObjectInSlot(container, SHIP_PILOT_SLOT_NAME) == player
+                || getObjectInSlot(container, POB_SHIP_PILOT_SLOT_NAME) == player)
+            {
+                unpilotShip(player);
+            }
+        }
+        location shipLoc = getLocation(ship);
+        if (shipLoc == null)
+        {
+            shipLoc = getLocation(player);
+        }
+        if (shipLoc != null)
+        {
+            location dest = new location(shipLoc.x + 2.0f, shipLoc.y, shipLoc.z + 2.0f, shipLoc.area, shipLoc.cell);
+            if (!isIdValid(shipLoc.cell))
+            {
+                float terrainY = getHeightAtLocation(dest.x, dest.z);
+                if (terrainY == terrainY)
+                {
+                    dest.y = terrainY + 0.5f;
+                }
+            }
+            setLocation(player, dest);
+        }
+        if (isIdValid(ship) && exists(ship) && !isSpaceScene())
+        {
+            setShipLanded(ship, true);
+        }
+        obj_id still = getContainingShip(player);
+        boolean clear = !isIdValid(still) || still != ship;
+        LOG("space_transition", "forceEjectPlayerFromShipOnGround: player=" + player + " ship=" + ship
+            + " containingShip=" + still + " clear=" + clear);
+        return clear;
+    }
+
+    /**
+     * Safe ground Store: eject occupants, put chassis into the given SCD.
+     * Never destroys the ship on failure (unlike packShip).
+     */
+    public static boolean storeShipInControlDeviceSafe(obj_id ship, obj_id shipControlDevice, obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !isIdValid(shipControlDevice) || !exists(ship) || !exists(shipControlDevice))
+        {
+            return false;
+        }
+        if (getContainedBy(ship) == shipControlDevice)
+        {
+            setObjVar(shipControlDevice, "ship", ship);
+            setObjVar(ship, "shipControlDevice", shipControlDevice);
+            return true;
+        }
+
+        // Eject the acting player first
+        if (isIdValid(player))
+        {
+            forceEjectPlayerFromShipOnGround(player, ship);
+        }
+        // Eject anyone else still inside
+        Vector players = getContainedPlayers(ship, null);
+        if (players != null)
+        {
+            for (Object player1 : players)
+            {
+                obj_id p = (obj_id) player1;
+                if (isIdValid(p))
+                {
+                    forceEjectPlayerFromShipOnGround(p, ship);
+                }
+            }
+        }
+        obj_id pilot = getPilotId(ship);
+        if (isIdValid(pilot))
+        {
+            forceEjectPlayerFromShipOnGround(pilot, ship);
+        }
+
+        // If someone is STILL inside, refuse to pack — packing with occupants
+        // causes residual pilot state and container-transfer errors.
+        players = getContainedPlayers(ship, null);
+        if (players != null && players.size() > 0)
+        {
+            LOG("space_transition", "storeShipInControlDeviceSafe: abort, ship still has occupants");
+            return false;
+        }
+
+        space_combat.clearHyperspace(ship);
+        obj_id droidControlDevice = getDroidControlDeviceForShip(ship);
+        if (isIdValid(droidControlDevice))
+        {
+            obj_id droid = callable.getCDCallable(droidControlDevice);
+            if (isIdValid(droid))
+            {
+                space_combat.removeFlightDroidFromShip(droidControlDevice, droid);
+            }
+        }
+        space_pilot_command.allPurposeShipComponentReset(ship);
+
+        boolean ok = restoreShipToControlDevice(ship, shipControlDevice);
+        LOG("space_transition", "storeShipInControlDeviceSafe: result=" + ok + " ship=" + ship + " scd=" + shipControlDevice);
+        return ok;
     }
 
     // P9 atmospheric flight: place the ship in the world at the player's
@@ -802,6 +974,21 @@ public class space_transition extends script.base_script
         {
             LOG("space_transition", "placeShip: invalid ship/player");
             return PLACE_SHIP_INVALID;
+        }
+
+        // Clear residual pilot/containment from a previous broken Call/Store so
+        // pets, combat, and this Launch are not blocked by a ghost ship state.
+        if (!isSpaceScene())
+        {
+            obj_id existing = getContainingShip(player);
+            if (isIdValid(existing))
+            {
+                forceEjectPlayerFromShipOnGround(player, existing);
+            }
+            else if (isIdValid(getPilotId(ship)) && getPilotId(ship) == player)
+            {
+                unpilotShip(player);
+            }
         }
 
         obj_id shipControlDevice = getContainedBy(ship);

@@ -48,28 +48,31 @@ public class combat_ship_player extends script.base_script
      */
     public static void exitBesideShipOnGround(obj_id player, obj_id ship) throws InterruptedException
     {
-        if (!isIdValid(player) || !isIdValid(ship) || isSpaceScene())
+        if (!isIdValid(player) || isSpaceScene())
         {
             return;
         }
-        location shipLoc = getLocation(ship);
-        if (shipLoc == null)
+        // Prefer the shared force-eject helper (unpilot + place + verify)
+        if (isIdValid(ship) && exists(ship))
+        {
+            space_transition.forceEjectPlayerFromShipOnGround(player, ship);
+            return;
+        }
+        // Ship already gone/packed — drop player at their current world XY with terrain Y
+        location here = getLocation(player);
+        if (here == null)
         {
             return;
         }
-        // Stand a couple meters beside the chassis in the same cell/scene
-        location dest = new location(shipLoc.x + 2.0f, shipLoc.y, shipLoc.z + 2.0f, shipLoc.area, shipLoc.cell);
-        // Prefer terrain height so we do not bury the player under the mesh
-        if (!isIdValid(shipLoc.cell))
+        if (!isIdValid(here.cell))
         {
-            float terrainY = getHeightAtLocation(dest.x, dest.z);
+            float terrainY = getHeightAtLocation(here.x, here.z);
             if (terrainY == terrainY)
             {
-                dest.y = terrainY + 0.5f;
+                here.y = terrainY + 0.5f;
             }
         }
-        setLocation(player, dest);
-        setShipLanded(ship, true);
+        setLocation(player, here);
     }
 
     public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
@@ -134,6 +137,51 @@ public class combat_ship_player extends script.base_script
         if (!hasObjVar(self, "jtlNewbie"))
         {
             messageTo(self, "handleScriptAttachment", null, 60, false);
+        }
+        return SCRIPT_CONTINUE;
+    }
+    public int OnLogin(obj_id self) throws InterruptedException
+    {
+        // Recover from residual pilot/containment after Store or a failed Call.
+        // Symptoms: cannot attack, cannot call pets, stuck in ground/ship mesh.
+        if (isSpaceScene())
+        {
+            return SCRIPT_CONTINUE;
+        }
+        obj_id ship = space_transition.getContainingShip(self);
+        if (!isIdValid(ship) || !exists(ship))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        // If the ship is packed under an SCD/datapad, we must not stay "inside" it.
+        obj_id shipParent = getContainedBy(ship);
+        boolean shipPacked = false;
+        if (isIdValid(shipParent))
+        {
+            String pt = getTemplateName(shipParent);
+            if (pt != null && (pt.indexOf("ship_control_device") >= 0 || pt.indexOf("datapad") >= 0))
+            {
+                shipPacked = true;
+            }
+            if (hasScript(shipParent, "space.ship_control_device.ship_control_device"))
+            {
+                shipPacked = true;
+            }
+        }
+        if (shipPacked || utils.isNestedWithin(ship, self) || !isInWorldCell(ship))
+        {
+            LOG("space", "combat_ship_player.OnLogin: clearing residual containment ship=" + ship + " packed=" + shipPacked);
+            unpilotShip(self);
+            location here = getLocation(self);
+            if (here != null && !isIdValid(here.cell))
+            {
+                float terrainY = getHeightAtLocation(here.x, here.z);
+                if (terrainY == terrainY)
+                {
+                    here.y = terrainY + 0.5f;
+                }
+                setLocation(self, here);
+            }
         }
         return SCRIPT_CONTINUE;
     }

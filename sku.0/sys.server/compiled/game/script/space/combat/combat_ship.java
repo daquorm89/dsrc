@@ -151,11 +151,6 @@ public class combat_ship extends script.base_script
         // ---------- Store ----------
         if (item == menu_info_types.SERVER_MENU2)
         {
-            obj_id pilot = getPilotId(self);
-            if (isIdValid(pilot))
-            {
-                unpilotShip(pilot);
-            }
             obj_id scd = null;
             if (hasObjVar(self, "shipControlDevice"))
             {
@@ -169,24 +164,20 @@ public class combat_ship extends script.base_script
                     scd = scds[0];
                 }
             }
-            space_transition.packShip(self);
-            if (isIdValid(scd) && getContainedBy(self) != scd)
+            if (!isIdValid(scd))
             {
-                space_transition.restoreShipToControlDevice(self, scd);
+                sui.msgbox(player, player, "Store failed: no ship control device found in your datapad.");
+                return SCRIPT_CONTINUE;
             }
-            if (isIdValid(scd) && getContainedBy(self) == scd)
+            // Safe path: eject everyone, then putIn — never destroy chassis on failure.
+            boolean ok = space_transition.storeShipInControlDeviceSafe(self, scd, player);
+            if (ok && getContainedBy(self) == scd)
             {
-                setObjVar(scd, "ship", self);
-                setObjVar(self, "shipControlDevice", scd);
                 sui.msgbox(player, player, "Ship stored in your control device. Use Launch Ship from the datapad to call it again.");
-            }
-            else if (utils.isNestedWithin(self, player))
-            {
-                sui.msgbox(player, player, "Ship stored.");
             }
             else
             {
-                sui.msgbox(player, player, "Store may have failed — check your datapad SCD. Ship containedBy=" + getContainedBy(self));
+                sui.msgbox(player, player, "Store failed (container transfer). Walk clear of the ship and try again. If you are stuck, relog. containedBy=" + getContainedBy(self));
             }
             return SCRIPT_CONTINUE;
         }
