@@ -574,23 +574,15 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
         {
             return 0;
         }
-        String profession = skill.getProfessionName(getSkillTemplate(player));
-        if(profession == null){
-            LOG("pet","Cannot get the profession for player (" + player + ") while getting droid command level.");
-            return 0;
-        }
-        boolean isTrader = false;
-        if (profession.equals("trader"))
-        {
-            isTrader = true;
-        }
-        int playerLevel = getLevel(player);
+        // Pre-CU: module potency alone sets command level. NGE required trader
+        // profession + player level 30/60, which blocked skill-box characters.
+        // REVERT: restore isTrader + playerLevel gates below.
         int commandLevel = 0;
-        if (modulePotency >= 100 && isTrader && playerLevel >= 60)
+        if (modulePotency >= 100)
         {
             commandLevel = 3;
         }
-        else if (modulePotency >= 50 && isTrader && playerLevel >= 30)
+        else if (modulePotency >= 50)
         {
             commandLevel = 2;
         }
