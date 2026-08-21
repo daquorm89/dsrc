@@ -246,25 +246,17 @@ public class ship_control_device extends script.base_script
                 sui.msgbox(player, player, "Ship is already stored in this control device.");
                 return SCRIPT_CONTINUE;
             }
-            if (isIdValid(getPilotId(objShip)))
+            boolean ok = space_transition.storeShipInControlDeviceSafe(objShip, self, player);
+            if (ok && getContainedBy(objShip) == self)
             {
-                obj_id pilot = getPilotId(objShip);
-                unpilotShip(pilot);
+                setObjVar(self, "ship", objShip);
+                setObjVar(objShip, "shipControlDevice", self);
+                sui.msgbox(player, player, "Ship stored in control device. You can Launch Ship again from here.");
             }
-            // packShip only works when the ship is topmost (in world)
-            space_transition.packShip(objShip);
-            if (getContainedBy(objShip) != self)
+            else
             {
-                // packShip picks SCD by owner; force into THIS device if needed
-                if (!space_transition.restoreShipToControlDevice(objShip, self))
-                {
-                    sui.msgbox(player, player, "Store failed: could not put the ship into the control device.");
-                    return SCRIPT_CONTINUE;
-                }
+                sui.msgbox(player, player, "Store failed (container transfer). Walk clear of the ship, make sure you are not piloting, then try again.");
             }
-            setObjVar(self, "ship", objShip);
-            setObjVar(objShip, "shipControlDevice", self);
-            sui.msgbox(player, player, "Ship stored in control device. You can Launch Ship again from here.");
             return SCRIPT_CONTINUE;
         }
         if (item == menu_info_types.SERVER_MENU1)
