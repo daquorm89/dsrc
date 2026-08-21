@@ -41,6 +41,37 @@ public class combat_ship_player extends script.base_script
     // P9 atmospheric flight: radial "Exit Ship" while piloting on the ground
     // (L/leaveStation may not be bound on the ground client command set).
     public static final string_id SID_EXIT_SHIP = new string_id("sui", "exit");
+
+    /**
+     * After unpilot on a ground planet, native unpilot often returns the player to the
+     * location where they boarded (Call spot). Force them beside the ship instead.
+     */
+    public static void exitBesideShipOnGround(obj_id player, obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(player) || !isIdValid(ship) || isSpaceScene())
+        {
+            return;
+        }
+        location shipLoc = getLocation(ship);
+        if (shipLoc == null)
+        {
+            return;
+        }
+        // Stand a couple meters beside the chassis in the same cell/scene
+        location dest = new location(shipLoc.x + 2.0f, shipLoc.y, shipLoc.z + 2.0f, shipLoc.area, shipLoc.cell);
+        // Prefer terrain height so we do not bury the player under the mesh
+        if (!isIdValid(shipLoc.cell))
+        {
+            float terrainY = getHeightAtLocation(dest.x, dest.z);
+            if (terrainY == terrainY)
+            {
+                dest.y = terrainY + 0.5f;
+            }
+        }
+        setLocation(player, dest);
+        setShipLanded(ship, true);
+    }
+
     public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
     {
         if (player != self)
@@ -95,6 +126,7 @@ public class combat_ship_player extends script.base_script
             return SCRIPT_CONTINUE;
         }
         unpilotShip(self);
+        exitBesideShipOnGround(self, ship);
         return SCRIPT_CONTINUE;
     }
     public int OnAttach(obj_id self) throws InterruptedException
@@ -243,6 +275,10 @@ public class combat_ship_player extends script.base_script
                     }
                 }
                 unpilotShip(self);
+                if (!isSpaceScene() && isIdValid(piloted))
+                {
+                    exitBesideShipOnGround(self, piloted);
+                }
             }
             else if (getObjectInSlot(container, POB_SHIP_PILOT_SLOT_NAME) == self)
             {
@@ -258,6 +294,10 @@ public class combat_ship_player extends script.base_script
                     }
                 }
                 unpilotShip(self);
+                if (!isSpaceScene() && isIdValid(piloted))
+                {
+                    exitBesideShipOnGround(self, piloted);
+                }
             }
             else if (getObjectInSlot(container, POB_SHIP_OPERATIONS_SLOT_NAME) == self)
             {
