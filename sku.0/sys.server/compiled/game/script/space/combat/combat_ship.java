@@ -253,7 +253,8 @@ public class combat_ship extends script.base_script
         {
             unpilotShip(player);
         }
-        space_transition.exitBesideShipOnGround(player, ship);
+        // forceEject already places player beside ship; do not call exitBeside here
+        // (that helper lives on combat_ship_player, not space_transition)
         setShipLanded(ship, true);
         setOwner(ship, player);
         sendDirtyObjectMenuNotification(self);
