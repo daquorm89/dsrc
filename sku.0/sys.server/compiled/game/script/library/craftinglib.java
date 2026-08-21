@@ -1918,8 +1918,15 @@ public class craftinglib extends script.base_script
         {
             return false;
         }
-        String profession = skill.getProfessionName(getSkillTemplate(who));
-        if (profession.equals("trader"))
+        // Pre-CU / skill-box characters often have no NGE skill template.
+        // getSkillTemplate / getProfessionName can return null — never NPE.
+        String template = getSkillTemplate(who);
+        if (template == null || template.length() == 0)
+        {
+            return false;
+        }
+        String profession = skill.getProfessionName(template);
+        if (profession != null && profession.equals("trader"))
         {
             return true;
         }
