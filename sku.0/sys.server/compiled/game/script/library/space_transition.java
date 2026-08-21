@@ -821,6 +821,7 @@ public class space_transition extends script.base_script
         }
         if (isIdValid(ship) && exists(ship) && !isSpaceScene())
         {
+            snapShipToGroundAndMarkLanded(ship);
             setShipLanded(ship, true);
         }
         obj_id still = getContainingShip(player);

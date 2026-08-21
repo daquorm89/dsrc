@@ -56,6 +56,8 @@ public class combat_ship_player extends script.base_script
         if (isIdValid(ship) && exists(ship))
         {
             space_transition.forceEjectPlayerFromShipOnGround(player, ship);
+            // Park chassis on terrain when exiting atmospheric flight
+            space_transition.snapShipToGroundAndMarkLanded(ship);
             return;
         }
         // Ship already gone/packed — drop player at their current world XY with terrain Y
