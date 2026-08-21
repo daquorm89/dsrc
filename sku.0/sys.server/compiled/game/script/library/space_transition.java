@@ -956,8 +956,8 @@ public class space_transition extends script.base_script
      * forces landed, then pilotShip. Returns true if player is piloting afterward.
      */
     /**
-     * Start atmospheric board: force client world reload, then pilot in the callback.
-     * Returns true if board was completed immediately OR scheduled after refresh.
+     * Atmospheric Pilot: enter ship on server FIRST, then force client world
+     * reload so the client syncs to the piloting state (enter → refresh).
      */
     public static boolean boardShipAsPilotOnGround(obj_id player, obj_id ship) throws InterruptedException
     {
@@ -976,11 +976,17 @@ public class space_transition extends script.base_script
         if (currentPilot == player && getContainingShip(player) == ship)
         {
             setShipLanded(ship, true);
+            // Still refresh client so controls sync
+            utils.setScriptVar(player, "atmos.boardShipId", ship);
+            refreshClientWorldAtPlayer(player, "handleAtmosBoardAfterWorldRefresh");
             return true;
         }
 
-        // Always refresh client world ON ENTER (not on Launch), then pilot after warp arrives.
-        utils.setScriptVar(player, "atmos.boardShipId", ship);
+        if (getContainingShip(player) == ship || currentPilot == player)
+        {
+            forceEjectPlayerFromShipOnGround(player, ship);
+        }
+
         setOwner(ship, player);
         if (!isSpaceScene())
         {
@@ -990,13 +996,70 @@ public class space_transition extends script.base_script
         {
             attachScript(ship, "space.combat.combat_ship");
         }
-        LOG("space_transition", "boardShipAsPilotOnGround: scheduling client world refresh then pilot ship=" + ship);
+
+        // 1) Enter on server first
+        boolean entered = false;
+        obj_id pilotSlotObject = findPilotSlotObjectForShip(player, ship);
+        if (isIdValid(pilotSlotObject))
+        {
+            entered = pilotShip(player, pilotSlotObject) && getPilotId(ship) == player;
+        }
+        if (!entered)
+        {
+            obj_id scd = null;
+            if (hasObjVar(ship, "shipControlDevice"))
+            {
+                scd = getObjIdObjVar(ship, "shipControlDevice");
+            }
+            if (!isIdValid(scd) || !exists(scd))
+            {
+                obj_id[] scds = findShipControlDevicesForPlayer(player);
+                if (scds != null && scds.length > 0)
+                {
+                    scd = scds[0];
+                }
+            }
+            if (isIdValid(scd) && restoreShipToControlDevice(ship, scd))
+            {
+                entered = unpackShipForPlayer(player, ship) && getPilotId(ship) == player;
+                if (entered)
+                {
+                    setOwner(ship, player);
+                    if (!isSpaceScene())
+                    {
+                        snapShipToGroundAndMarkLanded(ship);
+                        setShipLanded(ship, true);
+                    }
+                    if (!hasScript(ship, "space.combat.combat_ship"))
+                    {
+                        attachScript(ship, "space.combat.combat_ship");
+                    }
+                }
+            }
+        }
+
+        if (!entered || getPilotId(ship) != player)
+        {
+            LOG("space_transition", "boardShipAsPilotOnGround: server enter FAIL pilotId=" + getPilotId(ship));
+            return false;
+        }
+
+        updateShipFaction(ship, player);
+        doAIImmunityCheck(ship);
+        if (!isSpaceScene())
+        {
+            setShipLanded(ship, true);
+        }
+
+        // 2) Client world reload to sync pilot state (may briefly interrupt; callback re-seats if needed)
+        utils.setScriptVar(player, "atmos.boardShipId", ship);
+        LOG("space_transition", "boardShipAsPilotOnGround: server enter OK, refreshing client ship=" + ship);
         refreshClientWorldAtPlayer(player, "handleAtmosBoardAfterWorldRefresh");
         return true;
     }
 
     /**
-     * Called after warpPlayer load-screen completes. Finishes pilot boarding.
+     * After enter→refresh warp: re-seat if warp cleared pilot, else leave piloting.
      */
     public static boolean completeBoardShipAfterClientRefresh(obj_id player) throws InterruptedException
     {
@@ -1016,9 +1079,12 @@ public class space_transition extends script.base_script
             return false;
         }
 
-        if (getContainingShip(player) == ship || getPilotId(ship) == player)
+        // Already piloting after refresh — done
+        if (getPilotId(ship) == player && getContainingShip(player) == ship)
         {
-            forceEjectPlayerFromShipOnGround(player, ship);
+            setShipLanded(ship, true);
+            LOG("space_transition", "completeBoardShipAfterClientRefresh: still piloting OK");
+            return true;
         }
 
         setOwner(ship, player);
@@ -1037,12 +1103,11 @@ public class space_transition extends script.base_script
                 updateShipFaction(ship, player);
                 doAIImmunityCheck(ship);
                 setShipLanded(ship, true);
-                LOG("space_transition", "completeBoardShipAfterClientRefresh: pilotShip OK");
+                LOG("space_transition", "completeBoardShipAfterClientRefresh: re-seat OK");
                 return true;
             }
         }
 
-        // Fallback: pack+unpack activation stream
         obj_id scd = null;
         if (hasObjVar(ship, "shipControlDevice"))
         {
@@ -1068,7 +1133,7 @@ public class space_transition extends script.base_script
                 {
                     attachScript(ship, "space.combat.combat_ship");
                 }
-                LOG("space_transition", "completeBoardShipAfterClientRefresh: pack+unpack OK");
+                LOG("space_transition", "completeBoardShipAfterClientRefresh: pack+unpack re-seat OK");
                 return true;
             }
         }
