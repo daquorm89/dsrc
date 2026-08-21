@@ -203,11 +203,11 @@ public class combat_ship_player extends script.base_script
         boolean ok = space_transition.completeBoardShipAfterClientRefresh(self);
         if (ok)
         {
-            sendSystemMessageTestingOnly(self, "Boarded ship after client refresh.");
+            sendSystemMessageTestingOnly(self, "Pilot sync after client refresh OK.");
         }
         else
         {
-            sui.msgbox(self, self, "Could not enter pilot after client refresh. Try Pilot once more or Store and Launch.");
+            sui.msgbox(self, self, "Pilot after client refresh failed. Try Pilot once more or Store and Launch.");
         }
         LOG("space", "handleAtmosBoardAfterWorldRefresh: ok=" + ok + " pilotContaining="
             + space_transition.getContainingShip(self));
