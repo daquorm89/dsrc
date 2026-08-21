@@ -225,9 +225,11 @@ public class combat_ship extends script.base_script
         boolean ok = space_transition.boardShipAsPilotOnGround(player, self);
         if (!ok)
         {
-            sui.msgbox(player, player, "Cannot pilot. Wait for post-Launch eject to finish, then try Pilot again. If it still fails, Store and Launch.");
+            sui.msgbox(player, player, "Cannot start board. Move closer, wait a second, try Pilot again.");
             return SCRIPT_CONTINUE;
         }
+        // boardShip schedules client world refresh then pilots in callback —
+        // player will see a brief load screen, then enter the ship.
         return SCRIPT_CONTINUE;
     }
 
