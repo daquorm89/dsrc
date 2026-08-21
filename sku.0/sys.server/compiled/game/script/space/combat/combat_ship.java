@@ -66,7 +66,7 @@ public class combat_ship extends script.base_script
         if (isIdValid(player))
         {
             setOwner(self, player);
-            if (getContainingShip(player) == self || utils.isNestedWithin(player, self))
+            if (space_transition.getContainingShip(player) == self || utils.isNestedWithin(player, self))
             {
                 location pl = getLocation(player);
                 if (pl != null)
