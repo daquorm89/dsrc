@@ -61,7 +61,7 @@ public class combat_ship extends script.base_script
         }
         if (!isSpaceScene())
         {
-            space_transition.snapShipToGroundAndMarkLanded(self);
+            setShipLanded(self, true);
         }
         if (isIdValid(player))
         {
@@ -190,7 +190,7 @@ public class combat_ship extends script.base_script
         // Ensure landed flag before pilot so ground exit gates work
         if (!isSpaceScene())
         {
-            space_transition.snapShipToGroundAndMarkLanded(self);
+            setShipLanded(self, true);
         }
         setOwner(self, player);
 
@@ -224,7 +224,7 @@ public class combat_ship extends script.base_script
         }
         if (!isSpaceScene())
         {
-            space_transition.snapShipToGroundAndMarkLanded(self);
+            setShipLanded(self, true);
         }
         return SCRIPT_CONTINUE;
     }
