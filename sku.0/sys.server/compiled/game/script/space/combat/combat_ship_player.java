@@ -191,6 +191,29 @@ public class combat_ship_player extends script.base_script
         return SCRIPT_CONTINUE;
     }
 
+    /**
+     * warpPlayer callback after forceLoadScreen — complete atmospheric Pilot board.
+     */
+    public int handleAtmosBoardAfterWorldRefresh(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (isSpaceScene())
+        {
+            return SCRIPT_CONTINUE;
+        }
+        boolean ok = space_transition.completeBoardShipAfterClientRefresh(self);
+        if (ok)
+        {
+            sendSystemMessageTestingOnly(self, "Boarded ship after client refresh.");
+        }
+        else
+        {
+            sui.msgbox(self, self, "Could not enter pilot after client refresh. Try Pilot once more or Store and Launch.");
+        }
+        LOG("space", "handleAtmosBoardAfterWorldRefresh: ok=" + ok + " pilotContaining="
+            + space_transition.getContainingShip(self));
+        return SCRIPT_CONTINUE;
+    }
+
     public int OnLogin(obj_id self) throws InterruptedException
     {
         utils.removeScriptVar(self, "atmos.postLaunchEjectPending");

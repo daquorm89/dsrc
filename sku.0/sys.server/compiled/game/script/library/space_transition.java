@@ -955,13 +955,16 @@ public class space_transition extends script.base_script
      * Board the pilot seat from outside on ground. Clears residual pilot state,
      * forces landed, then pilotShip. Returns true if player is piloting afterward.
      */
+    /**
+     * Start atmospheric board: force client world reload, then pilot in the callback.
+     * Returns true if board was completed immediately OR scheduled after refresh.
+     */
     public static boolean boardShipAsPilotOnGround(obj_id player, obj_id ship) throws InterruptedException
     {
         if (!isIdValid(player) || !isIdValid(ship) || isSpaceScene())
         {
             return false;
         }
-        // Always clear stale post-launch flag (was blocking board until relog)
         utils.removeScriptVar(player, "atmos.postLaunchEjectPending");
 
         obj_id currentPilot = getPilotId(ship);
@@ -976,13 +979,8 @@ public class space_transition extends script.base_script
             return true;
         }
 
-        // Clear residual containment before board
-        if (getContainingShip(player) == ship || currentPilot == player)
-        {
-            forceEjectPlayerFromShipOnGround(player, ship);
-        }
-
-        // Fast path: pilotShip in place (works after relog when client is fully synced)
+        // Always refresh client world ON ENTER (not on Launch), then pilot after warp arrives.
+        utils.setScriptVar(player, "atmos.boardShipId", ship);
         setOwner(ship, player);
         if (!isSpaceScene())
         {
@@ -992,6 +990,44 @@ public class space_transition extends script.base_script
         {
             attachScript(ship, "space.combat.combat_ship");
         }
+        LOG("space_transition", "boardShipAsPilotOnGround: scheduling client world refresh then pilot ship=" + ship);
+        refreshClientWorldAtPlayer(player, "handleAtmosBoardAfterWorldRefresh");
+        return true;
+    }
+
+    /**
+     * Called after warpPlayer load-screen completes. Finishes pilot boarding.
+     */
+    public static boolean completeBoardShipAfterClientRefresh(obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(player) || isSpaceScene())
+        {
+            return false;
+        }
+        obj_id ship = obj_id.NULL_ID;
+        if (utils.hasScriptVar(player, "atmos.boardShipId"))
+        {
+            ship = utils.getObjIdScriptVar(player, "atmos.boardShipId");
+            utils.removeScriptVar(player, "atmos.boardShipId");
+        }
+        if (!isIdValid(ship) || !exists(ship))
+        {
+            LOG("space_transition", "completeBoardShipAfterClientRefresh: no ship");
+            return false;
+        }
+
+        if (getContainingShip(player) == ship || getPilotId(ship) == player)
+        {
+            forceEjectPlayerFromShipOnGround(player, ship);
+        }
+
+        setOwner(ship, player);
+        setShipLanded(ship, true);
+        if (!hasScript(ship, "space.combat.combat_ship"))
+        {
+            attachScript(ship, "space.combat.combat_ship");
+        }
+
         obj_id pilotSlotObject = findPilotSlotObjectForShip(player, ship);
         if (isIdValid(pilotSlotObject))
         {
@@ -1000,19 +1036,13 @@ public class space_transition extends script.base_script
             {
                 updateShipFaction(ship, player);
                 doAIImmunityCheck(ship);
-                if (!isSpaceScene())
-                {
-                    setShipLanded(ship, true);
-                }
-                LOG("space_transition", "boardShipAsPilotOnGround: fast pilotShip OK");
+                setShipLanded(ship, true);
+                LOG("space_transition", "completeBoardShipAfterClientRefresh: pilotShip OK");
                 return true;
             }
         }
 
-        // Client desync path (the usual case after Launch/eject without relog):
-        // Re-run the same activation stream as Launch — pack into SCD then
-        // unpackShipForPlayer (setLocation + pilotShip). That is the only path
-        // proven to put the client into pilot mode without a full relog.
+        // Fallback: pack+unpack activation stream
         obj_id scd = null;
         if (hasObjVar(ship, "shipControlDevice"))
         {
@@ -1026,49 +1056,24 @@ public class space_transition extends script.base_script
                 scd = scds[0];
             }
         }
-        if (!isIdValid(scd))
+        if (isIdValid(scd) && restoreShipToControlDevice(ship, scd))
         {
-            LOG("space_transition", "boardShipAsPilotOnGround: no SCD for re-activate");
-            return false;
-        }
-
-        LOG("space_transition", "boardShipAsPilotOnGround: re-activate via pack+unpack ship=" + ship + " scd=" + scd);
-        forceEjectPlayerFromShipOnGround(player, ship);
-        if (!restoreShipToControlDevice(ship, scd))
-        {
-            LOG("space_transition", "boardShipAsPilotOnGround: restore to SCD failed");
-            // Ship may still be in world — try pilot again
-            pilotSlotObject = findPilotSlotObjectForShip(player, ship);
-            if (isIdValid(pilotSlotObject) && pilotShip(player, pilotSlotObject) && getPilotId(ship) == player)
+            boolean unpacked = unpackShipForPlayer(player, ship);
+            if (unpacked && getPilotId(ship) == player)
             {
-                if (!isSpaceScene())
-                {
-                    setShipLanded(ship, true);
-                }
-                return true;
-            }
-            return false;
-        }
-
-        boolean unpacked = unpackShipForPlayer(player, ship);
-        if (unpacked && getPilotId(ship) == player)
-        {
-            setOwner(ship, player);
-            if (!isSpaceScene())
-            {
+                setOwner(ship, player);
                 snapShipToGroundAndMarkLanded(ship);
                 setShipLanded(ship, true);
+                if (!hasScript(ship, "space.combat.combat_ship"))
+                {
+                    attachScript(ship, "space.combat.combat_ship");
+                }
+                LOG("space_transition", "completeBoardShipAfterClientRefresh: pack+unpack OK");
+                return true;
             }
-            if (!hasScript(ship, "space.combat.combat_ship"))
-            {
-                attachScript(ship, "space.combat.combat_ship");
-            }
-            LOG("space_transition", "boardShipAsPilotOnGround: pack+unpack SUCCESS");
-            return true;
         }
 
-        LOG("space_transition", "boardShipAsPilotOnGround: pack+unpack FAIL unpacked=" + unpacked
-            + " pilotId=" + getPilotId(ship));
+        LOG("space_transition", "completeBoardShipAfterClientRefresh: FAIL ship=" + ship);
         return false;
     }
 
@@ -1145,11 +1150,8 @@ public class space_transition extends script.base_script
             return PLACE_SHIP_NOT_IN_WORLD;
         }
 
-        // Launch: activate chassis via unpack (uses pilotShip internally), then
-        // IMMEDIATELY eject — never leave the player in the pilot seat.
-        // Then force a client world reload (warp to same coords + load screen)
-        // so the parked ship is fully re-created on the client — same idea as
-        // a space transition / relog, without changing scene.
+        // Launch: activate chassis via unpack, IMMEDIATELY eject — never pilot.
+        // Client world refresh happens on Pilot/enter, not here.
         setOwner(ship, player);
         if (!hasScript(ship, "space.combat.combat_ship"))
         {
@@ -1166,8 +1168,6 @@ public class space_transition extends script.base_script
                 unpilotShip(player);
             }
             setShipLanded(ship, true);
-            // Soft client "world reload" — same planet/coords, force load screen
-            refreshClientWorldAtPlayer(player);
         }
 
         boolean placed = isShipPlacedInGroundWorld(ship, player)
@@ -1176,7 +1176,7 @@ public class space_transition extends script.base_script
         LOG("space_transition", "placeShip: final placed=" + placed + " ship=" + ship
             + " containedBy=" + getContainedBy(ship) + " pilotId=" + getPilotId(ship)
             + " owner=" + getOwner(ship) + " playerContainingShip=" + getContainingShip(player)
-            + " (ejected + client world refresh)");
+            + " (ejected, no auto-pilot)");
 
         if (placed)
         {
@@ -1194,6 +1194,11 @@ public class space_transition extends script.base_script
      */
     public static void refreshClientWorldAtPlayer(obj_id player) throws InterruptedException
     {
+        refreshClientWorldAtPlayer(player, null);
+    }
+
+    public static void refreshClientWorldAtPlayer(obj_id player, String callback) throws InterruptedException
+    {
         if (!isIdValid(player) || !exists(player) || isSpaceScene())
         {
             return;
@@ -1203,17 +1208,15 @@ public class space_transition extends script.base_script
         {
             return;
         }
-        // Outdoor world cell
         if (!isIdValid(loc.cell))
         {
             LOG("space_transition", "refreshClientWorldAtPlayer: warp forceLoadScreen area="
-                + loc.area + " @ " + loc.x + "," + loc.y + "," + loc.z);
-            warpPlayer(player, loc.area, loc.x, loc.y, loc.z, null, 0.0f, 0.0f, 0.0f, null, true);
+                + loc.area + " @ " + loc.x + "," + loc.y + "," + loc.z + " cb=" + callback);
+            warpPlayer(player, loc.area, loc.x, loc.y, loc.z, null, 0.0f, 0.0f, 0.0f, callback, true);
             return;
         }
-        // Inside a cell — warp within same cell
-        LOG("space_transition", "refreshClientWorldAtPlayer: warp in-cell forceLoadScreen cell=" + loc.cell);
-        warpPlayer(player, loc.area, loc.x, loc.y, loc.z, loc.cell, 0.0f, 0.0f, 0.0f, null, true);
+        LOG("space_transition", "refreshClientWorldAtPlayer: warp in-cell forceLoadScreen cell=" + loc.cell + " cb=" + callback);
+        warpPlayer(player, loc.area, loc.x, loc.y, loc.z, loc.cell, 0.0f, 0.0f, 0.0f, callback, true);
     }
 
     public static String getPlaceShipFailureMessage(int code) throws InterruptedException
@@ -1221,7 +1224,7 @@ public class space_transition extends script.base_script
         switch (code)
         {
             case PLACE_SHIP_OK:
-                return "Ship deployed beside you (client world refresh). Target the ship and choose Pilot to board. Store puts it away.";
+                return "Ship deployed beside you. Target the ship and choose Pilot to board (client will refresh, then enter). Store puts it away.";
             case PLACE_SHIP_INVALID:
                 return "Call ship failed: invalid ship or player.";
             case PLACE_SHIP_ALREADY_OUT:
