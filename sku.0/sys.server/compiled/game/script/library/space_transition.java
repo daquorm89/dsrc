@@ -961,12 +961,9 @@ public class space_transition extends script.base_script
         {
             return false;
         }
-        // Wait out post-Launch delayed eject if still scheduled
-        if (utils.hasScriptVar(player, "atmos.postLaunchEjectPending"))
-        {
-            LOG("space_transition", "boardShipAsPilotOnGround: post-launch eject still pending");
-            return false;
-        }
+        // Always clear stale post-launch flag (was blocking board until relog)
+        utils.removeScriptVar(player, "atmos.postLaunchEjectPending");
+
         obj_id currentPilot = getPilotId(ship);
         if (isIdValid(currentPilot) && currentPilot != player)
         {
@@ -1148,11 +1145,10 @@ public class space_transition extends script.base_script
             return PLACE_SHIP_NOT_IN_WORLD;
         }
 
-        // Launch activation: unpackShipForPlayer uses pilotShip so the client receives
-        // a full ship+pilot create (same packets a space transition would force).
-        // Immediate unpilot in the SAME frame leaves the client desynced until relog —
-        // that is why Exit works (client already had pilot state) but Board did not.
-        // Delay the eject ~0.8s so the client finishes the enter stream, then eject.
+        // Launch: activate chassis via unpack (pilotShip), then stay in the seat.
+        // Atmospheric client only enters pilot mode through this stream; re-board
+        // after unpilot without relog is unreliable. Auto-enter is the working path.
+        // Pilot radial still tries pack+unpack reactivation as a second chance.
         setOwner(ship, player);
         if (!hasScript(ship, "space.combat.combat_ship"))
         {
@@ -1162,23 +1158,17 @@ public class space_transition extends script.base_script
         {
             snapShipToGroundAndMarkLanded(ship);
             setShipLanded(ship, true);
-            dictionary ejectParams = new dictionary();
-            ejectParams.put("player", player);
-            ejectParams.put("ship", ship);
-            utils.setScriptVar(player, "atmos.postLaunchEjectPending", 1);
-            // Handled on combat_ship / combat_ship_player
-            messageTo(player, "handleAtmosPostLaunchEject", ejectParams, 0.8f, false);
-            messageTo(ship, "handleAtmosPostLaunchEject", ejectParams, 0.85f, false);
         }
+        utils.removeScriptVar(player, "atmos.postLaunchEjectPending");
 
-        boolean placed = isShipPlacedInGroundWorld(ship, player)
-            || (getContainedBy(ship) != shipControlDevice && !utils.isNestedWithin(ship, player))
-            || isIdValid(getPilotId(ship));
+        boolean placed = isIdValid(getPilotId(ship))
+            || isShipPlacedInGroundWorld(ship, player)
+            || (getContainedBy(ship) != shipControlDevice && !utils.isNestedWithin(ship, player));
 
         LOG("space_transition", "placeShip: final placed=" + placed + " ship=" + ship
             + " containedBy=" + getContainedBy(ship) + " pilotId=" + getPilotId(ship)
             + " owner=" + getOwner(ship) + " playerContainingShip=" + getContainingShip(player)
-            + " (eject scheduled 0.8s)");
+            + " (auto-enter)");
 
         if (placed)
         {
@@ -1194,7 +1184,7 @@ public class space_transition extends script.base_script
         switch (code)
         {
             case PLACE_SHIP_OK:
-                return "Ship deployed. You may briefly be in the pilot seat while the client syncs, then auto-exit. Target the ship and choose Pilot to board again. Use Store to put it away.";
+                return "Ship deployed — you are in the pilot seat. Leave Station to exit beside the ship; Pilot (or Launch again) to re-board. Store puts the ship away.";
             case PLACE_SHIP_INVALID:
                 return "Call ship failed: invalid ship or player.";
             case PLACE_SHIP_ALREADY_OUT:

@@ -193,6 +193,7 @@ public class combat_ship_player extends script.base_script
 
     public int OnLogin(obj_id self) throws InterruptedException
     {
+        utils.removeScriptVar(self, "atmos.postLaunchEjectPending");
         // Recover from residual pilot/containment after Store or a failed Call.
         // Symptoms: cannot attack, cannot call pets, stuck in ground/ship mesh.
         if (isSpaceScene())
