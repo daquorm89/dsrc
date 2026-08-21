@@ -738,6 +738,10 @@ public class space_transition extends script.base_script
      * Force the ship to the player's ground drop point and mark it boardable.
      * Always relocates — never leave the chassis at a previous Call location.
      */
+    /**
+     * Move chassis to the player and put them in the pilot seat.
+     * Auto-enter is the only path that reliably syncs the client without a relog.
+     */
     public static void relocateShipToPlayerAndPrepareBoard(obj_id player, obj_id ship) throws InterruptedException
     {
         if (!isIdValid(player) || !isIdValid(ship))
@@ -758,37 +762,38 @@ public class space_transition extends script.base_script
             snapShipToGroundAndMarkLanded(ship);
         }
         setOwner(ship, player);
-        // Clear residual pilot so board radial is not blocked until relog
-        obj_id pilot = getPilotId(ship);
-        if (isIdValid(pilot))
-        {
-            unpilotShip(pilot);
-        }
-        if (getContainingShip(player) == ship || utils.isNestedWithin(player, ship))
-        {
-            location pl = getLocation(player);
-            if (pl == null && dropLoc != null)
-            {
-                pl = dropLoc;
-            }
-            if (pl != null)
-            {
-                location stand = new location(pl.x + 2.0f, pl.y, pl.z, pl.area, pl.cell);
-                setLocation(player, stand);
-            }
-            if (isIdValid(getPilotId(ship)))
-            {
-                unpilotShip(player);
-            }
-        }
         if (!hasScript(ship, "space.combat.combat_ship"))
         {
             attachScript(ship, "space.combat.combat_ship");
         }
-        // Second pass after engine settles pilot/slot state (board often fails until relog without this)
-        dictionary params = new dictionary();
-        params.put("player", player);
-        messageTo(ship, "handleAtmosBoardPrep", params, 1.0f, false);
+        // If someone else is piloting, do not steal the seat
+        obj_id existingPilot = getPilotId(ship);
+        if (isIdValid(existingPilot) && existingPilot != player)
+        {
+            return;
+        }
+        // Already us: keep seat
+        if (existingPilot == player || getContainingShip(player) == ship)
+        {
+            if (!isSpaceScene())
+            {
+                setShipLanded(ship, true);
+            }
+            return;
+        }
+        obj_id pilotSlotObject = findPilotSlotObjectForShip(player, ship);
+        if (isIdValid(pilotSlotObject))
+        {
+            if (pilotShip(player, pilotSlotObject))
+            {
+                updateShipFaction(ship, player);
+                doAIImmunityCheck(ship);
+                if (!isSpaceScene())
+                {
+                    setShipLanded(ship, true);
+                }
+            }
+        }
     }
 
     public static int placeShipInWorldForPlayerWithCode(obj_id player, obj_id ship) throws InterruptedException
@@ -849,14 +854,20 @@ public class space_transition extends script.base_script
             return PLACE_SHIP_NOT_IN_WORLD;
         }
 
-        // Exit pilot immediately, then force location + ownership for board radial
-        if (isIdValid(getPilotId(ship)) || getContainingShip(player) == ship)
+        // Stay in the pilot seat. Unpilot after Call broke client board until relog;
+        // auto-enter is the path that was known to work (ship stays when you later exit).
+        setOwner(ship, player);
+        if (!isSpaceScene())
         {
-            unpilotShip(player);
+            snapShipToGroundAndMarkLanded(ship);
         }
-        relocateShipToPlayerAndPrepareBoard(player, ship);
+        if (!hasScript(ship, "space.combat.combat_ship"))
+        {
+            attachScript(ship, "space.combat.combat_ship");
+        }
 
-        boolean placed = isShipPlacedInGroundWorld(ship, player)
+        boolean placed = isIdValid(getPilotId(ship))
+            || isShipPlacedInGroundWorld(ship, player)
             || (getContainedBy(ship) != shipControlDevice && !utils.isNestedWithin(ship, player));
 
         LOG("space_transition", "placeShip: final placed=" + placed + " ship=" + ship
@@ -877,7 +888,7 @@ public class space_transition extends script.base_script
         switch (code)
         {
             case PLACE_SHIP_OK:
-                return "Ship deployed nearby. Target it and use Pilot (or Enter for interior ships).";
+                return "Ship deployed. You are piloting. Exit (Leave Station) to walk; use Store on the ship to put it away.";
             case PLACE_SHIP_INVALID:
                 return "Call ship failed: invalid ship or player.";
             case PLACE_SHIP_ALREADY_OUT:
