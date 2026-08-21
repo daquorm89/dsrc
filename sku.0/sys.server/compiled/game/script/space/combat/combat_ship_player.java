@@ -140,6 +140,56 @@ public class combat_ship_player extends script.base_script
         }
         return SCRIPT_CONTINUE;
     }
+    /**
+     * Post-Launch: client must receive pilot enter packets before we unpilot.
+     * Same-frame pilot+unpilot left the client desynced until relog.
+     */
+    public int handleAtmosPostLaunchEject(obj_id self, dictionary params) throws InterruptedException
+    {
+        utils.removeScriptVar(self, "atmos.postLaunchEjectPending");
+        if (params == null)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        obj_id player = params.getObjId("player");
+        obj_id ship = params.getObjId("ship");
+        if (!isIdValid(player))
+        {
+            player = self;
+        }
+        if (!isIdValid(ship) || !exists(ship))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (isSpaceScene())
+        {
+            return SCRIPT_CONTINUE;
+        }
+        space_transition.forceEjectPlayerFromShipOnGround(player, ship);
+        if (getPilotId(ship) == player)
+        {
+            unpilotShip(player);
+        }
+        space_transition.exitBesideShipOnGround(player, ship);
+        if (exists(ship) && !isSpaceScene())
+        {
+            setShipLanded(ship, true);
+            setOwner(ship, player);
+        }
+        // Nudge client containment with a tiny position touch
+        location pLoc = getLocation(player);
+        if (pLoc != null && !isIdValid(pLoc.cell))
+        {
+            location nudge = new location(pLoc.x + 0.05f, pLoc.y, pLoc.z, pLoc.area, pLoc.cell);
+            setLocation(player, nudge);
+            setLocation(player, pLoc);
+        }
+        LOG("space", "handleAtmosPostLaunchEject: player=" + player + " ship=" + ship
+            + " containingShip=" + space_transition.getContainingShip(player)
+            + " pilotId=" + getPilotId(ship));
+        return SCRIPT_CONTINUE;
+    }
+
     public int OnLogin(obj_id self) throws InterruptedException
     {
         // Recover from residual pilot/containment after Store or a failed Call.

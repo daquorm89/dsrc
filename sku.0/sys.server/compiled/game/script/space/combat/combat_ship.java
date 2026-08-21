@@ -231,6 +231,37 @@ public class combat_ship extends script.base_script
         return SCRIPT_CONTINUE;
     }
 
+    public int handleAtmosPostLaunchEject(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (params == null)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        obj_id player = params.getObjId("player");
+        obj_id ship = params.getObjId("ship");
+        if (!isIdValid(ship))
+        {
+            ship = self;
+        }
+        if (!isIdValid(player) || !exists(player) || isSpaceScene())
+        {
+            return SCRIPT_CONTINUE;
+        }
+        utils.removeScriptVar(player, "atmos.postLaunchEjectPending");
+        space_transition.forceEjectPlayerFromShipOnGround(player, ship);
+        if (getPilotId(ship) == player)
+        {
+            unpilotShip(player);
+        }
+        space_transition.exitBesideShipOnGround(player, ship);
+        setShipLanded(ship, true);
+        setOwner(ship, player);
+        sendDirtyObjectMenuNotification(self);
+        LOG("space", "combat_ship.handleAtmosPostLaunchEject ship=" + ship + " player=" + player
+            + " pilotId=" + getPilotId(ship));
+        return SCRIPT_CONTINUE;
+    }
+
     public int OnAttach(obj_id self) throws InterruptedException
     {
         int[] intSlots = getShipChassisSlots(self);
