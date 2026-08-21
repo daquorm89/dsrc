@@ -333,11 +333,11 @@ public class pet_control_device extends script.base_script
                 return SCRIPT_CONTINUE;
             }
             int petLevel = getLevelFromPetControlDevice(self);
-            // Pre-CU single-player: NGE getLevel(player) is not meaningful for skill
-            // characters. Do not block Call for droids OR creature pets by level.
-            // REVERT: restore MAX_PET_LEVELS_ABOVE_CALLER check (optionally droid-only skip).
-            // (Intentionally no level gate here.)
+            // Pre-CU: NEVER gate Call on getLevel(player). NGE level is meaningless
+            // for skill-box characters and was blocking high-level crafted droids.
+            // REVERT: restore the if-block body without the leading false.
             if (false
+                && petType != pet_lib.PET_TYPE_DROID
                 && getLevel(player) < petLevel - pet_lib.MAX_PET_LEVELS_ABOVE_CALLER
                 && !pet_lib.isMountPcd(self))
             {
