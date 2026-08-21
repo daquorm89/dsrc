@@ -961,12 +961,9 @@ public class space_transition extends script.base_script
         {
             return false;
         }
-        // Wait out post-Launch delayed eject if still scheduled
-        if (utils.hasScriptVar(player, "atmos.postLaunchEjectPending"))
-        {
-            LOG("space_transition", "boardShipAsPilotOnGround: post-launch eject still pending");
-            return false;
-        }
+        // Always clear stale post-launch flag (was blocking board until relog)
+        utils.removeScriptVar(player, "atmos.postLaunchEjectPending");
+
         obj_id currentPilot = getPilotId(ship);
         if (isIdValid(currentPilot) && currentPilot != player)
         {
@@ -1148,37 +1145,38 @@ public class space_transition extends script.base_script
             return PLACE_SHIP_NOT_IN_WORLD;
         }
 
-        // Launch activation: unpackShipForPlayer uses pilotShip so the client receives
-        // a full ship+pilot create (same packets a space transition would force).
-        // Immediate unpilot in the SAME frame leaves the client desynced until relog —
-        // that is why Exit works (client already had pilot state) but Board did not.
-        // Delay the eject ~0.8s so the client finishes the enter stream, then eject.
+        // Launch: activate chassis via unpack (uses pilotShip internally), then
+        // IMMEDIATELY eject — never leave the player in the pilot seat.
+        // Then force a client world reload (warp to same coords + load screen)
+        // so the parked ship is fully re-created on the client — same idea as
+        // a space transition / relog, without changing scene.
         setOwner(ship, player);
         if (!hasScript(ship, "space.combat.combat_ship"))
         {
             attachScript(ship, "space.combat.combat_ship");
         }
+        utils.removeScriptVar(player, "atmos.postLaunchEjectPending");
         if (!isSpaceScene())
         {
             snapShipToGroundAndMarkLanded(ship);
             setShipLanded(ship, true);
-            dictionary ejectParams = new dictionary();
-            ejectParams.put("player", player);
-            ejectParams.put("ship", ship);
-            utils.setScriptVar(player, "atmos.postLaunchEjectPending", 1);
-            // Handled on combat_ship / combat_ship_player
-            messageTo(player, "handleAtmosPostLaunchEject", ejectParams, 0.8f, false);
-            messageTo(ship, "handleAtmosPostLaunchEject", ejectParams, 0.85f, false);
+            forceEjectPlayerFromShipOnGround(player, ship);
+            if (getPilotId(ship) == player)
+            {
+                unpilotShip(player);
+            }
+            setShipLanded(ship, true);
+            // Soft client "world reload" — same planet/coords, force load screen
+            refreshClientWorldAtPlayer(player);
         }
 
         boolean placed = isShipPlacedInGroundWorld(ship, player)
-            || (getContainedBy(ship) != shipControlDevice && !utils.isNestedWithin(ship, player))
-            || isIdValid(getPilotId(ship));
+            || (getContainedBy(ship) != shipControlDevice && !utils.isNestedWithin(ship, player));
 
         LOG("space_transition", "placeShip: final placed=" + placed + " ship=" + ship
             + " containedBy=" + getContainedBy(ship) + " pilotId=" + getPilotId(ship)
             + " owner=" + getOwner(ship) + " playerContainingShip=" + getContainingShip(player)
-            + " (eject scheduled 0.8s)");
+            + " (ejected + client world refresh)");
 
         if (placed)
         {
@@ -1189,12 +1187,41 @@ public class space_transition extends script.base_script
         return PLACE_SHIP_NOT_IN_WORLD;
     }
 
+    /**
+     * Force the client to reload the current ground scene around the player
+     * (load screen + full object stream). Does not change planet or put the
+     * player in a ship. Used after atmospheric Launch so Pilot works without relog.
+     */
+    public static void refreshClientWorldAtPlayer(obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(player) || !exists(player) || isSpaceScene())
+        {
+            return;
+        }
+        location loc = getLocation(player);
+        if (loc == null || loc.area == null || loc.area.length() == 0)
+        {
+            return;
+        }
+        // Outdoor world cell
+        if (!isIdValid(loc.cell))
+        {
+            LOG("space_transition", "refreshClientWorldAtPlayer: warp forceLoadScreen area="
+                + loc.area + " @ " + loc.x + "," + loc.y + "," + loc.z);
+            warpPlayer(player, loc.area, loc.x, loc.y, loc.z, null, 0.0f, 0.0f, 0.0f, null, true);
+            return;
+        }
+        // Inside a cell — warp within same cell
+        LOG("space_transition", "refreshClientWorldAtPlayer: warp in-cell forceLoadScreen cell=" + loc.cell);
+        warpPlayer(player, loc.area, loc.x, loc.y, loc.z, loc.cell, 0.0f, 0.0f, 0.0f, null, true);
+    }
+
     public static String getPlaceShipFailureMessage(int code) throws InterruptedException
     {
         switch (code)
         {
             case PLACE_SHIP_OK:
-                return "Ship deployed. You may briefly be in the pilot seat while the client syncs, then auto-exit. Target the ship and choose Pilot to board again. Use Store to put it away.";
+                return "Ship deployed beside you (client world refresh). Target the ship and choose Pilot to board. Store puts it away.";
             case PLACE_SHIP_INVALID:
                 return "Call ship failed: invalid ship or player.";
             case PLACE_SHIP_ALREADY_OUT:
