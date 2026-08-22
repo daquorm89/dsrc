@@ -221,90 +221,88 @@ public class combat_ship extends script.base_script
 
         if (item == menu_info_types.SERVER_MENU1 && space_utils.isShipWithInterior(self))
         {
-            // Prefer named entry cells; getLocation(cells[0]) is often the ship
-            // origin and dumps the player in the geometric center.
+            // Enter interior via building+cellName warp (NOT cell obj_id with local
+            // coords as world coords — that sent players to planet 0,0,0).
             String[] preferred = new String[] {
                 "bridge", "entrance", "hallway1", "hall1", "mainhallway",
                 "cockpit", "pilot", "spawn", "r1", "r2"
             };
             String[] cellNames = getCellNames(self);
-            obj_id entryCell = null;
-            String entryName = null;
-            if (cellNames != null)
+            if (cellNames == null || cellNames.length == 0)
             {
-                for (String pref : preferred)
+                sui.msgbox(player, player, "Cannot enter: this ship has no interior cells.");
+                return SCRIPT_CONTINUE;
+            }
+            String entryName = null;
+            for (String pref : preferred)
+            {
+                for (String cn : cellNames)
                 {
-                    for (String cn : cellNames)
+                    if (cn != null && cn.equalsIgnoreCase(pref))
                     {
-                        if (cn != null && cn.equalsIgnoreCase(pref))
-                        {
-                            entryCell = getCellId(self, cn);
-                            entryName = cn;
-                            break;
-                        }
-                    }
-                    if (isIdValid(entryCell))
-                    {
+                        entryName = cn;
                         break;
                     }
                 }
-                if (!isIdValid(entryCell) && cellNames.length > 0)
+                if (entryName != null)
                 {
-                    entryName = cellNames[0];
-                    entryCell = getCellId(self, entryName);
+                    break;
                 }
             }
-            if (isIdValid(entryCell) && entryName != null)
+            if (entryName == null)
             {
-                // Never use world (0,0,0) — that dumps the player at planet origin.
-                // Prefer: stand next to an object already in the cell; else cell-local offset.
-                location dest = null;
-                obj_id[] inCell = getContents(entryCell);
-                if (inCell != null)
-                {
-                    for (obj_id o : inCell)
-                    {
-                        if (!isIdValid(o))
-                        {
-                            continue;
-                        }
-                        location ol = getLocation(o);
-                        if (ol != null && isIdValid(ol.cell) && ol.cell == entryCell)
-                        {
-                            dest = new location(ol.x, ol.y, ol.z, ol.area, entryCell);
-                            break;
-                        }
-                    }
-                }
-                if (dest == null)
-                {
-                    location good = getGoodLocation(self, entryName);
-                    if (good != null && isIdValid(good.cell) && good.cell == entryCell)
-                    {
-                        // Only accept if it is truly inside this cell (not world origin).
-                        if (Math.abs(good.x) + Math.abs(good.z) > 0.01f || isIdValid(good.cell))
-                        {
-                            dest = new location(good.x, good.y, good.z, getCurrentSceneName(), entryCell);
-                        }
-                    }
-                }
-                if (dest == null)
-                {
-                    // Cell-local stand point (coordinates are relative to the cell).
-                    dest = new location(0.0f, 0.5f, 2.0f, getCurrentSceneName(), entryCell);
-                }
-                if (dest.area == null || dest.area.length() < 1)
-                {
-                    dest.area = getCurrentSceneName();
-                }
-                dest.cell = entryCell;
-                setLocation(player, dest);
-                warpPlayer(player, dest.area, dest.x, dest.y, dest.z, entryCell,
-                    dest.x, dest.y, dest.z, null, true);
-                LOG("space", "Enter POB cell=" + entryName + " cellId=" + entryCell + " dest=" + dest);
+                entryName = cellNames[0];
+            }
+            obj_id entryCell = getCellId(self, entryName);
+            if (!isIdValid(entryCell))
+            {
+                sui.msgbox(player, player, "Cannot enter: cell '" + entryName + "' not found.");
                 return SCRIPT_CONTINUE;
             }
-            sui.msgbox(player, player, "Cannot enter: no interior cells found on this ship.");
+
+            location shipLoc = getLocation(self);
+            if (shipLoc == null || shipLoc.area == null)
+            {
+                shipLoc = getLocation(player);
+            }
+            if (shipLoc == null || shipLoc.area == null)
+            {
+                sui.msgbox(player, player, "Cannot enter: no valid ship/player location.");
+                return SCRIPT_CONTINUE;
+            }
+
+            // Parent-space stand point inside the cell (not world origin).
+            float lx = 0.0f;
+            float ly = 0.5f;
+            float lz = 2.0f;
+            obj_id[] inCell = getContents(entryCell);
+            if (inCell != null)
+            {
+                for (obj_id o : inCell)
+                {
+                    if (!isIdValid(o))
+                    {
+                        continue;
+                    }
+                    location ol = getLocation(o);
+                    if (ol != null && isIdValid(ol.cell) && ol.cell == entryCell)
+                    {
+                        lx = ol.x;
+                        ly = ol.y;
+                        lz = ol.z;
+                        break;
+                    }
+                }
+            }
+
+            // World coords of the ship + building=self + cell NAME.
+            // forceLoadScreen so the client attaches to the POB portal graph.
+            warpPlayer(player, shipLoc.area, shipLoc.x, shipLoc.y, shipLoc.z,
+                self, entryName, lx, ly, lz, null, true);
+
+            LOG("space", "Enter POB ship=" + self + " cellName=" + entryName
+                + " cellId=" + entryCell + " shipWorld=" + shipLoc
+                + " local=(" + lx + "," + ly + "," + lz + ")");
             return SCRIPT_CONTINUE;
         }
 
