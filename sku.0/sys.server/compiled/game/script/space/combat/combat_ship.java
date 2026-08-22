@@ -389,6 +389,9 @@ public class combat_ship extends script.base_script
                 return SCRIPT_CONTINUE;
             }
 
+            // Match cell/ship facing so walk keys are not ~45° off after pilot cam.
+            space_transition.applyInteriorWalkFacing(player, self);
+
             LOG("space", "Enter POB OK ship=" + self + " cellName=" + entryName
                 + " cellId=" + entryCell + " shipWorld=" + shipLoc
                 + " local=(" + lx + "," + ly + "," + lz + ") after=" + after);

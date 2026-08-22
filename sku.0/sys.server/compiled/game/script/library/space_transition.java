@@ -908,6 +908,12 @@ public class space_transition extends script.base_script
                 dest.y = terrainY + 0.25f;
             }
             setLocation(player, dest);
+            // Clear residual pilot-camera yaw (~45° drift after piloting on ground).
+            float shipYaw = getYaw(ship);
+            if (shipYaw == shipYaw)
+            {
+                setYaw(player, shipYaw);
+            }
             // Only hard-warp when requested (stuck-in-cell recovery). Launch stays soft.
             if (forceLoadScreen && dest.area != null)
             {
@@ -947,6 +953,35 @@ public class space_transition extends script.base_script
      * Does not disembark to the planet surface.
      * Call after unpilotShip.
      */
+    /**
+     * Reset player yaw after pilot seat so walk direction matches the cell
+     * (pilot cam often leaves residual ~45° offset on ground POBs).
+     */
+    public static void applyInteriorWalkFacing(obj_id player, obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(player))
+        {
+            return;
+        }
+        obj_id ref = null;
+        if (isIdValid(ship))
+        {
+            ref = findPilotSlotObjectForShip(player, ship);
+            if (!isIdValid(ref))
+            {
+                ref = ship;
+            }
+        }
+        if (isIdValid(ref))
+        {
+            float yaw = getYaw(ref);
+            if (yaw == yaw)
+            {
+                setYaw(player, yaw);
+            }
+        }
+    }
+
     public static boolean leavePilotSeatIntoShipInterior(obj_id player, obj_id ship) throws InterruptedException
     {
         if (!isIdValid(player) || !isIdValid(ship) || isSpaceScene())
@@ -958,7 +993,43 @@ public class space_transition extends script.base_script
         setState(player, STATE_SHIP_OPERATIONS, false);
         setState(player, STATE_SHIP_GUNNER, false);
 
-        // Prefer official start locations (Decimator cockpit walk point).
+        // Prefer space ops pattern: step back in local transform of the pilot slot.
+        // That keeps position and facing consistent with the cell frame.
+        obj_id pilotSlot = findPilotSlotObjectForShip(player, ship);
+        if (isIdValid(pilotSlot))
+        {
+            location slotLoc = getLocation(pilotSlot);
+            if (slotLoc != null && isIdValid(slotLoc.cell))
+            {
+                try
+                {
+                    vector pos = ((getTransform_o2p(pilotSlot)).move_l(new vector(0.0f, 0.0f, -1.5f))).getPosition_p();
+                    location walk = new location(pos.x, pos.y, pos.z, getCurrentSceneName(), slotLoc.cell);
+                    setLocation(player, walk);
+                    applyInteriorWalkFacing(player, ship);
+                    if (utils.isNestedWithin(player, ship) || getTopMostContainer(player) == ship)
+                    {
+                        LOG("space_transition", "leavePilotSeatIntoShipInterior: OK transform step-back");
+                        return true;
+                    }
+                }
+                catch (Exception e)
+                {
+                    LOG("space_transition", "leavePilotSeatIntoShipInterior: transform step failed: " + e);
+                }
+                location walk = new location(slotLoc.x, slotLoc.y, slotLoc.z - 1.5f,
+                    getCurrentSceneName(), slotLoc.cell);
+                setLocation(player, walk);
+                applyInteriorWalkFacing(player, ship);
+                if (utils.isNestedWithin(player, ship) || getTopMostContainer(player) == ship)
+                {
+                    LOG("space_transition", "leavePilotSeatIntoShipInterior: OK pilotSlot step-back");
+                    return true;
+                }
+            }
+        }
+
+        // Fallback: official start locations (Decimator cockpit walk point).
         Vector starts = getShipStartLocations(ship);
         if (starts != null && starts.size() > 0)
         {
@@ -969,9 +1040,9 @@ public class space_transition extends script.base_script
                 {
                     continue;
                 }
-                // Nudge slightly so we are not inside the pilot chair collision.
                 location walk = new location(sl.x + 0.5f, sl.y, sl.z - 1.5f, sl.area, sl.cell);
                 setLocation(player, walk);
+                applyInteriorWalkFacing(player, ship);
                 location after = getLocation(player);
                 if (after != null && isIdValid(after.cell)
                     && (after.cell == sl.cell || utils.isNestedWithin(player, ship)
@@ -979,24 +1050,6 @@ public class space_transition extends script.base_script
                 {
                     LOG("space_transition", "leavePilotSeatIntoShipInterior: OK startLoc ship=" + ship
                         + " cell=" + sl.cell + " after=" + after);
-                    return true;
-                }
-            }
-        }
-
-        // Fallback: step back from pilot-slot object (space ops pattern)
-        obj_id pilotSlot = findPilotSlotObjectForShip(player, ship);
-        if (isIdValid(pilotSlot))
-        {
-            location slotLoc = getLocation(pilotSlot);
-            if (slotLoc != null && isIdValid(slotLoc.cell))
-            {
-                location walk = new location(slotLoc.x, slotLoc.y, slotLoc.z - 1.5f,
-                    getCurrentSceneName(), slotLoc.cell);
-                setLocation(player, walk);
-                if (utils.isNestedWithin(player, ship) || getTopMostContainer(player) == ship)
-                {
-                    LOG("space_transition", "leavePilotSeatIntoShipInterior: OK pilotSlot step-back");
                     return true;
                 }
             }
@@ -1011,6 +1064,7 @@ public class space_transition extends script.base_script
             {
                 location walk = new location(0.0f, 0.5f, 2.0f, getCurrentSceneName(), cell);
                 setLocation(player, walk);
+                applyInteriorWalkFacing(player, ship);
                 if (utils.isNestedWithin(player, ship) || getTopMostContainer(player) == ship)
                 {
                     LOG("space_transition", "leavePilotSeatIntoShipInterior: OK first cell " + names[0]);
