@@ -845,9 +845,20 @@ public class space_transition extends script.base_script
             setShipLanded(ship, true);
         }
 
-        // Prefer engine building eject point; fall back to beside chassis on terrain.
+        // Prefer: saved exterior launch point > building eject > beside chassis.
         location dest = null;
-        if (space_utils.isShipWithInterior(ship))
+        if (utils.hasScriptVar(player, "atmos.exteriorArea"))
+        {
+            String a = utils.getStringScriptVar(player, "atmos.exteriorArea");
+            float x = utils.getFloatScriptVar(player, "atmos.exteriorX");
+            float y = utils.getFloatScriptVar(player, "atmos.exteriorY");
+            float z = utils.getFloatScriptVar(player, "atmos.exteriorZ");
+            if (a != null && a.length() > 0)
+            {
+                dest = new location(x, y, z, a, null);
+            }
+        }
+        if (dest == null && space_utils.isShipWithInterior(ship))
         {
             dest = getBuildingEjectLocation(ship);
         }
@@ -972,7 +983,7 @@ public class space_transition extends script.base_script
             dictionary d = new dictionary();
             d.put("scd", shipControlDevice);
             d.put("player", player);
-            messageTo(ship, "handleAtmosDelayedStore", d, 2.0f, false);
+            messageTo(ship, "handleAtmosDelayedStore", d, 3.5f, false);
             LOG("space_transition", "storeShipInControlDeviceSafe: scheduled delayed POB store ship=" + ship);
             if (isIdValid(player))
             {
@@ -1326,6 +1337,11 @@ public class space_transition extends script.base_script
             {
                 exteriorLoc.y = ty + 0.25f;
             }
+            utils.setScriptVar(player, "atmos.exteriorX", exteriorLoc.x);
+            utils.setScriptVar(player, "atmos.exteriorY", exteriorLoc.y);
+            utils.setScriptVar(player, "atmos.exteriorZ", exteriorLoc.z);
+            utils.setScriptVar(player, "atmos.exteriorArea", exteriorLoc.area);
+            utils.setScriptVar(player, "atmos.exteriorShip", ship);
         }
 
         LOG("space_transition", "placeShip: calling unpackShipForPlayer ship=" + ship + " player=" + player);

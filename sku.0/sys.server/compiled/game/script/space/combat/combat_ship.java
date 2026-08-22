@@ -22,6 +22,7 @@ public class combat_ship extends script.base_script
     public static final string_id SID_PILOT_SHIP = new string_id("space/space_interaction", "pilot_ship");
     public static final string_id SID_ENTER_SHIP = new string_id("sui", "enter");
     public static final string_id SID_STORE_SHIP = new string_id("pet/pet_menu", "menu_store");
+    public static final string_id SID_EXIT_SHIP_EXTERIOR = new string_id("space/space_interaction", "ejecting");
     public static final string_id SID_NO_SHIP_CERT = new string_id("space/space_interaction", "no_ship_certification");
     public static final float BOARD_RANGE = 32.0f;
 
@@ -102,6 +103,12 @@ public class combat_ship extends script.base_script
         // Store is always available to owner when close (even while piloting)
         mi.addRootMenu(menu_info_types.SERVER_MENU2, SID_STORE_SHIP);
 
+        // Player already inside this POB (walking or stuck): offer exit to exterior
+        if (space_utils.isShipWithInterior(self) && space_transition.getContainingShip(player) == self)
+        {
+            mi.addRootMenu(menu_info_types.SERVER_MENU3, SID_EXIT_SHIP_EXTERIOR);
+        }
+
         if (!isIdValid(pilot))
         {
             mi.addRootMenu(menu_info_types.ITEM_USE, SID_PILOT_SHIP);
@@ -109,6 +116,10 @@ public class combat_ship extends script.base_script
             {
                 mi.addRootMenu(menu_info_types.SERVER_MENU1, SID_ENTER_SHIP);
             }
+        }
+        else if (pilot == player)
+        {
+            // Already piloting — leave station is via ship UI / leaveStation command
         }
         return SCRIPT_CONTINUE;
     }
@@ -119,7 +130,8 @@ public class combat_ship extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
-        if (item != menu_info_types.ITEM_USE && item != menu_info_types.SERVER_MENU1 && item != menu_info_types.SERVER_MENU2)
+        if (item != menu_info_types.ITEM_USE && item != menu_info_types.SERVER_MENU1
+            && item != menu_info_types.SERVER_MENU2 && item != menu_info_types.SERVER_MENU3)
         {
             return SCRIPT_CONTINUE;
         }
@@ -145,6 +157,14 @@ public class combat_ship extends script.base_script
         if ((dx * dx + dy * dy + dz * dz) > (BOARD_RANGE * BOARD_RANGE))
         {
             sui.msgbox(player, player, "Move closer to the ship (within 32m).");
+            return SCRIPT_CONTINUE;
+        }
+
+        // ---------- Exit to exterior (POB interior / stuck) ----------
+        if (item == menu_info_types.SERVER_MENU3)
+        {
+            space_transition.forceEjectPlayerFromShipOnGround(player, self);
+            setShipLanded(self, true);
             return SCRIPT_CONTINUE;
         }
 
