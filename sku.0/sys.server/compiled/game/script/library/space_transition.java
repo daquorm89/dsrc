@@ -857,37 +857,36 @@ public class space_transition extends script.base_script
             setShipLanded(ship, true);
         }
 
-        // Prefer: saved exterior launch point > building eject > beside chassis.
+        // Prefer CURRENT ship world position (where the hull is now).
+        // Do NOT use atmos.exterior* from Launch — that is the old Call point and
+        // teleports the player after flying (looks like ship+player jumped back).
         location dest = null;
-        if (utils.hasScriptVar(player, "atmos.exteriorArea"))
+        location shipLoc = getLocation(ship);
+        if (shipLoc != null && shipLoc.area != null && !isIdValid(shipLoc.cell))
         {
-            String a = utils.getStringScriptVar(player, "atmos.exteriorArea");
-            float x = utils.getFloatScriptVar(player, "atmos.exteriorX");
-            float y = utils.getFloatScriptVar(player, "atmos.exteriorY");
-            float z = utils.getFloatScriptVar(player, "atmos.exteriorZ");
-            if (a != null && a.length() > 0)
-            {
-                dest = new location(x, y, z, a, null);
-            }
+            dest = new location(shipLoc.x + 18.0f, shipLoc.y, shipLoc.z + 18.0f, shipLoc.area, null);
         }
         if (dest == null && space_utils.isShipWithInterior(ship))
         {
             dest = getBuildingEjectLocation(ship);
         }
+        if (dest == null && shipLoc != null)
+        {
+            dest = new location(shipLoc.x + 18.0f, shipLoc.y, shipLoc.z + 18.0f, shipLoc.area, null);
+        }
         if (dest == null)
         {
-            location shipLoc = getLocation(ship);
-            if (shipLoc == null)
+            location pLoc = getLocation(player);
+            if (pLoc != null)
             {
-                shipLoc = getLocation(player);
-            }
-            if (shipLoc != null)
-            {
-                // Large lateral offset so we are outside the POB collision hull,
-                // not at the geometric center of the ship on the planet surface.
-                dest = new location(shipLoc.x + 18.0f, shipLoc.y, shipLoc.z + 18.0f, shipLoc.area, null);
+                dest = new location(pLoc.x, pLoc.y, pLoc.z, pLoc.area, null);
             }
         }
+        utils.removeScriptVar(player, "atmos.exteriorX");
+        utils.removeScriptVar(player, "atmos.exteriorY");
+        utils.removeScriptVar(player, "atmos.exteriorZ");
+        utils.removeScriptVar(player, "atmos.exteriorArea");
+        utils.removeScriptVar(player, "atmos.exteriorShip");
         if (dest != null)
         {
             dest.cell = null;
@@ -940,6 +939,88 @@ public class space_transition extends script.base_script
             + " containingShip=" + still + " top=" + top + " clear=" + clear
             + " forceLoad=" + forceLoadScreen);
         return clear;
+    }
+
+    /**
+     * After leaving the POB pilot seat on the ground: stay INSIDE the ship and
+     * walk (same idea as space ops/gunner leaveStation → setLocation in cell).
+     * Does not disembark to the planet surface.
+     * Call after unpilotShip.
+     */
+    public static boolean leavePilotSeatIntoShipInterior(obj_id player, obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(player) || !isIdValid(ship) || isSpaceScene())
+        {
+            return false;
+        }
+        setState(player, STATE_PILOTING_SHIP, false);
+        setState(player, STATE_PILOTING_POB_SHIP, false);
+        setState(player, STATE_SHIP_OPERATIONS, false);
+        setState(player, STATE_SHIP_GUNNER, false);
+
+        // Prefer official start locations (Decimator cockpit walk point).
+        Vector starts = getShipStartLocations(ship);
+        if (starts != null && starts.size() > 0)
+        {
+            for (int i = 0; i < starts.size(); i++)
+            {
+                location sl = (location) starts.get(i);
+                if (sl == null || !isIdValid(sl.cell))
+                {
+                    continue;
+                }
+                // Nudge slightly so we are not inside the pilot chair collision.
+                location walk = new location(sl.x + 0.5f, sl.y, sl.z - 1.5f, sl.area, sl.cell);
+                setLocation(player, walk);
+                location after = getLocation(player);
+                if (after != null && isIdValid(after.cell)
+                    && (after.cell == sl.cell || utils.isNestedWithin(player, ship)
+                        || getTopMostContainer(player) == ship))
+                {
+                    LOG("space_transition", "leavePilotSeatIntoShipInterior: OK startLoc ship=" + ship
+                        + " cell=" + sl.cell + " after=" + after);
+                    return true;
+                }
+            }
+        }
+
+        // Fallback: step back from pilot-slot object (space ops pattern)
+        obj_id pilotSlot = findPilotSlotObjectForShip(player, ship);
+        if (isIdValid(pilotSlot))
+        {
+            location slotLoc = getLocation(pilotSlot);
+            if (slotLoc != null && isIdValid(slotLoc.cell))
+            {
+                location walk = new location(slotLoc.x, slotLoc.y, slotLoc.z - 1.5f,
+                    getCurrentSceneName(), slotLoc.cell);
+                setLocation(player, walk);
+                if (utils.isNestedWithin(player, ship) || getTopMostContainer(player) == ship)
+                {
+                    LOG("space_transition", "leavePilotSeatIntoShipInterior: OK pilotSlot step-back");
+                    return true;
+                }
+            }
+        }
+
+        // Last: any cell on the ship
+        String[] names = getCellNames(ship);
+        if (names != null && names.length > 0)
+        {
+            obj_id cell = getCellId(ship, names[0]);
+            if (isIdValid(cell))
+            {
+                location walk = new location(0.0f, 0.5f, 2.0f, getCurrentSceneName(), cell);
+                setLocation(player, walk);
+                if (utils.isNestedWithin(player, ship) || getTopMostContainer(player) == ship)
+                {
+                    LOG("space_transition", "leavePilotSeatIntoShipInterior: OK first cell " + names[0]);
+                    return true;
+                }
+            }
+        }
+
+        LOG("space_transition", "leavePilotSeatIntoShipInterior: FAIL stay-in-ship ship=" + ship);
+        return false;
     }
 
     /**

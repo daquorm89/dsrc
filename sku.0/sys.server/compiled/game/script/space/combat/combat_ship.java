@@ -337,8 +337,9 @@ public class combat_ship extends script.base_script
                 }
             }
 
-            // Primary: setLocation with cell id (same pattern as building NPCs).
-            location cellDest = new location(lx, ly, lz, shipLoc.area, entryCell);
+            // Primary: setLocation with cell id (same pattern as space passengers).
+            // Nudge off the start point so we are not inside the pilot-chair collision.
+            location cellDest = new location(lx + 0.5f, ly, lz - 1.5f, shipLoc.area, entryCell);
             setLocation(player, cellDest);
 
             // Verify we are actually inside the ship, not at world mesh center.

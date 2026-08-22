@@ -455,7 +455,8 @@ public class combat_ship_player extends script.base_script
             }
             else if (getObjectInSlot(container, POB_SHIP_PILOT_SLOT_NAME) == self)
             {
-                // Same ground exit gate as the regular fighter branch.
+                // POB pilot seat: Leave Station = stand up INSIDE the ship (walk interior),
+                // same as space ops/gunner step-out. Full exterior disembark is Exit Ship radial.
                 obj_id piloted = space_transition.getContainingShip(self);
                 if (!isSpaceScene() && !isGod(self))
                 {
@@ -467,9 +468,13 @@ public class combat_ship_player extends script.base_script
                     }
                 }
                 unpilotShip(self);
-                if (!isSpaceScene() && isIdValid(piloted))
+                if (!isSpaceScene() && isIdValid(piloted) && space_utils.isShipWithInterior(piloted))
                 {
-                    exitBesideShipOnGround(self, piloted);
+                    if (!space_transition.leavePilotSeatIntoShipInterior(self, piloted))
+                    {
+                        // Could not attach to a cell — fall back to exterior beside CURRENT hull.
+                        exitBesideShipOnGround(self, piloted);
+                    }
                 }
             }
             else if (getObjectInSlot(container, POB_SHIP_OPERATIONS_SLOT_NAME) == self)
