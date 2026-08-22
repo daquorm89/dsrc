@@ -256,22 +256,51 @@ public class combat_ship extends script.base_script
             }
             if (isIdValid(entryCell) && entryName != null)
             {
-                location dest = getGoodLocation(self, entryName);
-                if (dest == null)
+                // Never use world (0,0,0) — that dumps the player at planet origin.
+                // Prefer: stand next to an object already in the cell; else cell-local offset.
+                location dest = null;
+                obj_id[] inCell = getContents(entryCell);
+                if (inCell != null)
                 {
-                    dest = new location(0.0f, 0.0f, 0.0f, getCurrentSceneName(), entryCell);
-                }
-                else
-                {
-                    dest.cell = entryCell;
-                    if (dest.area == null || dest.area.length() < 1)
+                    for (obj_id o : inCell)
                     {
-                        dest.area = getCurrentSceneName();
+                        if (!isIdValid(o))
+                        {
+                            continue;
+                        }
+                        location ol = getLocation(o);
+                        if (ol != null && isIdValid(ol.cell) && ol.cell == entryCell)
+                        {
+                            dest = new location(ol.x, ol.y, ol.z, ol.area, entryCell);
+                            break;
+                        }
                     }
                 }
+                if (dest == null)
+                {
+                    location good = getGoodLocation(self, entryName);
+                    if (good != null && isIdValid(good.cell) && good.cell == entryCell)
+                    {
+                        // Only accept if it is truly inside this cell (not world origin).
+                        if (Math.abs(good.x) + Math.abs(good.z) > 0.01f || isIdValid(good.cell))
+                        {
+                            dest = new location(good.x, good.y, good.z, getCurrentSceneName(), entryCell);
+                        }
+                    }
+                }
+                if (dest == null)
+                {
+                    // Cell-local stand point (coordinates are relative to the cell).
+                    dest = new location(0.0f, 0.5f, 2.0f, getCurrentSceneName(), entryCell);
+                }
+                if (dest.area == null || dest.area.length() < 1)
+                {
+                    dest.area = getCurrentSceneName();
+                }
+                dest.cell = entryCell;
                 setLocation(player, dest);
-                // forceLoadScreen helps the client attach to the POB cell graph on ground.
-                warpPlayer(player, dest.area, dest.x, dest.y, dest.z, entryCell, 0.0f, 0.0f, 0.0f, null, true);
+                warpPlayer(player, dest.area, dest.x, dest.y, dest.z, entryCell,
+                    dest.x, dest.y, dest.z, null, true);
                 LOG("space", "Enter POB cell=" + entryName + " cellId=" + entryCell + " dest=" + dest);
                 return SCRIPT_CONTINUE;
             }

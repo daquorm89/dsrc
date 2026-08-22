@@ -872,12 +872,26 @@ public class space_transition extends script.base_script
             }
             if (shipLoc != null)
             {
-                dest = new location(shipLoc.x + 5.0f, shipLoc.y, shipLoc.z + 5.0f, shipLoc.area, null);
+                // Large lateral offset so we are outside the POB collision hull,
+                // not at the geometric center of the ship on the planet surface.
+                dest = new location(shipLoc.x + 18.0f, shipLoc.y, shipLoc.z + 18.0f, shipLoc.area, null);
             }
         }
         if (dest != null)
         {
             dest.cell = null;
+            // If dest is still essentially the ship origin, push out.
+            location shipLoc2 = getLocation(ship);
+            if (shipLoc2 != null)
+            {
+                float dx = dest.x - shipLoc2.x;
+                float dz = dest.z - shipLoc2.z;
+                if (dx * dx + dz * dz < 64.0f)
+                {
+                    dest.x = shipLoc2.x + 18.0f;
+                    dest.z = shipLoc2.z + 18.0f;
+                }
+            }
             float terrainY = getHeightAtLocation(dest.x, dest.z);
             if (terrainY == terrainY)
             {
