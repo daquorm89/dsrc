@@ -250,8 +250,9 @@ public class combat_ship extends script.base_script
                     }
                 }
                 setLocation(player, dest);
-                // Force client into the cell (POB portals are fragile on ground).
-                warpPlayer(player, dest.area, dest.x, dest.y, dest.z, entryCell, 0.0f, 0.0f, 0.0f, null, false);
+                // forceLoadScreen helps the client attach to the POB cell graph on ground.
+                warpPlayer(player, dest.area, dest.x, dest.y, dest.z, entryCell, 0.0f, 0.0f, 0.0f, null, true);
+                LOG("space", "Enter POB cell=" + entryName + " cellId=" + entryCell + " dest=" + dest);
                 return SCRIPT_CONTINUE;
             }
             sui.msgbox(player, player, "Cannot enter: no interior cells found on this ship.");
@@ -339,13 +340,24 @@ public class combat_ship extends script.base_script
             return SCRIPT_CONTINUE;
         }
         utils.removeScriptVar(player, "atmos.postLaunchEjectPending");
-        space_transition.forceEjectPlayerFromShipOnGround(player, ship);
         if (getPilotId(ship) == player)
         {
             unpilotShip(player);
         }
-        // forceEject already places player beside ship; do not call exitBeside here
-        // (that helper lives on combat_ship_player, not space_transition)
+        setState(player, STATE_PILOTING_SHIP, false);
+        setState(player, STATE_PILOTING_POB_SHIP, false);
+        // Prefer saved exterior launch point if provided
+        if (params.containsKey("area") && params.getString("area") != null)
+        {
+            String area = params.getString("area");
+            float x = params.getFloat("x");
+            float y = params.getFloat("y");
+            float z = params.getFloat("z");
+            location dest = new location(x, y, z, area, null);
+            setLocation(player, dest);
+            warpPlayer(player, area, x, y, z, null, 0.0f, 0.0f, 0.0f, null, true);
+        }
+        space_transition.forceEjectPlayerFromShipOnGround(player, ship);
         setShipLanded(ship, true);
         setOwner(ship, player);
         sendDirtyObjectMenuNotification(self);
