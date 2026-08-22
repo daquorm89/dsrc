@@ -260,7 +260,8 @@ public class combat_ship extends script.base_script
                 return SCRIPT_CONTINUE;
             }
 
-            location shipLoc = getLocation(self);
+            // Reuse method-scope shipLoc (already declared near top of OnObjectMenuSelect).
+            shipLoc = getLocation(self);
             if (shipLoc == null || shipLoc.area == null)
             {
                 shipLoc = getLocation(player);
