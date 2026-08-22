@@ -845,9 +845,20 @@ public class space_transition extends script.base_script
             setShipLanded(ship, true);
         }
 
-        // Prefer engine building eject point; fall back to beside chassis on terrain.
+        // Prefer: saved exterior launch point > building eject > beside chassis.
         location dest = null;
-        if (space_utils.isShipWithInterior(ship))
+        if (utils.hasScriptVar(player, "atmos.exteriorArea"))
+        {
+            String a = utils.getStringScriptVar(player, "atmos.exteriorArea");
+            float x = utils.getFloatScriptVar(player, "atmos.exteriorX");
+            float y = utils.getFloatScriptVar(player, "atmos.exteriorY");
+            float z = utils.getFloatScriptVar(player, "atmos.exteriorZ");
+            if (a != null && a.length() > 0)
+            {
+                dest = new location(x, y, z, a, null);
+            }
+        }
+        if (dest == null && space_utils.isShipWithInterior(ship))
         {
             dest = getBuildingEjectLocation(ship);
         }
@@ -972,7 +983,7 @@ public class space_transition extends script.base_script
             dictionary d = new dictionary();
             d.put("scd", shipControlDevice);
             d.put("player", player);
-            messageTo(ship, "handleAtmosDelayedStore", d, 2.0f, false);
+            messageTo(ship, "handleAtmosDelayedStore", d, 3.5f, false);
             LOG("space_transition", "storeShipInControlDeviceSafe: scheduled delayed POB store ship=" + ship);
             if (isIdValid(player))
             {
@@ -1155,7 +1166,16 @@ public class space_transition extends script.base_script
             setShipLanded(ship, true);
         }
 
-        // 2) Client world reload to sync pilot state (may briefly interrupt; callback re-seats if needed)
+        // Fighters: client world reload helps sync pilot controls.
+        // POB: reload tears the player out of the pilot slot / interior — skip it.
+        if (space_utils.isShipWithInterior(ship))
+        {
+            utils.removeScriptVar(player, "atmos.boardShipId");
+            LOG("space_transition", "boardShipAsPilotOnGround: POB pilot OK, no client refresh ship=" + ship
+                + " pilotId=" + getPilotId(ship));
+            return true;
+        }
+
         utils.setScriptVar(player, "atmos.boardShipId", ship);
         LOG("space_transition", "boardShipAsPilotOnGround: server enter OK, refreshing client ship=" + ship);
         refreshClientWorldAtPlayer(player, "handleAtmosBoardAfterWorldRefresh");
@@ -1254,15 +1274,6 @@ public class space_transition extends script.base_script
             return PLACE_SHIP_INVALID;
         }
 
-        // POB interiors / pilot / store on ground are not reliable yet (stuck in
-        // cell, invisible exterior without god, client portal crashes on Store).
-        // Block atmospheric Call so players are not trapped mid-ship.
-        if (!isSpaceScene() && space_utils.isShipWithInterior(ship))
-        {
-            LOG("space_transition", "placeShip: blocked POB on ground ship=" + ship);
-            return PLACE_SHIP_POB_ATMOS_UNSUPPORTED;
-        }
-
         // Clear residual pilot/containment from a previous broken Call/Store so
         // pets, combat, and this Launch are not blocked by a ghost ship state.
         if (!isSpaceScene())
@@ -1315,6 +1326,24 @@ public class space_transition extends script.base_script
         // player's current drop point afterward so recall is not stuck at the
         // previous Call coordinates.
         // ------------------------------------------------------------------
+        // Remember exterior position BEFORE unpack — for POB, unpack pilots into
+        // the interior and we must put the player back outside.
+        location exteriorLoc = getLocation(player);
+        if (exteriorLoc != null)
+        {
+            exteriorLoc = new location(exteriorLoc.x, exteriorLoc.y, exteriorLoc.z, exteriorLoc.area, null);
+            float ty = getHeightAtLocation(exteriorLoc.x, exteriorLoc.z);
+            if (ty == ty)
+            {
+                exteriorLoc.y = ty + 0.25f;
+            }
+            utils.setScriptVar(player, "atmos.exteriorX", exteriorLoc.x);
+            utils.setScriptVar(player, "atmos.exteriorY", exteriorLoc.y);
+            utils.setScriptVar(player, "atmos.exteriorZ", exteriorLoc.z);
+            utils.setScriptVar(player, "atmos.exteriorArea", exteriorLoc.area);
+            utils.setScriptVar(player, "atmos.exteriorShip", ship);
+        }
+
         LOG("space_transition", "placeShip: calling unpackShipForPlayer ship=" + ship + " player=" + player);
         boolean unpacked = unpackShipForPlayer(player, ship);
         LOG("space_transition", "placeShip: unpackShipForPlayer returned " + unpacked
@@ -1340,22 +1369,47 @@ public class space_transition extends script.base_script
         {
             snapShipToGroundAndMarkLanded(ship);
             setShipLanded(ship, true);
-            forceEjectPlayerFromShipOnGround(player, ship);
             if (getPilotId(ship) == player)
             {
                 unpilotShip(player);
             }
+            setState(player, STATE_PILOTING_SHIP, false);
+            setState(player, STATE_PILOTING_POB_SHIP, false);
+            setState(player, STATE_SHIP_OPERATIONS, false);
+            setState(player, STATE_SHIP_GUNNER, false);
+
+            // Put player back at the exterior point they launched from (not ship center).
+            if (exteriorLoc != null && exteriorLoc.area != null)
+            {
+                setLocation(player, exteriorLoc);
+                warpPlayer(player, exteriorLoc.area, exteriorLoc.x, exteriorLoc.y, exteriorLoc.z,
+                    null, 0.0f, 0.0f, 0.0f, null, true);
+            }
+            forceEjectPlayerFromShipOnGround(player, ship);
             setShipLanded(ship, true);
-            // POB: unpack pilots into the interior and leaves the player trapped.
-            // Hard extract + delayed repeats.
+
             if (space_utils.isShipWithInterior(ship))
             {
+                // Repeat extract — POB containment can reassert once after unpilot.
+                if (exteriorLoc != null && exteriorLoc.area != null)
+                {
+                    setLocation(player, exteriorLoc);
+                    warpPlayer(player, exteriorLoc.area, exteriorLoc.x, exteriorLoc.y, exteriorLoc.z,
+                        null, 0.0f, 0.0f, 0.0f, null, true);
+                }
                 forceEjectPlayerFromShipOnGround(player, ship);
                 dictionary d2 = new dictionary();
                 d2.put("player", player);
                 d2.put("ship", ship);
-                messageTo(ship, "handleAtmosPostLaunchEject", d2, 1.0f, false);
-                messageTo(ship, "handleAtmosPostLaunchEject", d2, 3.0f, false);
+                if (exteriorLoc != null)
+                {
+                    d2.put("x", exteriorLoc.x);
+                    d2.put("y", exteriorLoc.y);
+                    d2.put("z", exteriorLoc.z);
+                    d2.put("area", exteriorLoc.area);
+                }
+                messageTo(ship, "handleAtmosPostLaunchEject", d2, 0.5f, false);
+                messageTo(ship, "handleAtmosPostLaunchEject", d2, 2.0f, false);
             }
         }
 
@@ -1425,9 +1479,7 @@ public class space_transition extends script.base_script
             case PLACE_SHIP_RESTORE_FAILED:
                 return "Call ship failed: ship left the control device and could not be restored. Relog or re-grant SCD.";
             case PLACE_SHIP_POB_ATMOS_UNSUPPORTED:
-                return "Atmospheric Launch is not supported for POB ships (Decimator, YT-1300, gunships, etc.) yet. "
-                    + "Interiors, pilot seat, and Store are unreliable on ground planets and can trap you or crash the client. "
-                    + "Use a fighter (TIE, X-Wing, etc.) for atmospheric flight testing. Launch POBs from a space station / space as designed.";
+                return "Call ship failed for this POB (atmospheric placement). Try again or relog.";
             default:
                 return "Call ship failed (error " + code + ").";
         }
