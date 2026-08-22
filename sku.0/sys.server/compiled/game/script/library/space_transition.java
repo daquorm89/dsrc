@@ -406,14 +406,46 @@ public class space_transition extends script.base_script
         {
             return ship;
         }
+        // Fighters sometimes expose the pilot slot on the chassis itself via contents.
         obj_id[] cells = getContents(ship);
         if (cells != null)
         {
             for (obj_id cell : cells) {
+                if (canPutInSlot(pilot, cell, POB_SHIP_PILOT_SLOT_NAME) == CEC_SUCCESS) {
+                    return cell;
+                }
                 obj_id[] contents = getContents(cell);
                 if (contents != null) {
                     for (obj_id content : contents) {
                         if (canPutInSlot(pilot, content, POB_SHIP_PILOT_SLOT_NAME) == CEC_SUCCESS) {
+                            return content;
+                        }
+                    }
+                }
+            }
+        }
+        // POB ships: cells are often only reachable via getCellIds / getCellNames.
+        String[] cellNames = getCellNames(ship);
+        if (cellNames != null)
+        {
+            for (String cellName : cellNames)
+            {
+                obj_id cell = getCellId(ship, cellName);
+                if (!isIdValid(cell))
+                {
+                    continue;
+                }
+                if (canPutInSlot(pilot, cell, POB_SHIP_PILOT_SLOT_NAME) == CEC_SUCCESS)
+                {
+                    return cell;
+                }
+                obj_id[] contents = getContents(cell);
+                if (contents != null)
+                {
+                    for (obj_id content : contents)
+                    {
+                        if (canPutInSlot(pilot, content, POB_SHIP_PILOT_SLOT_NAME) == CEC_SUCCESS)
+                        {
                             return content;
                         }
                     }
@@ -918,6 +950,22 @@ public class space_transition extends script.base_script
             }
         }
         space_pilot_command.allPurposeShipComponentReset(ship);
+
+        // POB: delay pack so client doors/portals can tear down without crashing
+        // in dpvs when the chassis is pulled into the SCD mid-alter.
+        if (space_utils.isShipWithInterior(ship) && hasScript(ship, "space.combat.combat_ship"))
+        {
+            dictionary d = new dictionary();
+            d.put("scd", shipControlDevice);
+            d.put("player", player);
+            messageTo(ship, "handleAtmosDelayedStore", d, 2.0f, false);
+            LOG("space_transition", "storeShipInControlDeviceSafe: scheduled delayed POB store ship=" + ship);
+            if (isIdValid(player))
+            {
+                sendSystemMessageTestingOnly(player, "Storing POB ship — please wait a moment...");
+            }
+            return true;
+        }
 
         boolean ok = restoreShipToControlDevice(ship, shipControlDevice);
         LOG("space_transition", "storeShipInControlDeviceSafe: result=" + ok + " ship=" + ship + " scd=" + shipControlDevice);

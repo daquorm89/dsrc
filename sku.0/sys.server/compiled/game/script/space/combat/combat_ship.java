@@ -276,6 +276,48 @@ public class combat_ship extends script.base_script
         return SCRIPT_CONTINUE;
     }
 
+
+    public int handleAtmosDelayedStore(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (params == null)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        obj_id scd = params.getObjId("scd");
+        obj_id player = params.getObjId("player");
+        if (!isIdValid(scd) || !exists(self))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        // Final eject pass
+        Vector players = space_transition.getContainedPlayers(self, null);
+        if (players != null)
+        {
+            for (Object o : players)
+            {
+                obj_id p = (obj_id) o;
+                if (isIdValid(p))
+                {
+                    space_transition.forceEjectPlayerFromShipOnGround(p, self);
+                }
+            }
+        }
+        boolean ok = space_transition.restoreShipToControlDevice(self, scd);
+        if (isIdValid(player) && exists(player))
+        {
+            if (ok && getContainedBy(self) == scd)
+            {
+                sendSystemMessageTestingOnly(player, "Ship stored in control device.");
+            }
+            else
+            {
+                sendSystemMessageTestingOnly(player, "Store failed after delay. Try again outside the ship.");
+            }
+        }
+        LOG("space", "combat_ship.handleAtmosDelayedStore ship=" + self + " scd=" + scd + " ok=" + ok);
+        return SCRIPT_CONTINUE;
+    }
+
     public int handleAtmosPostLaunchEject(obj_id self, dictionary params) throws InterruptedException
     {
         if (params == null)
