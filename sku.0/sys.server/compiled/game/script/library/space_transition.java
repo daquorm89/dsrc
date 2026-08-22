@@ -817,6 +817,17 @@ public class space_transition extends script.base_script
      */
     public static boolean forceEjectPlayerFromShipOnGround(obj_id player, obj_id ship) throws InterruptedException
     {
+        // Default: force-load only when truly stuck in a cell (see overload).
+        return forceEjectPlayerFromShipOnGround(player, ship, false);
+    }
+
+    /**
+     * Eject player from a ground ship. forceLoadScreen=true only when the player is
+     * stuck inside a cell and needs a hard client refresh. Launch uses false so
+     * Call does not flash a load screen when the player was never meant to board.
+     */
+    public static boolean forceEjectPlayerFromShipOnGround(obj_id player, obj_id ship, boolean forceLoadScreen) throws InterruptedException
+    {
         if (!isIdValid(player) || !isIdValid(ship) || isSpaceScene())
         {
             return !isIdValid(player) || getContainingShip(player) != ship;
@@ -897,9 +908,9 @@ public class space_transition extends script.base_script
             {
                 dest.y = terrainY + 0.25f;
             }
-            // forceLoadScreen breaks client cell lock when stuck in POB interior.
             setLocation(player, dest);
-            if (dest.area != null)
+            // Only hard-warp when requested (stuck-in-cell recovery). Launch stays soft.
+            if (forceLoadScreen && dest.area != null)
             {
                 warpPlayer(player, dest.area, dest.x, dest.y, dest.z, null, 0.0f, 0.0f, 0.0f, null, true);
             }
@@ -914,18 +925,20 @@ public class space_transition extends script.base_script
 
         obj_id still = getContainingShip(player);
         boolean clear = !isIdValid(still) || still != ship;
-        // Still nested in ship cells?
+        // Still nested in ship cells? — hard extract once.
         obj_id top = getTopMostContainer(player);
         if (isIdValid(top) && (top == ship || utils.isNestedWithin(player, ship)))
         {
             clear = false;
             if (dest != null && dest.area != null)
             {
+                setLocation(player, dest);
                 warpPlayer(player, dest.area, dest.x, dest.y, dest.z, null, 0.0f, 0.0f, 0.0f, null, true);
             }
         }
         LOG("space_transition", "forceEjectPlayerFromShipOnGround: player=" + player + " ship=" + ship
-            + " containingShip=" + still + " top=" + top + " clear=" + clear);
+            + " containingShip=" + still + " top=" + top + " clear=" + clear
+            + " forceLoad=" + forceLoadScreen);
         return clear;
     }
 
@@ -1394,25 +1407,22 @@ public class space_transition extends script.base_script
             setState(player, STATE_SHIP_GUNNER, false);
 
             // Put player back at the exterior point they launched from (not ship center).
+            // Soft only — no forceLoadScreen. Launch is spawn-only; reload is unnecessary.
             if (exteriorLoc != null && exteriorLoc.area != null)
             {
                 setLocation(player, exteriorLoc);
-                warpPlayer(player, exteriorLoc.area, exteriorLoc.x, exteriorLoc.y, exteriorLoc.z,
-                    null, 0.0f, 0.0f, 0.0f, null, true);
             }
-            forceEjectPlayerFromShipOnGround(player, ship);
+            forceEjectPlayerFromShipOnGround(player, ship, false);
             setShipLanded(ship, true);
 
             if (space_utils.isShipWithInterior(ship))
             {
-                // Repeat extract — POB containment can reassert once after unpilot.
+                // Repeat soft extract — POB containment can reassert once after unpilot.
                 if (exteriorLoc != null && exteriorLoc.area != null)
                 {
                     setLocation(player, exteriorLoc);
-                    warpPlayer(player, exteriorLoc.area, exteriorLoc.x, exteriorLoc.y, exteriorLoc.z,
-                        null, 0.0f, 0.0f, 0.0f, null, true);
                 }
-                forceEjectPlayerFromShipOnGround(player, ship);
+                forceEjectPlayerFromShipOnGround(player, ship, false);
                 dictionary d2 = new dictionary();
                 d2.put("player", player);
                 d2.put("ship", ship);

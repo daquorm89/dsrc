@@ -221,46 +221,9 @@ public class combat_ship extends script.base_script
 
         if (item == menu_info_types.SERVER_MENU1 && space_utils.isShipWithInterior(self))
         {
-            // Enter interior via building+cellName warp (NOT cell obj_id with local
-            // coords as world coords — that sent players to planet 0,0,0).
-            String[] preferred = new String[] {
-                "bridge", "entrance", "hallway1", "hall1", "mainhallway",
-                "cockpit", "pilot", "spawn", "r1", "r2"
-            };
-            String[] cellNames = getCellNames(self);
-            if (cellNames == null || cellNames.length == 0)
-            {
-                sui.msgbox(player, player, "Cannot enter: this ship has no interior cells.");
-                return SCRIPT_CONTINUE;
-            }
-            String entryName = null;
-            for (String pref : preferred)
-            {
-                for (String cn : cellNames)
-                {
-                    if (cn != null && cn.equalsIgnoreCase(pref))
-                    {
-                        entryName = cn;
-                        break;
-                    }
-                }
-                if (entryName != null)
-                {
-                    break;
-                }
-            }
-            if (entryName == null)
-            {
-                entryName = cellNames[0];
-            }
-            obj_id entryCell = getCellId(self, entryName);
-            if (!isIdValid(entryCell))
-            {
-                sui.msgbox(player, player, "Cannot enter: cell '" + entryName + "' not found.");
-                return SCRIPT_CONTINUE;
-            }
-
-            // Reuse method-scope shipLoc (already declared near top of OnObjectMenuSelect).
+            // Enter interior: prefer ship_start_locations (Decimator = cockpit 1.4,2.9,3.6),
+            // then setLocation into the cell object. Never leave the player at the
+            // chassis mesh origin on the planet surface.
             shipLoc = getLocation(self);
             if (shipLoc == null || shipLoc.area == null)
             {
@@ -272,10 +235,88 @@ public class combat_ship extends script.base_script
                 return SCRIPT_CONTINUE;
             }
 
-            // Parent-space stand point inside the cell (not world origin).
+            obj_id entryCell = null;
+            String entryName = null;
             float lx = 0.0f;
             float ly = 0.5f;
             float lz = 2.0f;
+
+            // 1) Official start locations for this chassis template
+            Vector starts = space_transition.getShipStartLocations(self);
+            if (starts != null && starts.size() > 0)
+            {
+                for (int i = 0; i < starts.size(); i++)
+                {
+                    location sl = (location) starts.get(i);
+                    if (sl == null || !isIdValid(sl.cell))
+                    {
+                        continue;
+                    }
+                    entryCell = sl.cell;
+                    lx = sl.x;
+                    ly = sl.y;
+                    lz = sl.z;
+                    String[] names = getCellNames(self);
+                    if (names != null)
+                    {
+                        for (String cn : names)
+                        {
+                            if (cn != null && getCellId(self, cn) == entryCell)
+                            {
+                                entryName = cn;
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+
+            // 2) Preferred cell names if no start-location row
+            if (!isIdValid(entryCell))
+            {
+                String[] preferred = new String[] {
+                    "cockpit", "bridge", "entrance", "hallway1", "hall1",
+                    "mainhallway", "pilot", "spawn", "r1", "r2"
+                };
+                String[] cellNames = getCellNames(self);
+                if (cellNames == null || cellNames.length == 0)
+                {
+                    sui.msgbox(player, player, "Cannot enter: this ship has no interior cells.");
+                    return SCRIPT_CONTINUE;
+                }
+                for (String pref : preferred)
+                {
+                    for (String cn : cellNames)
+                    {
+                        if (cn != null && cn.equalsIgnoreCase(pref))
+                        {
+                            entryName = cn;
+                            break;
+                        }
+                    }
+                    if (entryName != null)
+                    {
+                        break;
+                    }
+                }
+                if (entryName == null)
+                {
+                    entryName = cellNames[0];
+                }
+                entryCell = getCellId(self, entryName);
+            }
+            if (!isIdValid(entryCell))
+            {
+                sui.msgbox(player, player, "Cannot enter: interior cell not found.");
+                return SCRIPT_CONTINUE;
+            }
+            if (entryName == null)
+            {
+                entryName = "cell";
+            }
+
+            // Stand near something already in the cell if present
             obj_id[] inCell = getContents(entryCell);
             if (inCell != null)
             {
@@ -296,14 +337,60 @@ public class combat_ship extends script.base_script
                 }
             }
 
-            // World coords of the ship + building=self + cell NAME.
-            // forceLoadScreen so the client attaches to the POB portal graph.
-            warpPlayer(player, shipLoc.area, shipLoc.x, shipLoc.y, shipLoc.z,
-                self, entryName, lx, ly, lz, null, true);
+            // Primary: setLocation with cell id (same pattern as building NPCs).
+            location cellDest = new location(lx, ly, lz, shipLoc.area, entryCell);
+            setLocation(player, cellDest);
 
-            LOG("space", "Enter POB ship=" + self + " cellName=" + entryName
+            // Verify we are actually inside the ship, not at world mesh center.
+            location after = getLocation(player);
+            boolean inCellOk = after != null && isIdValid(after.cell)
+                && (after.cell == entryCell || utils.isNestedWithin(player, self)
+                    || getTopMostContainer(player) == self);
+
+            if (!inCellOk)
+            {
+                // Fallback: cell-obj warp (world = ship, parent = local in cell)
+                warpPlayer(player, shipLoc.area, shipLoc.x, shipLoc.y, shipLoc.z,
+                    entryCell, lx, ly, lz, null, true);
+                after = getLocation(player);
+                inCellOk = after != null && isIdValid(after.cell)
+                    && (after.cell == entryCell || utils.isNestedWithin(player, self)
+                        || getTopMostContainer(player) == self);
+            }
+
+            if (!inCellOk)
+            {
+                // Fallback: building + cell name
+                warpPlayer(player, shipLoc.area, shipLoc.x, shipLoc.y, shipLoc.z,
+                    self, entryName, lx, ly, lz, null, true);
+                after = getLocation(player);
+                inCellOk = after != null && isIdValid(after.cell)
+                    && (after.cell == entryCell || utils.isNestedWithin(player, self)
+                        || getTopMostContainer(player) == self);
+            }
+
+            if (!inCellOk)
+            {
+                // Do not leave the player stuck at the chassis origin.
+                location safe = new location(shipLoc.x + 18.0f, shipLoc.y, shipLoc.z + 18.0f, shipLoc.area, null);
+                float ty = getHeightAtLocation(safe.x, safe.z);
+                if (ty == ty)
+                {
+                    safe.y = ty + 0.25f;
+                }
+                setLocation(player, safe);
+                sui.msgbox(player, player,
+                    "Could not attach to ship interior cells on the ground. "
+                    + "You were moved beside the hull. cell=" + entryName);
+                LOG("space", "Enter POB FAILED in-cell attach ship=" + self
+                    + " cellName=" + entryName + " cellId=" + entryCell
+                    + " afterLoc=" + after);
+                return SCRIPT_CONTINUE;
+            }
+
+            LOG("space", "Enter POB OK ship=" + self + " cellName=" + entryName
                 + " cellId=" + entryCell + " shipWorld=" + shipLoc
-                + " local=(" + lx + "," + ly + "," + lz + ")");
+                + " local=(" + lx + "," + ly + "," + lz + ") after=" + after);
             return SCRIPT_CONTINUE;
         }
 
@@ -394,7 +481,7 @@ public class combat_ship extends script.base_script
         }
         setState(player, STATE_PILOTING_SHIP, false);
         setState(player, STATE_PILOTING_POB_SHIP, false);
-        // Prefer saved exterior launch point if provided
+        // Soft exterior restore only — no forceLoadScreen (Launch is spawn-only).
         if (params.containsKey("area") && params.getString("area") != null)
         {
             String area = params.getString("area");
@@ -403,9 +490,8 @@ public class combat_ship extends script.base_script
             float z = params.getFloat("z");
             location dest = new location(x, y, z, area, null);
             setLocation(player, dest);
-            warpPlayer(player, area, x, y, z, null, 0.0f, 0.0f, 0.0f, null, true);
         }
-        space_transition.forceEjectPlayerFromShipOnGround(player, ship);
+        space_transition.forceEjectPlayerFromShipOnGround(player, ship, false);
         setShipLanded(ship, true);
         setOwner(ship, player);
         sendDirtyObjectMenuNotification(self);
