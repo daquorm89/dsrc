@@ -801,6 +801,12 @@ public class space_transition extends script.base_script
                 unpilotShip(player);
             }
         }
+        // Park chassis on terrain first so player XY is relative to grounded ship.
+        if (exists(ship))
+        {
+            snapShipToGroundAndMarkLanded(ship);
+            setShipLanded(ship, true);
+        }
         location shipLoc = getLocation(ship);
         if (shipLoc == null)
         {
@@ -814,15 +820,25 @@ public class space_transition extends script.base_script
                 float terrainY = getHeightAtLocation(dest.x, dest.z);
                 if (terrainY == terrainY)
                 {
-                    dest.y = terrainY + 0.5f;
+                    // Slight offset so feet clear the surface (not mid-air pilot height).
+                    dest.y = terrainY + 0.25f;
                 }
             }
+            // setLocation alone often leaves the client at pilot altitude until a
+            // later correction. warpPlayer forces the ground transform immediately
+            // without a load screen.
             setLocation(player, dest);
-        }
-        if (isIdValid(ship) && exists(ship) && !isSpaceScene())
-        {
-            snapShipToGroundAndMarkLanded(ship);
-            setShipLanded(ship, true);
+            if (!isIdValid(dest.cell) && dest.area != null)
+            {
+                warpPlayer(player, dest.area, dest.x, dest.y, dest.z, null, 0.0f, 0.0f, 0.0f, null, false);
+            }
+            // Second snap shortly after in case unpilot overwrote Y on the client.
+            dictionary params = new dictionary();
+            params.put("x", dest.x);
+            params.put("y", dest.y);
+            params.put("z", dest.z);
+            params.put("area", dest.area);
+            messageTo(player, "handleAtmosExitGroundSnap", params, 0.5f, false);
         }
         obj_id still = getContainingShip(player);
         boolean clear = !isIdValid(still) || still != ship;

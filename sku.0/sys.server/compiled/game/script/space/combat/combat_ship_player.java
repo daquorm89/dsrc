@@ -52,12 +52,10 @@ public class combat_ship_player extends script.base_script
         {
             return;
         }
-        // Prefer the shared force-eject helper (unpilot + place + verify)
+        // Prefer the shared force-eject helper (unpilot + place + warp to terrain)
         if (isIdValid(ship) && exists(ship))
         {
             space_transition.forceEjectPlayerFromShipOnGround(player, ship);
-            // Park chassis on terrain when exiting atmospheric flight
-            space_transition.snapShipToGroundAndMarkLanded(ship);
             return;
         }
         // Ship already gone/packed — drop player at their current world XY with terrain Y
@@ -71,10 +69,60 @@ public class combat_ship_player extends script.base_script
             float terrainY = getHeightAtLocation(here.x, here.z);
             if (terrainY == terrainY)
             {
-                here.y = terrainY + 0.5f;
+                here.y = terrainY + 0.25f;
+            }
+            setLocation(player, here);
+            if (here.area != null)
+            {
+                warpPlayer(player, here.area, here.x, here.y, here.z, null, 0.0f, 0.0f, 0.0f, null, false);
             }
         }
-        setLocation(player, here);
+        else
+        {
+            setLocation(player, here);
+        }
+    }
+
+
+    /**
+     * Delayed ground snap after Leave Station / Exit Ship so the client does not
+     * remain at pilot altitude until a later engine correction.
+     */
+    public int handleAtmosExitGroundSnap(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (params == null || isSpaceScene())
+        {
+            return SCRIPT_CONTINUE;
+        }
+        // Only snap if we are still on foot in the world cell
+        if (isIdValid(getContainedBy(self)))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        float x = params.getFloat("x");
+        float y = params.getFloat("y");
+        float z = params.getFloat("z");
+        String area = params.getString("area");
+        if (area == null || area.length() < 1)
+        {
+            location cur = getLocation(self);
+            if (cur == null)
+            {
+                return SCRIPT_CONTINUE;
+            }
+            area = cur.area;
+            x = cur.x;
+            z = cur.z;
+        }
+        float terrainY = getHeightAtLocation(x, z);
+        if (terrainY == terrainY)
+        {
+            y = terrainY + 0.25f;
+        }
+        location dest = new location(x, y, z, area, null);
+        setLocation(self, dest);
+        warpPlayer(self, area, x, y, z, null, 0.0f, 0.0f, 0.0f, null, false);
+        return SCRIPT_CONTINUE;
     }
 
     public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
