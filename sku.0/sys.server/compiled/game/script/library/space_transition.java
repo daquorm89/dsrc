@@ -402,53 +402,54 @@ public class space_transition extends script.base_script
     }
     public static obj_id findPilotSlotObjectForShip(obj_id pilot, obj_id ship) throws InterruptedException
     {
-        if (canPutInSlot(pilot, ship, SHIP_PILOT_SLOT_NAME) == CEC_SUCCESS)
+        return findPilotSlotObjectDeep(pilot, ship, 0);
+    }
+
+    /**
+     * Recursive search for ship_pilot / ship_pilot_pob. POB terminals can sit
+     * several containment levels under cells; shallow search misses them while
+     * the chassis is still nested in the SCD.
+     */
+    public static obj_id findPilotSlotObjectDeep(obj_id pilot, obj_id node, int depth) throws InterruptedException
+    {
+        if (!isIdValid(pilot) || !isIdValid(node) || depth > 12)
         {
-            return ship;
+            return null;
         }
-        // Fighters sometimes expose the pilot slot on the chassis itself via contents.
-        obj_id[] cells = getContents(ship);
-        if (cells != null)
+        if (canPutInSlot(pilot, node, SHIP_PILOT_SLOT_NAME) == CEC_SUCCESS)
         {
-            for (obj_id cell : cells) {
-                if (canPutInSlot(pilot, cell, POB_SHIP_PILOT_SLOT_NAME) == CEC_SUCCESS) {
-                    return cell;
-                }
-                obj_id[] contents = getContents(cell);
-                if (contents != null) {
-                    for (obj_id content : contents) {
-                        if (canPutInSlot(pilot, content, POB_SHIP_PILOT_SLOT_NAME) == CEC_SUCCESS) {
-                            return content;
-                        }
-                    }
+            return node;
+        }
+        if (canPutInSlot(pilot, node, POB_SHIP_PILOT_SLOT_NAME) == CEC_SUCCESS)
+        {
+            return node;
+        }
+        obj_id[] contents = getContents(node);
+        if (contents != null)
+        {
+            for (obj_id c : contents)
+            {
+                obj_id found = findPilotSlotObjectDeep(pilot, c, depth + 1);
+                if (isIdValid(found))
+                {
+                    return found;
                 }
             }
         }
-        // POB ships: cells are often only reachable via getCellIds / getCellNames.
-        String[] cellNames = getCellNames(ship);
+        String[] cellNames = getCellNames(node);
         if (cellNames != null)
         {
             for (String cellName : cellNames)
             {
-                obj_id cell = getCellId(ship, cellName);
+                obj_id cell = getCellId(node, cellName);
                 if (!isIdValid(cell))
                 {
                     continue;
                 }
-                if (canPutInSlot(pilot, cell, POB_SHIP_PILOT_SLOT_NAME) == CEC_SUCCESS)
+                obj_id found = findPilotSlotObjectDeep(pilot, cell, depth + 1);
+                if (isIdValid(found))
                 {
-                    return cell;
-                }
-                obj_id[] contents = getContents(cell);
-                if (contents != null)
-                {
-                    for (obj_id content : contents)
-                    {
-                        if (canPutInSlot(pilot, content, POB_SHIP_PILOT_SLOT_NAME) == CEC_SUCCESS)
-                        {
-                            return content;
-                        }
-                    }
+                    return found;
                 }
             }
         }
@@ -871,12 +872,26 @@ public class space_transition extends script.base_script
             }
             if (shipLoc != null)
             {
-                dest = new location(shipLoc.x + 5.0f, shipLoc.y, shipLoc.z + 5.0f, shipLoc.area, null);
+                // Large lateral offset so we are outside the POB collision hull,
+                // not at the geometric center of the ship on the planet surface.
+                dest = new location(shipLoc.x + 18.0f, shipLoc.y, shipLoc.z + 18.0f, shipLoc.area, null);
             }
         }
         if (dest != null)
         {
             dest.cell = null;
+            // If dest is still essentially the ship origin, push out.
+            location shipLoc2 = getLocation(ship);
+            if (shipLoc2 != null)
+            {
+                float dx = dest.x - shipLoc2.x;
+                float dz = dest.z - shipLoc2.z;
+                if (dx * dx + dz * dz < 64.0f)
+                {
+                    dest.x = shipLoc2.x + 18.0f;
+                    dest.z = shipLoc2.z + 18.0f;
+                }
+            }
             float terrainY = getHeightAtLocation(dest.x, dest.z);
             if (terrainY == terrainY)
             {
@@ -1475,7 +1490,9 @@ public class space_transition extends script.base_script
             case PLACE_SHIP_BAD_LOCATION:
                 return "Call ship failed: cannot read your location.";
             case PLACE_SHIP_NOT_IN_WORLD:
-                return "Call ship failed: ship could not be activated in the world (pilot slot / placement). Returned to control device.";
+                return "Call ship failed: chassis could not leave the control device (no pilot slot found or pilotShip failed). "
+                    + "For POB ships, re-grant via Character Builder (PCD must contain a nested ship object). "
+                    + "Check server log 'NO piloting' for details.";
             case PLACE_SHIP_RESTORE_FAILED:
                 return "Call ship failed: ship left the control device and could not be restored. Relog or re-grant SCD.";
             case PLACE_SHIP_POB_ATMOS_UNSUPPORTED:
@@ -1578,8 +1595,43 @@ public class space_transition extends script.base_script
             }
             else
             {
-                LOG("space", "NO piloting");
+                LOG("space", "NO piloting pilotSlot=" + pilotSlotObject
+                    + " containedBy=" + getContainedBy(ship) + " scd=" + shipControlDevice);
+
+                // Ground atmospheric: try chassis as pilot slot (some POBs accept it
+                // after setLocation), then accept activation if the ship left the SCD
+                // even without a successful pilot seat (Call deploys; Pilot boards later).
+                if (!isSpaceScene())
+                {
+                    boolean alt = pilotShip(player, ship) && getPilotId(ship) == player;
+                    LOG("space", "ground alt pilotShip(chassis)=" + alt + " pilotId=" + getPilotId(ship));
+                    if (alt)
+                    {
+                        updateShipFaction(ship, player);
+                        doAIImmunityCheck(ship);
+                        setOwner(ship, player);
+                        if (!hasScript(ship, "space.combat.combat_ship"))
+                        {
+                            attachScript(ship, "space.combat.combat_ship");
+                        }
+                        return true;
+                    }
+                    // Ship may already be in the world from setLocation even if pilot failed
+                    if (getContainedBy(ship) != shipControlDevice && !utils.isNestedWithin(ship, player))
+                    {
+                        LOG("space", "ground: ship out of SCD without pilot — treat as deployed");
+                        setOwner(ship, player);
+                        if (!hasScript(ship, "space.combat.combat_ship"))
+                        {
+                            attachScript(ship, "space.combat.combat_ship");
+                        }
+                        snapShipToGroundAndMarkLanded(ship);
+                        setShipLanded(ship, true);
+                        return true;
+                    }
+                }
             }
+            // Space or total failure: pack back into SCD
             packShip(ship);
         }
         return false;
