@@ -1087,8 +1087,7 @@ public class space_transition extends script.base_script
         }
 
         // 1) Enter on server first
-        boolean entered = false;
-                obj_id pilotSlotObject = findPilotSlotObjectForShip(player, ship);
+        obj_id pilotSlotObject = findPilotSlotObjectForShip(player, ship);
         boolean entered = false;
         if (isIdValid(pilotSlotObject))
         {
@@ -1109,7 +1108,7 @@ public class space_transition extends script.base_script
         {
             LOG("space_transition", "boardShipAsPilotOnGround: no pilot slot object for ship=" + ship);
         }
-if (!entered)
+        if (!entered)
         {
             obj_id scd = null;
             if (hasObjVar(ship, "shipControlDevice"))
