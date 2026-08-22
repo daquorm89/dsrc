@@ -624,6 +624,11 @@ public class space_transition extends script.base_script
     // Player ships often get no server terrain-collision event, so placement
     // at the player's raw Y can bury the chassis. getHeightAtLocation is the
     // script-side fix; setShipLanded still forced after place/unpack.
+    // Ground Call clearance (meters above terrain). POBs bury into flat ground at ~1.25.
+    public static final float GROUND_SHIP_CLEARANCE_Y = 5.0f;
+    // POB mesh vs logical ship yaw often ~45° off in cell space on ground.
+    public static final float POB_GROUND_WALK_YAW_OFFSET_DEG = -45.0f;
+
     public static location getAtmosphericShipDropLocation(obj_id player) throws InterruptedException
     {
         location loc = getLocation(player);
@@ -648,17 +653,17 @@ public class space_transition extends script.base_script
             float delta = terrainY - drop.y;
             if (delta < 40.0f && delta > -40.0f)
             {
-                // Clearance so the chassis rests above the ground mesh
-                drop.y = terrainY + 1.25f;
+                // Clearance so the chassis sits above the ground mesh (not half-buried).
+                drop.y = terrainY + GROUND_SHIP_CLEARANCE_Y;
             }
             else
             {
-                drop.y = drop.y + 0.75f;
+                drop.y = drop.y + GROUND_SHIP_CLEARANCE_Y;
             }
         }
         else
         {
-            drop.y = drop.y + 0.75f;
+            drop.y = drop.y + GROUND_SHIP_CLEARANCE_Y;
         }
         LOG("space_transition", "getAtmosphericShipDropLocation: playerY=" + loc.y + " terrainY=" + terrainY + " dropY=" + drop.y);
         return drop;
@@ -682,7 +687,7 @@ public class space_transition extends script.base_script
             float delta = terrainY - loc.y;
             if (delta < 40.0f && delta > -40.0f)
             {
-                loc.y = terrainY + 1.25f;
+                loc.y = terrainY + GROUND_SHIP_CLEARANCE_Y;
                 setLocation(ship, loc);
             }
         }
@@ -963,23 +968,24 @@ public class space_transition extends script.base_script
         {
             return;
         }
-        obj_id ref = null;
-        if (isIdValid(ship))
+        // World yaw must track the hull's current facing (changes with Call direction).
+        // POB meshes are typically ~45° off logical ship forward in cell space.
+        float base = isIdValid(ship) ? getYaw(ship) : getYaw(player);
+        if (base != base)
         {
-            ref = findPilotSlotObjectForShip(player, ship);
-            if (!isIdValid(ref))
-            {
-                ref = ship;
-            }
+            return;
         }
-        if (isIdValid(ref))
+        float yaw = base + POB_GROUND_WALK_YAW_OFFSET_DEG;
+        // Normalize to [-180, 180]
+        while (yaw > 180.0f)
         {
-            float yaw = getYaw(ref);
-            if (yaw == yaw)
-            {
-                setYaw(player, yaw);
-            }
+            yaw -= 360.0f;
         }
+        while (yaw < -180.0f)
+        {
+            yaw += 360.0f;
+        }
+        setYaw(player, yaw);
     }
 
     public static boolean leavePilotSeatIntoShipInterior(obj_id player, obj_id ship) throws InterruptedException
@@ -1194,6 +1200,11 @@ public class space_transition extends script.base_script
         }
         if (!isSpaceScene())
         {
+            float py = getYaw(player);
+            if (py == py)
+            {
+                setYaw(ship, py);
+            }
             snapShipToGroundAndMarkLanded(ship);
         }
         setOwner(ship, player);
@@ -1667,6 +1678,12 @@ public class space_transition extends script.base_script
             setLocation(ship, dropLoc);
             if (!isSpaceScene())
             {
+                // Face the same way as the caller so interior yaw tracks hull orientation.
+                float py = getYaw(player);
+                if (py == py)
+                {
+                    setYaw(ship, py);
+                }
                 snapShipToGroundAndMarkLanded(ship);
             }
             setObjVar(shipControlDevice, "ship", ship);
