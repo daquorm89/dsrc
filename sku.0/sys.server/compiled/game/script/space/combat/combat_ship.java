@@ -197,15 +197,58 @@ public class combat_ship extends script.base_script
 
         if (item == menu_info_types.SERVER_MENU1 && space_utils.isShipWithInterior(self))
         {
-            obj_id[] cells = getCellIds(self);
-            if (cells != null && cells.length > 0 && isIdValid(cells[0]))
+            // Prefer named entry cells; getLocation(cells[0]) is often the ship
+            // origin and dumps the player in the geometric center.
+            String[] preferred = new String[] {
+                "bridge", "entrance", "hallway1", "hall1", "mainhallway",
+                "cockpit", "pilot", "spawn", "r1", "r2"
+            };
+            String[] cellNames = getCellNames(self);
+            obj_id entryCell = null;
+            String entryName = null;
+            if (cellNames != null)
             {
-                location dest = getLocation(cells[0]);
-                if (dest != null)
+                for (String pref : preferred)
                 {
-                    setLocation(player, dest);
-                    return SCRIPT_CONTINUE;
+                    for (String cn : cellNames)
+                    {
+                        if (cn != null && cn.equalsIgnoreCase(pref))
+                        {
+                            entryCell = getCellId(self, cn);
+                            entryName = cn;
+                            break;
+                        }
+                    }
+                    if (isIdValid(entryCell))
+                    {
+                        break;
+                    }
                 }
+                if (!isIdValid(entryCell) && cellNames.length > 0)
+                {
+                    entryName = cellNames[0];
+                    entryCell = getCellId(self, entryName);
+                }
+            }
+            if (isIdValid(entryCell) && entryName != null)
+            {
+                location dest = getGoodLocation(self, entryName);
+                if (dest == null)
+                {
+                    dest = new location(0.0f, 0.0f, 0.0f, getCurrentSceneName(), entryCell);
+                }
+                else
+                {
+                    dest.cell = entryCell;
+                    if (dest.area == null || dest.area.length() < 1)
+                    {
+                        dest.area = getCurrentSceneName();
+                    }
+                }
+                setLocation(player, dest);
+                // Force client into the cell (POB portals are fragile on ground).
+                warpPlayer(player, dest.area, dest.x, dest.y, dest.z, entryCell, 0.0f, 0.0f, 0.0f, null, false);
+                return SCRIPT_CONTINUE;
             }
             sui.msgbox(player, player, "Cannot enter: no interior cells found on this ship.");
             return SCRIPT_CONTINUE;
