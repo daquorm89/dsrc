@@ -175,6 +175,10 @@ public class combat_ship extends script.base_script
             {
                 sui.msgbox(player, player, "Ship stored in your control device. Use Launch Ship from the datapad to call it again.");
             }
+            else if (ok && space_utils.isShipWithInterior(self))
+            {
+                sui.msgbox(player, player, "Storing POB ship — stay outside and wait a few seconds while it packs.");
+            }
             else
             {
                 sui.msgbox(player, player, "Store failed (container transfer). Walk clear of the ship and try again. If you are stuck, relog. containedBy=" + getContainedBy(self));

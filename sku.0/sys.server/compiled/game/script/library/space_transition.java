@@ -823,7 +823,6 @@ public class space_transition extends script.base_script
         {
             unpilotShip(player);
         }
-        // Also unpilot if engine still reports us as pilot via slot
         obj_id container = getContainedBy(player);
         if (isIdValid(container))
         {
@@ -833,39 +832,49 @@ public class space_transition extends script.base_script
                 unpilotShip(player);
             }
         }
-        // Park chassis on terrain first so player XY is relative to grounded ship.
-        if (exists(ship))
+        // Clear pilot states so the client is not stuck "piloting" with no control.
+        setState(player, STATE_PILOTING_SHIP, false);
+        setState(player, STATE_PILOTING_POB_SHIP, false);
+        setState(player, STATE_SHIP_OPERATIONS, false);
+        setState(player, STATE_SHIP_GUNNER, false);
+
+        if (isIdValid(ship) && exists(ship) && !isSpaceScene())
         {
             snapShipToGroundAndMarkLanded(ship);
             setShipLanded(ship, true);
         }
-        // POB ships leave the player inside an interior cell after unpilot.
-        // Always force world placement beside the chassis outside any ship cell.
-        location shipLoc = getLocation(ship);
-        if (shipLoc == null)
+
+        // Prefer engine building eject point; fall back to beside chassis on terrain.
+        location dest = null;
+        if (space_utils.isShipWithInterior(ship))
         {
-            shipLoc = getLocation(player);
+            dest = getBuildingEjectLocation(ship);
         }
-        if (shipLoc != null)
+        if (dest == null)
         {
-            // Prefer exterior world coords of the ship (ignore shipLoc.cell).
-            location dest = new location(shipLoc.x + 3.0f, shipLoc.y, shipLoc.z + 3.0f, shipLoc.area, null);
+            location shipLoc = getLocation(ship);
+            if (shipLoc == null)
+            {
+                shipLoc = getLocation(player);
+            }
+            if (shipLoc != null)
+            {
+                dest = new location(shipLoc.x + 5.0f, shipLoc.y, shipLoc.z + 5.0f, shipLoc.area, null);
+            }
+        }
+        if (dest != null)
+        {
+            dest.cell = null;
             float terrainY = getHeightAtLocation(dest.x, dest.z);
             if (terrainY == terrainY)
             {
                 dest.y = terrainY + 0.25f;
             }
+            // forceLoadScreen breaks client cell lock when stuck in POB interior.
             setLocation(player, dest);
             if (dest.area != null)
             {
-                warpPlayer(player, dest.area, dest.x, dest.y, dest.z, null, 0.0f, 0.0f, 0.0f, null, false);
-            }
-            // If still nested in the ship (POB cells), hard-warp again.
-            obj_id top = getTopMostContainer(player);
-            if (isIdValid(top) && (top == ship || utils.isNestedWithin(player, ship)))
-            {
-                warpPlayer(player, dest.area, dest.x, dest.y, dest.z, null, 0.0f, 0.0f, 0.0f, null, false);
-                setLocation(player, dest);
+                warpPlayer(player, dest.area, dest.x, dest.y, dest.z, null, 0.0f, 0.0f, 0.0f, null, true);
             }
             dictionary params = new dictionary();
             params.put("x", dest.x);
@@ -873,19 +882,23 @@ public class space_transition extends script.base_script
             params.put("z", dest.z);
             params.put("area", dest.area);
             messageTo(player, "handleAtmosExitGroundSnap", params, 0.5f, false);
-            // POB: delayed second extract — interior containment can reassert once.
-            if (space_utils.isShipWithInterior(ship))
-            {
-                dictionary d2 = new dictionary();
-                d2.put("player", player);
-                d2.put("ship", ship);
-                messageTo(ship, "handleAtmosPostLaunchEject", d2, 1.5f, false);
-            }
+            messageTo(player, "handleAtmosExitGroundSnap", params, 2.0f, false);
         }
+
         obj_id still = getContainingShip(player);
         boolean clear = !isIdValid(still) || still != ship;
+        // Still nested in ship cells?
+        obj_id top = getTopMostContainer(player);
+        if (isIdValid(top) && (top == ship || utils.isNestedWithin(player, ship)))
+        {
+            clear = false;
+            if (dest != null && dest.area != null)
+            {
+                warpPlayer(player, dest.area, dest.x, dest.y, dest.z, null, 0.0f, 0.0f, 0.0f, null, true);
+            }
+        }
         LOG("space_transition", "forceEjectPlayerFromShipOnGround: player=" + player + " ship=" + ship
-            + " containingShip=" + still + " clear=" + clear);
+            + " containingShip=" + still + " top=" + top + " clear=" + clear);
         return clear;
     }
 
@@ -1074,12 +1087,28 @@ public class space_transition extends script.base_script
 
         // 1) Enter on server first
         boolean entered = false;
-        obj_id pilotSlotObject = findPilotSlotObjectForShip(player, ship);
+                obj_id pilotSlotObject = findPilotSlotObjectForShip(player, ship);
+        boolean entered = false;
         if (isIdValid(pilotSlotObject))
         {
+            // POB: stand at the pilot terminal cell before pilotShip.
+            if (space_utils.isShipWithInterior(ship))
+            {
+                location slotLoc = getLocation(pilotSlotObject);
+                if (slotLoc != null)
+                {
+                    setLocation(player, slotLoc);
+                }
+            }
             entered = pilotShip(player, pilotSlotObject) && getPilotId(ship) == player;
+            LOG("space_transition", "boardShipAsPilotOnGround: pilotSlot=" + pilotSlotObject
+                + " entered=" + entered + " pilotId=" + getPilotId(ship));
         }
-        if (!entered)
+        else
+        {
+            LOG("space_transition", "boardShipAsPilotOnGround: no pilot slot object for ship=" + ship);
+        }
+if (!entered)
         {
             obj_id scd = null;
             if (hasObjVar(ship, "shipControlDevice"))
@@ -1308,6 +1337,17 @@ public class space_transition extends script.base_script
                 unpilotShip(player);
             }
             setShipLanded(ship, true);
+            // POB: unpack pilots into the interior and leaves the player trapped.
+            // Hard extract + delayed repeats.
+            if (space_utils.isShipWithInterior(ship))
+            {
+                forceEjectPlayerFromShipOnGround(player, ship);
+                dictionary d2 = new dictionary();
+                d2.put("player", player);
+                d2.put("ship", ship);
+                messageTo(ship, "handleAtmosPostLaunchEject", d2, 1.0f, false);
+                messageTo(ship, "handleAtmosPostLaunchEject", d2, 3.0f, false);
+            }
         }
 
         boolean placed = isShipPlacedInGroundWorld(ship, player)
