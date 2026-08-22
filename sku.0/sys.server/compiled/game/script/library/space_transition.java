@@ -626,8 +626,6 @@ public class space_transition extends script.base_script
     // script-side fix; setShipLanded still forced after place/unpack.
     // Ground Call clearance (meters above terrain). POBs bury into flat ground at ~1.25.
     public static final float GROUND_SHIP_CLEARANCE_Y = 5.0f;
-    // POB mesh vs logical ship yaw often ~45° off in cell space on ground.
-    public static final float POB_GROUND_WALK_YAW_OFFSET_DEG = -45.0f;
 
     public static location getAtmosphericShipDropLocation(obj_id player) throws InterruptedException
     {
@@ -968,24 +966,12 @@ public class space_transition extends script.base_script
         {
             return;
         }
-        // World yaw must track the hull's current facing (changes with Call direction).
-        // POB meshes are typically ~45° off logical ship forward in cell space.
-        float base = isIdValid(ship) ? getYaw(ship) : getYaw(player);
-        if (base != base)
+        // Match hull facing exactly (no mesh offset).
+        float yaw = isIdValid(ship) ? getYaw(ship) : getYaw(player);
+        if (yaw == yaw)
         {
-            return;
+            setYaw(player, yaw);
         }
-        float yaw = base + POB_GROUND_WALK_YAW_OFFSET_DEG;
-        // Normalize to [-180, 180]
-        while (yaw > 180.0f)
-        {
-            yaw -= 360.0f;
-        }
-        while (yaw < -180.0f)
-        {
-            yaw += 360.0f;
-        }
-        setYaw(player, yaw);
     }
 
     public static boolean leavePilotSeatIntoShipInterior(obj_id player, obj_id ship) throws InterruptedException
