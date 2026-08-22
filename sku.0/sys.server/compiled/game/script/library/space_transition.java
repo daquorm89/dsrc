@@ -695,6 +695,7 @@ public class space_transition extends script.base_script
     public static final int PLACE_SHIP_BAD_LOCATION = 3;
     public static final int PLACE_SHIP_NOT_IN_WORLD = 4;
     public static final int PLACE_SHIP_RESTORE_FAILED = 5;
+    public static final int PLACE_SHIP_POB_ATMOS_UNSUPPORTED = 6;
 
     // True when the ship is a ground object the player can walk up to —
     // NOT when it is still nested under the player/datapad/SCD.
@@ -1086,8 +1087,7 @@ public class space_transition extends script.base_script
         }
 
         // 1) Enter on server first
-        boolean entered = false;
-                obj_id pilotSlotObject = findPilotSlotObjectForShip(player, ship);
+        obj_id pilotSlotObject = findPilotSlotObjectForShip(player, ship);
         boolean entered = false;
         if (isIdValid(pilotSlotObject))
         {
@@ -1108,7 +1108,7 @@ public class space_transition extends script.base_script
         {
             LOG("space_transition", "boardShipAsPilotOnGround: no pilot slot object for ship=" + ship);
         }
-if (!entered)
+        if (!entered)
         {
             obj_id scd = null;
             if (hasObjVar(ship, "shipControlDevice"))
@@ -1252,6 +1252,15 @@ if (!entered)
         {
             LOG("space_transition", "placeShip: invalid ship/player");
             return PLACE_SHIP_INVALID;
+        }
+
+        // POB interiors / pilot / store on ground are not reliable yet (stuck in
+        // cell, invisible exterior without god, client portal crashes on Store).
+        // Block atmospheric Call so players are not trapped mid-ship.
+        if (!isSpaceScene() && space_utils.isShipWithInterior(ship))
+        {
+            LOG("space_transition", "placeShip: blocked POB on ground ship=" + ship);
+            return PLACE_SHIP_POB_ATMOS_UNSUPPORTED;
         }
 
         // Clear residual pilot/containment from a previous broken Call/Store so
@@ -1415,6 +1424,10 @@ if (!entered)
                 return "Call ship failed: ship could not be activated in the world (pilot slot / placement). Returned to control device.";
             case PLACE_SHIP_RESTORE_FAILED:
                 return "Call ship failed: ship left the control device and could not be restored. Relog or re-grant SCD.";
+            case PLACE_SHIP_POB_ATMOS_UNSUPPORTED:
+                return "Atmospheric Launch is not supported for POB ships (Decimator, YT-1300, gunships, etc.) yet. "
+                    + "Interiors, pilot seat, and Store are unreliable on ground planets and can trap you or crash the client. "
+                    + "Use a fighter (TIE, X-Wing, etc.) for atmospheric flight testing. Launch POBs from a space station / space as designed.";
             default:
                 return "Call ship failed (error " + code + ").";
         }
