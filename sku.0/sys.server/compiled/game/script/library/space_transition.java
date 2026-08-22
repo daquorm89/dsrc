@@ -807,6 +807,8 @@ public class space_transition extends script.base_script
             snapShipToGroundAndMarkLanded(ship);
             setShipLanded(ship, true);
         }
+        // POB ships leave the player inside an interior cell after unpilot.
+        // Always force world placement beside the chassis outside any ship cell.
         location shipLoc = getLocation(ship);
         if (shipLoc == null)
         {
@@ -814,31 +816,39 @@ public class space_transition extends script.base_script
         }
         if (shipLoc != null)
         {
-            location dest = new location(shipLoc.x + 2.0f, shipLoc.y, shipLoc.z + 2.0f, shipLoc.area, shipLoc.cell);
-            if (!isIdValid(shipLoc.cell))
+            // Prefer exterior world coords of the ship (ignore shipLoc.cell).
+            location dest = new location(shipLoc.x + 3.0f, shipLoc.y, shipLoc.z + 3.0f, shipLoc.area, null);
+            float terrainY = getHeightAtLocation(dest.x, dest.z);
+            if (terrainY == terrainY)
             {
-                float terrainY = getHeightAtLocation(dest.x, dest.z);
-                if (terrainY == terrainY)
-                {
-                    // Slight offset so feet clear the surface (not mid-air pilot height).
-                    dest.y = terrainY + 0.25f;
-                }
+                dest.y = terrainY + 0.25f;
             }
-            // setLocation alone often leaves the client at pilot altitude until a
-            // later correction. warpPlayer forces the ground transform immediately
-            // without a load screen.
             setLocation(player, dest);
-            if (!isIdValid(dest.cell) && dest.area != null)
+            if (dest.area != null)
             {
                 warpPlayer(player, dest.area, dest.x, dest.y, dest.z, null, 0.0f, 0.0f, 0.0f, null, false);
             }
-            // Second snap shortly after in case unpilot overwrote Y on the client.
+            // If still nested in the ship (POB cells), hard-warp again.
+            obj_id top = getTopMostContainer(player);
+            if (isIdValid(top) && (top == ship || utils.isNestedWithin(player, ship)))
+            {
+                warpPlayer(player, dest.area, dest.x, dest.y, dest.z, null, 0.0f, 0.0f, 0.0f, null, false);
+                setLocation(player, dest);
+            }
             dictionary params = new dictionary();
             params.put("x", dest.x);
             params.put("y", dest.y);
             params.put("z", dest.z);
             params.put("area", dest.area);
             messageTo(player, "handleAtmosExitGroundSnap", params, 0.5f, false);
+            // POB: delayed second extract — interior containment can reassert once.
+            if (space_utils.isShipWithInterior(ship))
+            {
+                dictionary d2 = new dictionary();
+                d2.put("player", player);
+                d2.put("ship", ship);
+                messageTo(ship, "handleAtmosPostLaunchEject", d2, 1.5f, false);
+            }
         }
         obj_id still = getContainingShip(player);
         boolean clear = !isIdValid(still) || still != ship;
