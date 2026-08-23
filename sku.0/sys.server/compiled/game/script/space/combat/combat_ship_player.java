@@ -120,8 +120,9 @@ public class combat_ship_player extends script.base_script
             y = terrainY + 0.25f;
         }
         location dest = new location(x, y, z, area, null);
+        // Soft placement only — warpPlayer during exit floods TriggerVolume
+        // "not in world" warnings and can leave portals in a bad state (Door crash).
         setLocation(self, dest);
-        warpPlayer(self, area, x, y, z, null, 0.0f, 0.0f, 0.0f, null, false);
         return SCRIPT_CONTINUE;
     }
 
