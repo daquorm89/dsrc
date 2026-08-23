@@ -1379,7 +1379,9 @@ public class player_structure extends script.base_script
     }
     public static int getBaseMaintenanceRate(obj_id structure) throws InterruptedException
     {
-        return dataTableGetInt(PLAYER_STRUCTURE_DATATABLE, getStructureTableIndex(getTemplateName(structure)), DATATABLE_COL_MAINT_RATE);
+        // Same policy as getMaintenanceRate so management UI does not show
+        // "0 cr/hr (16)" from datatable base vs forced rate. REVERT = datatable only.
+        return getMaintenanceRate(structure);
     }
     public static int getRedeedCost(obj_id structure) throws InterruptedException
     {

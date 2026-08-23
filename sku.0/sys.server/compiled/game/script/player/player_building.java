@@ -2102,7 +2102,16 @@ public class player_building extends script.base_script
             int m_pool = player_structure.getMaintenancePool(structure);
             m_rate = player_structure.getMaintenanceRate(structure);
             m_rate_base = player_structure.getBaseMaintenanceRate(structure);
-            double time_remaining = (double)m_pool * player_structure.getMaintenanceHeartbeat() / m_rate;
+            // Guard divide-by-zero (rate 0 → Infinity → assembleTimeRemainToUse → null)
+            double time_remaining = 0;
+            if (m_rate > 0)
+            {
+                time_remaining = (double)m_pool * player_structure.getMaintenanceHeartbeat() / (double)m_rate;
+            }
+            else if (m_pool > 0)
+            {
+                time_remaining = Integer.MAX_VALUE;
+            }
             if (time_remaining < 0 || time_remaining > Integer.MAX_VALUE)
             {
                 time_remaining = Integer.MAX_VALUE;
@@ -2110,6 +2119,10 @@ public class player_building extends script.base_script
             if (m_pool > 0)
             {
                 String time_str = utils.assembleTimeRemainToUse((int)time_remaining, false);
+                if (time_str == null || time_str.length() < 1)
+                {
+                    time_str = "unknown";
+                }
                 if (player_structure.isGuildHall(structure))
                 {
                     string_id treasury_prompt_text = new string_id(STF, "treasury_prompt");
@@ -2141,24 +2154,41 @@ public class player_building extends script.base_script
                 }
             }
         }
-        int hourly_m_rate = m_rate * (3600 / player_structure.getMaintenanceHeartbeat());
+        // Integer (3600/heartbeat) is 0 when heartbeat is 86400 (1 day) — use float hours.
+        int heartbeat = player_structure.getMaintenanceHeartbeat();
+        if (heartbeat < 1)
+        {
+            heartbeat = 3600;
+        }
+        float hourly_m_rate_f = m_rate * (3600.0f / (float)heartbeat);
+        int hourly_m_rate = Math.round(hourly_m_rate_f);
         civic_var = getIntObjVar(structure, player_structure.VAR_CIVIC);
         if (civic_var == 1)
         {
             hourly_m_rate = 0;
+            hourly_m_rate_f = 0.0f;
         }
         if (!buildingTemplateName.contains("object/building/faction_perk/hq/"))
         {
-            if (m_rate == m_rate_base)
+            string_id maintenance_rate_text = new string_id(STF, "maintenance_rate_prompt");
+            // Daily heartbeat: show cr/day so "1 credit/day" is readable (0 cr/hr looked broken).
+            if (heartbeat >= 86400 && m_rate > 0)
             {
-                string_id maintenance_rate_text = new string_id(STF, "maintenance_rate_prompt");
+                int daily = Math.round(m_rate * (86400.0f / (float)heartbeat));
+                if (daily < 1)
+                {
+                    daily = 1;
+                }
+                dsrc = utils.addElement(dsrc, getString(maintenance_rate_text) + Integer.toString(daily) + " cr/day");
+            }
+            else if (m_rate == m_rate_base)
+            {
                 dsrc = utils.addElement(dsrc, getString(maintenance_rate_text) + Integer.toString(hourly_m_rate) + " cr/hr");
             }
             else 
             {
-                int hourly_m_rate_base = m_rate_base * (3600 / player_structure.getMaintenanceHeartbeat());
-                string_id maintenance_rate_mod_text = new string_id(STF, "maintenance_rate_prompt");
-                dsrc = utils.addElement(dsrc, getString(maintenance_rate_mod_text) + Integer.toString(hourly_m_rate) + " cr/hr (" + hourly_m_rate_base + ")");
+                int hourly_m_rate_base = Math.round(m_rate_base * (3600.0f / (float)heartbeat));
+                dsrc = utils.addElement(dsrc, getString(maintenance_rate_text) + Integer.toString(hourly_m_rate) + " cr/hr (" + hourly_m_rate_base + ")");
             }
         }
         if (!buildingTemplateName.contains("object/building/faction_perk/hq/"))
