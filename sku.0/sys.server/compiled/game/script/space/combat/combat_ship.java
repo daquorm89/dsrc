@@ -119,10 +119,15 @@ public class combat_ship extends script.base_script
 
         if (!isIdValid(pilot))
         {
-            mi.addRootMenu(menu_info_types.ITEM_USE, SID_PILOT_SHIP);
+            // POB: no exterior Pilot — use pilot seat inside only (exterior Pilot breaks facing/cam).
+            // Fighters still pilot from the chassis radial.
             if (space_utils.isShipWithInterior(self))
             {
                 mi.addRootMenu(menu_info_types.SERVER_MENU1, SID_ENTER_SHIP);
+            }
+            else
+            {
+                mi.addRootMenu(menu_info_types.ITEM_USE, SID_PILOT_SHIP);
             }
         }
         else if (pilot == player)
@@ -409,7 +414,14 @@ public class combat_ship extends script.base_script
             return SCRIPT_CONTINUE;
         }
 
-        // Pilot from outside — use shared board helper (clears residual, no relog)
+        // POB: never pilot from exterior chassis radial — pilot seat only.
+        if (item == menu_info_types.ITEM_USE && space_utils.isShipWithInterior(self))
+        {
+            sui.msgbox(player, player, "Enter the ship and use the pilot seat to fly.");
+            return SCRIPT_CONTINUE;
+        }
+
+        // Fighter Pilot from outside — use shared board helper
         if (isIdValid(getPilotId(self)) && getPilotId(self) != player)
         {
             sui.msgbox(player, player, "Someone is already piloting this ship.");
@@ -449,6 +461,8 @@ public class combat_ship extends script.base_script
             return SCRIPT_CONTINUE;
         }
         space_transition.raiseShipAbovePlayer(ship, player);
+        // Stay not-landed after Call hover so client does not re-clamp to terrain.
+        setShipLanded(ship, false);
         return SCRIPT_CONTINUE;
     }
 

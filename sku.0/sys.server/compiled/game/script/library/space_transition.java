@@ -751,10 +751,10 @@ public class space_transition extends script.base_script
             }
         }
         location raised = new location(refX, y, refZ, area, null);
+        // Clear landed so engine/client will not clamp Y to terrain under the mesh.
+        setShipLanded(ship, false);
         setLocation(ship, raised);
-        // Second set — some chassis ignore the first height change while still "landing".
         setLocation(ship, raised);
-        setShipLanded(ship, true);
         location verify = getLocation(ship);
         LOG("space_transition", "raiseShipAbovePlayer: ship=" + ship + " wantY=" + y
             + " gotY=" + (verify != null ? verify.y : -1) + " terrainY=" + terrainY);
@@ -1646,15 +1646,17 @@ public class space_transition extends script.base_script
                 setLocation(player, exteriorLoc);
             }
             forceEjectPlayerFromShipOnGround(player, ship, false);
-            // Lift chassis above Call exterior (world) coords — not cell-local player Y.
+            // Lift chassis; leave NOT landed so the client does not snap the hull
+            // to terrain (setShipLanded true was undoing the raise visually).
             raiseShipAbovePlayer(ship, player);
-            setShipLanded(ship, true);
-            // Re-assert after any delayed containment/snap can re-bury the hull.
+            setShipLanded(ship, false);
+            utils.setScriptVar(ship, "atmos.callHover", 1);
             dictionary raiseParams = new dictionary();
             raiseParams.put("player", player);
             raiseParams.put("ship", ship);
             messageTo(ship, "handleAtmosRaiseShipAbovePlayer", raiseParams, 0.5f, false);
             messageTo(ship, "handleAtmosRaiseShipAbovePlayer", raiseParams, 2.0f, false);
+            messageTo(ship, "handleAtmosRaiseShipAbovePlayer", raiseParams, 5.0f, false);
         }
 
         boolean placed = isShipPlacedInGroundWorld(ship, player)
