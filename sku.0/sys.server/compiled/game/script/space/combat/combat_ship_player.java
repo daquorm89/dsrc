@@ -176,7 +176,7 @@ public class combat_ship_player extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
-        // Only when actually piloting (fighter or POB pilot seat)
+        // Exit to exterior: piloting OR walking POB interior
         obj_id container = getContainedBy(self);
         if (!isIdValid(container))
         {
@@ -184,7 +184,9 @@ public class combat_ship_player extends script.base_script
         }
         boolean isPilot = (getObjectInSlot(container, space_transition.SHIP_PILOT_SLOT_NAME) == self)
             || (getObjectInSlot(container, POB_SHIP_PILOT_SLOT_NAME) == self);
-        if (!isPilot)
+        boolean inPobInterior = space_utils.isShipWithInterior(ship)
+            && (utils.isNestedWithin(self, ship) || getTopMostContainer(self) == ship);
+        if (!isPilot && !inPobInterior)
         {
             return SCRIPT_CONTINUE;
         }
