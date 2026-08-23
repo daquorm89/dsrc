@@ -626,7 +626,7 @@ public class space_transition extends script.base_script
     // script-side fix; setShipLanded still forced after place/unpack.
     // After Call activates the chassis, raise it this many meters above terrain/player.
     // Large POB meshes (Decimator) extend well below the object origin — 20 was still buried.
-    public static final float GROUND_SHIP_ABOVE_PLAYER_Y = 10.0f;
+    public static final float GROUND_SHIP_ABOVE_PLAYER_Y = 5.0f;
 
     public static location getAtmosphericShipDropLocation(obj_id player) throws InterruptedException
     {
@@ -922,13 +922,6 @@ public class space_transition extends script.base_script
         setState(player, STATE_SHIP_OPERATIONS, false);
         setState(player, STATE_SHIP_GUNNER, false);
 
-        // Do not snap ship to terrain here — that undoes Call raise (+20m).
-        // Only mark landed; height is managed by raiseShipAbovePlayer / pilot land.
-        if (isIdValid(ship) && exists(ship) && !isSpaceScene())
-        {
-            setShipLanded(ship, true);
-        }
-
         // Prefer CURRENT ship world position (where the hull is now).
         // Do NOT use atmos.exterior* from Launch — that is the old Call point and
         // teleports the player after flying (looks like ship+player jumped back).
@@ -977,14 +970,30 @@ public class space_transition extends script.base_script
                 dest.y = terrainY + 0.25f;
             }
             setLocation(player, dest);
-            // Exterior is world-space; align to hull and clear pilot look-at so
-            // cockpit camera does not stick after unpilot.
-            float shipYaw = getYaw(ship);
-            if (shipYaw == shipYaw)
+            // World facing for body (camera is world-true). Prefer saved exterior yaw
+            // over ship yaw — ship orientation is hull-local and causes the mismatch.
+            float worldYaw = Float.NaN;
+            if (utils.hasScriptVar(player, "atmos.exteriorYaw"))
             {
-                setYaw(player, shipYaw);
+                worldYaw = utils.getFloatScriptVar(player, "atmos.exteriorYaw");
+            }
+            if (worldYaw != worldYaw)
+            {
+                worldYaw = getYaw(player);
+            }
+            if (worldYaw == worldYaw)
+            {
+                setYaw(player, worldYaw);
             }
             setLookAtTarget(player, null);
+            // Same hover as Call: raise hull and leave not-landed so client does not bury it.
+            raiseShipAbovePlayer(ship, player);
+            setShipLanded(ship, false);
+            dictionary raiseParams = new dictionary();
+            raiseParams.put("player", player);
+            raiseParams.put("ship", ship);
+            messageTo(ship, "handleAtmosRaiseShipAbovePlayer", raiseParams, 0.5f, false);
+            messageTo(ship, "handleAtmosRaiseShipAbovePlayer", raiseParams, 2.0f, false);
             // Only hard-warp when requested (stuck-in-cell recovery). Launch stays soft.
             if (forceLoadScreen && dest.area != null)
             {

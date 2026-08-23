@@ -54,8 +54,8 @@ public class terminal_pob_ship extends script.base_script
                 {
                     unpilotShip(player);
                 }
+                // forceEject raises + leaves not-landed (same as Call hover)
                 space_transition.forceEjectPlayerFromShipOnGround(player, ship, false);
-                setShipLanded(ship, true);
                 return SCRIPT_CONTINUE;
             }
             else if (item == menu_info_types.SERVER_MENU1)
