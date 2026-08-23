@@ -428,6 +428,26 @@ public class combat_ship extends script.base_script
         return SCRIPT_CONTINUE;
     }
 
+    /** Delayed re-raise after Call so post-unpilot snaps cannot leave hull in terrain. */
+    public int handleAtmosRaiseShipAbovePlayer(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (params == null || isSpaceScene())
+        {
+            return SCRIPT_CONTINUE;
+        }
+        obj_id player = params.getObjId("player");
+        obj_id ship = params.getObjId("ship");
+        if (!isIdValid(ship))
+        {
+            ship = self;
+        }
+        if (!isIdValid(ship) || !exists(ship))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        space_transition.raiseShipAbovePlayer(ship, player);
+        return SCRIPT_CONTINUE;
+    }
 
     public int handleAtmosDelayedStore(obj_id self, dictionary params) throws InterruptedException
     {

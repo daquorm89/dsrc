@@ -19,11 +19,17 @@ public class terminal_pob_ship extends script.base_script
     public static final string_id SID_TERMINAL_REDEED_STORAGE = new string_id("player_structure", "redeed_storage");
     public static final string_id SID_STORAGE_INCREASE_REDEED_TITLE = new string_id("player_structure", "sui_storage_redeed_title");
     public static final string_id SID_STORAGE_INCREASE_REDEED_PROMPT = new string_id("player_structure", "sui_storage_redeed_prompt");
+    public static final string_id SID_EXIT_SHIP = new string_id("space/space_interaction", "exit_ship");
     public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
     {
         obj_id ship = space_transition.getContainingShip(self);
         if (isIdValid(ship) && getOwner(ship) == player)
         {
+            // Ground atmospheric: leave interior to exterior beside current hull
+            if (!isSpaceScene())
+            {
+                mi.addRootMenu(menu_info_types.SERVER_MENU4, SID_EXIT_SHIP);
+            }
             int rootItemMenu = mi.addRootMenu(menu_info_types.SERVER_MENU10, SID_ROOT_ITEM_MENU);
             mi.addSubMenu(rootItemMenu, menu_info_types.SERVER_MENU11, SID_FIND_ALL_HOUSE_ITEMS);
             mi.addSubMenu(rootItemMenu, menu_info_types.SERVER_MENU12, SID_SEARCH_FOR_HOUSE_ITEMS);
@@ -42,7 +48,17 @@ public class terminal_pob_ship extends script.base_script
         obj_id ship = space_transition.getContainingShip(self);
         if (isIdValid(ship) && getOwner(ship) == player)
         {
-            if (item == menu_info_types.SERVER_MENU1)
+            if (item == menu_info_types.SERVER_MENU4 && !isSpaceScene())
+            {
+                if (getPilotId(ship) == player)
+                {
+                    unpilotShip(player);
+                }
+                space_transition.forceEjectPlayerFromShipOnGround(player, ship, false);
+                setShipLanded(ship, true);
+                return SCRIPT_CONTINUE;
+            }
+            else if (item == menu_info_types.SERVER_MENU1)
             {
                 queueCommand(player, (1768087594), self, "admin", COMMAND_PRIORITY_DEFAULT);
             }

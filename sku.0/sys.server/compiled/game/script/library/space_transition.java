@@ -684,29 +684,74 @@ public class space_transition extends script.base_script
         setShipLanded(ship, true);
     }
 
-    /** Raise ship to playerY + GROUND_SHIP_ABOVE_PLAYER_Y (same XZ as current ship). */
+    /**
+     * Raise ship to world Y = refY + 20m. Prefer Call exterior scriptvars (world
+     * coords) — player getLocation while nested in a cell is cell-local and would
+     * place the hull wrong / still partially in the ground.
+     */
     public static void raiseShipAbovePlayer(obj_id ship, obj_id player) throws InterruptedException
     {
-        if (!isIdValid(ship) || !isIdValid(player) || isSpaceScene())
+        if (!isIdValid(ship) || isSpaceScene())
         {
             return;
         }
         location shipLoc = getLocation(ship);
-        location playerLoc = getLocation(player);
-        if (shipLoc == null || playerLoc == null || isIdValid(shipLoc.cell))
+        if (shipLoc == null || isIdValid(shipLoc.cell))
         {
             return;
         }
-        float y = playerLoc.y + GROUND_SHIP_ABOVE_PLAYER_Y;
-        float terrainY = getHeightAtLocation(shipLoc.x, shipLoc.z);
-        if (terrainY == terrainY && y < terrainY + 5.0f)
+        float refY = shipLoc.y;
+        float refX = shipLoc.x;
+        float refZ = shipLoc.z;
+        String area = shipLoc.area;
+        if (isIdValid(player) && utils.hasScriptVar(player, "atmos.exteriorY"))
         {
-            y = terrainY + 5.0f;
+            refY = utils.getFloatScriptVar(player, "atmos.exteriorY");
+            if (utils.hasScriptVar(player, "atmos.exteriorX"))
+            {
+                refX = utils.getFloatScriptVar(player, "atmos.exteriorX");
+            }
+            if (utils.hasScriptVar(player, "atmos.exteriorZ"))
+            {
+                refZ = utils.getFloatScriptVar(player, "atmos.exteriorZ");
+            }
+            if (utils.hasScriptVar(player, "atmos.exteriorArea"))
+            {
+                String a = utils.getStringScriptVar(player, "atmos.exteriorArea");
+                if (a != null && a.length() > 0)
+                {
+                    area = a;
+                }
+            }
         }
-        location raised = new location(shipLoc.x, y, shipLoc.z, shipLoc.area, null);
+        else if (isIdValid(player))
+        {
+            location playerLoc = getLocation(player);
+            if (playerLoc != null && !isIdValid(playerLoc.cell))
+            {
+                refY = playerLoc.y;
+                refX = playerLoc.x;
+                refZ = playerLoc.z;
+                if (playerLoc.area != null)
+                {
+                    area = playerLoc.area;
+                }
+            }
+        }
+        float y = refY + GROUND_SHIP_ABOVE_PLAYER_Y;
+        float terrainY = getHeightAtLocation(refX, refZ);
+        if (terrainY == terrainY)
+        {
+            float minY = terrainY + GROUND_SHIP_ABOVE_PLAYER_Y;
+            if (y < minY)
+            {
+                y = minY;
+            }
+        }
+        location raised = new location(refX, y, refZ, area, null);
         setLocation(ship, raised);
         setShipLanded(ship, true);
-        LOG("space_transition", "raiseShipAbovePlayer: ship=" + ship + " y=" + y);
+        LOG("space_transition", "raiseShipAbovePlayer: ship=" + ship + " y=" + y + " terrainY=" + terrainY);
     }
 
     // P9 atmospheric flight: place-ship result codes for player feedback.
@@ -871,9 +916,10 @@ public class space_transition extends script.base_script
         setState(player, STATE_SHIP_OPERATIONS, false);
         setState(player, STATE_SHIP_GUNNER, false);
 
+        // Do not snap ship to terrain here — that undoes Call raise (+20m).
+        // Only mark landed; height is managed by raiseShipAbovePlayer / pilot land.
         if (isIdValid(ship) && exists(ship) && !isSpaceScene())
         {
-            snapShipToGroundAndMarkLanded(ship);
             setShipLanded(ship, true);
         }
 
@@ -1561,9 +1607,15 @@ public class space_transition extends script.base_script
                 setLocation(player, exteriorLoc);
             }
             forceEjectPlayerFromShipOnGround(player, ship, false);
-            // Snap near feet, then lift chassis above the restored player position.
+            // Lift chassis above Call exterior (world) coords — not cell-local player Y.
             raiseShipAbovePlayer(ship, player);
             setShipLanded(ship, true);
+            // Re-assert after any delayed containment/snap can re-bury the hull.
+            dictionary raiseParams = new dictionary();
+            raiseParams.put("player", player);
+            raiseParams.put("ship", ship);
+            messageTo(ship, "handleAtmosRaiseShipAbovePlayer", raiseParams, 0.5f, false);
+            messageTo(ship, "handleAtmosRaiseShipAbovePlayer", raiseParams, 2.0f, false);
         }
 
         boolean placed = isShipPlacedInGroundWorld(ship, player)
