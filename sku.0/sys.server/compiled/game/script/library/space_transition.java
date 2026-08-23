@@ -1009,6 +1009,12 @@ public class space_transition extends script.base_script
      * world-true — mismatch until full Exit. Restore saved world yaw so body
      * matches world/camera the way Exit already does.
      */
+    /**
+     * Clear pilot state after Leave Station / Enter walk. Do NOT setYaw to exterior
+     * or ship world yaw while the player is in a ship cell — that leaves the body
+     * world-oriented inside a ship-oriented cell and breaks free-chase vs body.
+     * Body stays cell-local (seat/walk transform); client free-chase is cell-relative.
+     */
     public static void applyInteriorWalkFacing(obj_id player, obj_id ship) throws InterruptedException
     {
         if (!isIdValid(player) || isSpaceScene())
@@ -1020,21 +1026,7 @@ public class space_transition extends script.base_script
         setState(player, STATE_PILOTING_POB_SHIP, false);
         setState(player, STATE_SHIP_OPERATIONS, false);
         setState(player, STATE_SHIP_GUNNER, false);
-
-        float yaw = Float.NaN;
-        if (utils.hasScriptVar(player, "atmos.exteriorYaw"))
-        {
-            yaw = utils.getFloatScriptVar(player, "atmos.exteriorYaw");
-        }
-        if (yaw != yaw && isIdValid(ship))
-        {
-            // Fallback: ship world yaw is still world-space (better than seat-local).
-            yaw = getYaw(ship);
-        }
-        if (yaw == yaw)
-        {
-            setYaw(player, yaw);
-        }
+        // Intentionally no setYaw — keep cell-local facing from leave-pilot / enter.
     }
 
     /** Save world-facing yaw for later interior walk realignment. */
@@ -1220,7 +1212,7 @@ public class space_transition extends script.base_script
             dictionary d = new dictionary();
             d.put("scd", shipControlDevice);
             d.put("player", player);
-            messageTo(ship, "handleAtmosDelayedStore", d, 3.5f, false);
+            messageTo(ship, "handleAtmosDelayedStore", d, 6.0f, false);
             LOG("space_transition", "storeShipInControlDeviceSafe: scheduled delayed POB store ship=" + ship);
             if (isIdValid(player))
             {
