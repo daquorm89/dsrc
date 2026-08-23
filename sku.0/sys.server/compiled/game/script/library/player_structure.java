@@ -1365,10 +1365,17 @@ public class player_structure extends script.base_script
     }
     public static int getMaintenanceRate(obj_id structure) throws InterruptedException
     {
-        // Pre-CU server policy: structure maintenance is free for all buildings.
-        // Base rates remain in datatables/structure/player_structure.tab (MAINT_RATE)
-        // for reference / future restore. REVERT = restore original getMaintenanceRate body.
-        return 0;
+        // Pre-CU policy: minimal maintenance. Rate 0 skips the loop entirely
+        // (OnInitialize only starts OnMaintenanceLoop when rate > 0) and breaks
+        // pool/decay/mail. Charge 1 credit per heartbeat; heartbeat is 3600s →
+        // 1 credit/hour. A few hundred credits lasts weeks.
+        // Base rates remain in datatables/structure/player_structure.tab (MAINT_RATE).
+        // REVERT = restore original body (getBaseMaintenanceRate + mods).
+        if (!isIdValid(structure))
+        {
+            return 0;
+        }
+        return 1;
     }
     public static int getBaseMaintenanceRate(obj_id structure) throws InterruptedException
     {
@@ -5366,7 +5373,8 @@ public class player_structure extends script.base_script
     }
     public static int getMaintenanceHeartbeat() throws InterruptedException
     {
-        final int MAINTENANCE_HEARTBEAT = 1800;
+        // 3600s pairs with getMaintenanceRate() == 1 → 1 credit per hour.
+        final int MAINTENANCE_HEARTBEAT = 3600;
         String strConfigSetting = getConfigSetting("GameServer", "maintenanceHeartbeat");
         if ((strConfigSetting != null) && (!strConfigSetting.equals("")))
         {
