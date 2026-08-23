@@ -626,7 +626,7 @@ public class space_transition extends script.base_script
     // script-side fix; setShipLanded still forced after place/unpack.
     // After Call activates the chassis, raise it this many meters above terrain/player.
     // Large POB meshes (Decimator) extend well below the object origin — 20 was still buried.
-    public static final float GROUND_SHIP_ABOVE_PLAYER_Y = 40.0f;
+    public static final float GROUND_SHIP_ABOVE_PLAYER_Y = 10.0f;
 
     public static location getAtmosphericShipDropLocation(obj_id player) throws InterruptedException
     {
