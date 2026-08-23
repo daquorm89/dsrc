@@ -624,8 +624,9 @@ public class space_transition extends script.base_script
     // Player ships often get no server terrain-collision event, so placement
     // at the player's raw Y can bury the chassis. getHeightAtLocation is the
     // script-side fix; setShipLanded still forced after place/unpack.
-    // After Call activates the chassis, raise it this many meters above the player.
-    public static final float GROUND_SHIP_ABOVE_PLAYER_Y = 20.0f;
+    // After Call activates the chassis, raise it this many meters above terrain/player.
+    // Large POB meshes (Decimator) extend well below the object origin — 20 was still buried.
+    public static final float GROUND_SHIP_ABOVE_PLAYER_Y = 40.0f;
 
     public static location getAtmosphericShipDropLocation(obj_id player) throws InterruptedException
     {
@@ -738,10 +739,11 @@ public class space_transition extends script.base_script
                 }
             }
         }
-        float y = refY + GROUND_SHIP_ABOVE_PLAYER_Y;
         float terrainY = getHeightAtLocation(refX, refZ);
+        float y = refY + GROUND_SHIP_ABOVE_PLAYER_Y;
         if (terrainY == terrainY)
         {
+            // Always clear terrain by full clearance (POB mesh hangs below origin).
             float minY = terrainY + GROUND_SHIP_ABOVE_PLAYER_Y;
             if (y < minY)
             {
@@ -750,8 +752,12 @@ public class space_transition extends script.base_script
         }
         location raised = new location(refX, y, refZ, area, null);
         setLocation(ship, raised);
+        // Second set — some chassis ignore the first height change while still "landing".
+        setLocation(ship, raised);
         setShipLanded(ship, true);
-        LOG("space_transition", "raiseShipAbovePlayer: ship=" + ship + " y=" + y + " terrainY=" + terrainY);
+        location verify = getLocation(ship);
+        LOG("space_transition", "raiseShipAbovePlayer: ship=" + ship + " wantY=" + y
+            + " gotY=" + (verify != null ? verify.y : -1) + " terrainY=" + terrainY);
     }
 
     // P9 atmospheric flight: place-ship result codes for player feedback.
@@ -948,11 +954,8 @@ public class space_transition extends script.base_script
                 dest = new location(pLoc.x, pLoc.y, pLoc.z, pLoc.area, null);
             }
         }
-        utils.removeScriptVar(player, "atmos.exteriorX");
-        utils.removeScriptVar(player, "atmos.exteriorY");
-        utils.removeScriptVar(player, "atmos.exteriorZ");
-        utils.removeScriptVar(player, "atmos.exteriorArea");
-        utils.removeScriptVar(player, "atmos.exteriorShip");
+        // Keep atmos.exterior* — Call raise and interior walk-facing need world refs.
+        // Cleared on successful Store, not on every eject.
         if (dest != null)
         {
             dest.cell = null;
@@ -1022,9 +1025,10 @@ public class space_transition extends script.base_script
      * Call after unpilotShip.
      */
     /**
-     * Server-side: clear pilot look-at/states only. Camera orientation is fixed
-     * client-side (FreeChaseCamera yaw sync on leave pilot / enter ship cell).
-     * Do not forceLoad or setYaw(ship) — both caused load spam / world-facing cam.
+     * Character (not camera) facing after Enter / Leave Station on ground POB.
+     * Pilot seat leaves the body in ship orientation while the chase cam stays
+     * world-true — mismatch until full Exit. Restore saved world yaw so body
+     * matches world/camera the way Exit already does.
      */
     public static void applyInteriorWalkFacing(obj_id player, obj_id ship) throws InterruptedException
     {
@@ -1037,6 +1041,40 @@ public class space_transition extends script.base_script
         setState(player, STATE_PILOTING_POB_SHIP, false);
         setState(player, STATE_SHIP_OPERATIONS, false);
         setState(player, STATE_SHIP_GUNNER, false);
+
+        float yaw = Float.NaN;
+        if (utils.hasScriptVar(player, "atmos.exteriorYaw"))
+        {
+            yaw = utils.getFloatScriptVar(player, "atmos.exteriorYaw");
+        }
+        if (yaw != yaw && isIdValid(ship))
+        {
+            // Fallback: ship world yaw is still world-space (better than seat-local).
+            yaw = getYaw(ship);
+        }
+        if (yaw == yaw)
+        {
+            setYaw(player, yaw);
+        }
+    }
+
+    /** Save world-facing yaw for later interior walk realignment. */
+    public static void saveExteriorYaw(obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(player) || isSpaceScene())
+        {
+            return;
+        }
+        location loc = getLocation(player);
+        if (loc != null && isIdValid(loc.cell))
+        {
+            return; // already inside something — keep prior exterior yaw if any
+        }
+        float y = getYaw(player);
+        if (y == y)
+        {
+            utils.setScriptVar(player, "atmos.exteriorYaw", y);
+        }
     }
 
     public static boolean leavePilotSeatIntoShipInterior(obj_id player, obj_id ship) throws InterruptedException
@@ -1567,6 +1605,7 @@ public class space_transition extends script.base_script
             utils.setScriptVar(player, "atmos.exteriorZ", exteriorLoc.z);
             utils.setScriptVar(player, "atmos.exteriorArea", exteriorLoc.area);
             utils.setScriptVar(player, "atmos.exteriorShip", ship);
+            saveExteriorYaw(player);
         }
 
         LOG("space_transition", "placeShip: calling unpackShipForPlayer ship=" + ship + " player=" + player);
