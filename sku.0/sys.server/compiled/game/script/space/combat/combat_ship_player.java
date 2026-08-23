@@ -125,6 +125,38 @@ public class combat_ship_player extends script.base_script
         return SCRIPT_CONTINUE;
     }
 
+    /**
+     * Delayed after Leave Station from POB pilot: clear pilot look-at and re-assert
+     * cell-local yaw only (never ship world yaw — that stuck the camera to hull facing).
+     */
+    public int handleAtmosInteriorFacingRefresh(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (isSpaceScene())
+        {
+            return SCRIPT_CONTINUE;
+        }
+        obj_id ship = null;
+        if (params != null)
+        {
+            ship = params.getObjId("ship");
+        }
+        if (!isIdValid(ship))
+        {
+            ship = space_transition.getContainingShip(self);
+        }
+        // Still inside this ship (on foot in a cell), not piloting
+        if (!isIdValid(ship) || getPilotId(ship) == self)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (!utils.isNestedWithin(self, ship) && getTopMostContainer(self) != ship)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        space_transition.applyInteriorWalkFacing(self, ship);
+        return SCRIPT_CONTINUE;
+    }
+
     public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
     {
         if (player != self)
@@ -474,6 +506,15 @@ public class combat_ship_player extends script.base_script
                     {
                         // Could not attach to a cell — fall back to exterior beside CURRENT hull.
                         exitBesideShipOnGround(self, piloted);
+                    }
+                    else
+                    {
+                        // Client often keeps pilot cam for a tick; re-assert cell-local
+                        // yaw (not ship world yaw) after unpilot packets land.
+                        dictionary d = new dictionary();
+                        d.put("ship", piloted);
+                        messageTo(self, "handleAtmosInteriorFacingRefresh", d, 0.25f, false);
+                        messageTo(self, "handleAtmosInteriorFacingRefresh", d, 1.0f, false);
                     }
                 }
             }
