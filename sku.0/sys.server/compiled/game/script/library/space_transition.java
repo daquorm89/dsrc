@@ -1317,8 +1317,12 @@ public class space_transition extends script.base_script
         }
         if (currentPilot == player && getContainingShip(player) == ship)
         {
-            setShipLanded(ship, true);
-            // Still refresh client so controls sync
+            // Keep hover clearance — setShipLanded(true) sinks fighter/POB meshes.
+            if (!isSpaceScene())
+            {
+                setShipLanded(ship, false);
+                raiseShipAbovePlayer(ship, player);
+            }
             utils.setScriptVar(player, "atmos.boardShipId", ship);
             refreshClientWorldAtPlayer(player, "handleAtmosBoardAfterWorldRefresh");
             return true;
@@ -1332,7 +1336,8 @@ public class space_transition extends script.base_script
         setOwner(ship, player);
         if (!isSpaceScene())
         {
-            setShipLanded(ship, true);
+            setShipLanded(ship, false);
+            raiseShipAbovePlayer(ship, player);
         }
         if (!hasScript(ship, "space.combat.combat_ship"))
         {
@@ -1384,8 +1389,9 @@ public class space_transition extends script.base_script
                     setOwner(ship, player);
                     if (!isSpaceScene())
                     {
-                        snapShipToGroundAndMarkLanded(ship);
-                        setShipLanded(ship, true);
+                        // Do not snap to terrain+1.25 — sinks fighters under the ground.
+                        setShipLanded(ship, false);
+                        raiseShipAbovePlayer(ship, player);
                     }
                     if (!hasScript(ship, "space.combat.combat_ship"))
                     {
@@ -1405,7 +1411,8 @@ public class space_transition extends script.base_script
         doAIImmunityCheck(ship);
         if (!isSpaceScene())
         {
-            setShipLanded(ship, true);
+            setShipLanded(ship, false);
+            raiseShipAbovePlayer(ship, player);
         }
 
         // Fighters: client world reload helps sync pilot controls.
@@ -1445,16 +1452,17 @@ public class space_transition extends script.base_script
             return false;
         }
 
-        // Already piloting after refresh — done
+        // Already piloting after refresh — keep hover (landed snaps sink fighters).
         if (getPilotId(ship) == player && getContainingShip(player) == ship)
         {
-            setShipLanded(ship, true);
+            setShipLanded(ship, false);
+            raiseShipAbovePlayer(ship, player);
             LOG("space_transition", "completeBoardShipAfterClientRefresh: still piloting OK");
             return true;
         }
 
         setOwner(ship, player);
-        setShipLanded(ship, true);
+        setShipLanded(ship, false);
         if (!hasScript(ship, "space.combat.combat_ship"))
         {
             attachScript(ship, "space.combat.combat_ship");
@@ -1468,7 +1476,8 @@ public class space_transition extends script.base_script
             {
                 updateShipFaction(ship, player);
                 doAIImmunityCheck(ship);
-                setShipLanded(ship, true);
+                setShipLanded(ship, false);
+                raiseShipAbovePlayer(ship, player);
                 LOG("space_transition", "completeBoardShipAfterClientRefresh: re-seat OK");
                 return true;
             }
@@ -1493,8 +1502,8 @@ public class space_transition extends script.base_script
             if (unpacked && getPilotId(ship) == player)
             {
                 setOwner(ship, player);
-                snapShipToGroundAndMarkLanded(ship);
-                setShipLanded(ship, true);
+                setShipLanded(ship, false);
+                raiseShipAbovePlayer(ship, player);
                 if (!hasScript(ship, "space.combat.combat_ship"))
                 {
                     attachScript(ship, "space.combat.combat_ship");
