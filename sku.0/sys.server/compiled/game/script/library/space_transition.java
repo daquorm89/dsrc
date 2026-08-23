@@ -866,6 +866,11 @@ public class space_transition extends script.base_script
         {
             return !isIdValid(player) || getContainingShip(player) != ship;
         }
+
+        boolean wasInside = (getContainingShip(player) == ship)
+            || utils.isNestedWithin(player, ship)
+            || (getPilotId(ship) == player);
+
         if (getPilotId(ship) == player)
         {
             unpilotShip(player);
@@ -885,9 +890,14 @@ public class space_transition extends script.base_script
         setState(player, STATE_SHIP_OPERATIONS, false);
         setState(player, STATE_SHIP_GUNNER, false);
 
-        // Prefer CURRENT ship world position (where the hull is now).
-        // Do NOT use atmos.exterior* from Launch — that is the old Call point and
-        // teleports the player after flying (looks like ship+player jumped back).
+        // Player already outside (e.g. fighter Store) — do not move player or hull.
+        if (!wasInside)
+        {
+            LOG("space_transition", "forceEject: player already outside ship=" + ship + " player=" + player);
+            return getContainingShip(player) != ship;
+        }
+
+        // Prefer CURRENT ship world position (where the hull is now after flight).
         location dest = null;
         location shipLoc = getLocation(ship);
         if (shipLoc != null && shipLoc.area != null && !isIdValid(shipLoc.cell))
@@ -910,12 +920,9 @@ public class space_transition extends script.base_script
                 dest = new location(pLoc.x, pLoc.y, pLoc.z, pLoc.area, null);
             }
         }
-        // Keep atmos.exterior* — Call raise and interior walk-facing need world refs.
-        // Cleared on successful Store, not on every eject.
         if (dest != null)
         {
             dest.cell = null;
-            // If dest is still essentially the ship origin, push out.
             location shipLoc2 = getLocation(ship);
             if (shipLoc2 != null)
             {
@@ -933,8 +940,6 @@ public class space_transition extends script.base_script
                 dest.y = terrainY + 0.25f;
             }
             setLocation(player, dest);
-            // World facing for body (camera is world-true). Prefer saved exterior yaw
-            // over ship yaw — ship orientation is hull-local and causes the mismatch.
             float worldYaw = Float.NaN;
             if (utils.hasScriptVar(player, "atmos.exteriorYaw"))
             {
@@ -949,7 +954,7 @@ public class space_transition extends script.base_script
                 setYaw(player, worldYaw);
             }
             setLookAtTarget(player, null);
-            // Same hover as Call: raise hull and leave not-landed so client does not bury it.
+            // Raise at CURRENT ship XZ (never Call-point exterior coords).
             raiseShipAbovePlayer(ship, player);
             setShipLanded(ship, false);
             dictionary raiseParams = new dictionary();
@@ -957,7 +962,6 @@ public class space_transition extends script.base_script
             raiseParams.put("ship", ship);
             messageTo(ship, "handleAtmosRaiseShipAbovePlayer", raiseParams, 0.5f, false);
             messageTo(ship, "handleAtmosRaiseShipAbovePlayer", raiseParams, 2.0f, false);
-            // Only hard-warp when requested (stuck-in-cell recovery). Launch stays soft.
             if (forceLoadScreen && dest.area != null)
             {
                 warpPlayer(player, dest.area, dest.x, dest.y, dest.z, null, 0.0f, 0.0f, 0.0f, null, true);
@@ -973,7 +977,6 @@ public class space_transition extends script.base_script
 
         obj_id still = getContainingShip(player);
         boolean clear = !isIdValid(still) || still != ship;
-        // Still nested in ship cells? — hard extract once.
         obj_id top = getTopMostContainer(player);
         if (isIdValid(top) && (top == ship || utils.isNestedWithin(player, ship)))
         {
@@ -981,12 +984,16 @@ public class space_transition extends script.base_script
             if (dest != null && dest.area != null)
             {
                 setLocation(player, dest);
-                warpPlayer(player, dest.area, dest.x, dest.y, dest.z, null, 0.0f, 0.0f, 0.0f, null, true);
+                // Soft only unless explicitly requested — hard warp floods TriggerVolume warnings.
+                if (forceLoadScreen)
+                {
+                    warpPlayer(player, dest.area, dest.x, dest.y, dest.z, null, 0.0f, 0.0f, 0.0f, null, true);
+                }
             }
         }
         LOG("space_transition", "forceEjectPlayerFromShipOnGround: player=" + player + " ship=" + ship
             + " containingShip=" + still + " top=" + top + " clear=" + clear
-            + " forceLoad=" + forceLoadScreen);
+            + " forceLoad=" + forceLoadScreen + " wasInside=" + wasInside);
         return clear;
     }
 
