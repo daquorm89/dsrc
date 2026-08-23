@@ -90,13 +90,21 @@ public class combat_ship extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
-        float dx = playerLoc.x - shipLoc.x;
-        float dy = playerLoc.y - shipLoc.y;
-        float dz = playerLoc.z - shipLoc.z;
-        float distSq = dx * dx + dy * dy + dz * dz;
-        if (distSq > (BOARD_RANGE * BOARD_RANGE))
+        // Inside this ship: cell-local coords break world distance — still show Exit/Store.
+        boolean insideThisShip = space_utils.isShipWithInterior(self)
+            && (space_transition.getContainingShip(player) == self
+                || utils.isNestedWithin(player, self)
+                || getTopMostContainer(player) == self);
+        if (!insideThisShip)
         {
-            return SCRIPT_CONTINUE;
+            float dx = playerLoc.x - shipLoc.x;
+            float dy = playerLoc.y - shipLoc.y;
+            float dz = playerLoc.z - shipLoc.z;
+            float distSq = dx * dx + dy * dy + dz * dz;
+            if (distSq > (BOARD_RANGE * BOARD_RANGE))
+            {
+                return SCRIPT_CONTINUE;
+            }
         }
 
         obj_id pilot = getPilotId(self);
@@ -104,7 +112,7 @@ public class combat_ship extends script.base_script
         mi.addRootMenu(menu_info_types.SERVER_MENU2, SID_STORE_SHIP);
 
         // Player already inside this POB (walking or stuck): offer exit to exterior
-        if (space_utils.isShipWithInterior(self) && space_transition.getContainingShip(player) == self)
+        if (insideThisShip)
         {
             mi.addRootMenu(menu_info_types.SERVER_MENU3, SID_EXIT_SHIP_EXTERIOR);
         }

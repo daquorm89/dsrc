@@ -624,8 +624,9 @@ public class space_transition extends script.base_script
     // Player ships often get no server terrain-collision event, so placement
     // at the player's raw Y can bury the chassis. getHeightAtLocation is the
     // script-side fix; setShipLanded still forced after place/unpack.
-    // Ground Call clearance (meters above terrain). POBs bury into flat ground at low values.
-    public static final float GROUND_SHIP_CLEARANCE_Y = 10.0f;
+    // Call places the ship this many meters ABOVE the player so the hull is
+    // overhead and the player is not moved.
+    public static final float GROUND_SHIP_ABOVE_PLAYER_Y = 20.0f;
 
     public static location getAtmosphericShipDropLocation(obj_id player) throws InterruptedException
     {
@@ -643,25 +644,16 @@ public class space_transition extends script.base_script
         {
             return loc;
         }
-        location drop = new location(loc.x, loc.y, loc.z, loc.area, loc.cell);
+        // Same XZ as player; Y = player height + clearance (do not shift the player).
+        location drop = new location(loc.x, loc.y + GROUND_SHIP_ABOVE_PLAYER_Y, loc.z, loc.area, loc.cell);
         float terrainY = getHeightAtLocation(drop.x, drop.z);
-        // Sanity: if height query looks valid relative to player, snap to it
-        if (terrainY == terrainY) // not NaN
+        if (terrainY == terrainY)
         {
-            float delta = terrainY - drop.y;
-            if (delta < 40.0f && delta > -40.0f)
+            float minY = terrainY + 5.0f;
+            if (drop.y < minY)
             {
-                // Clearance so the chassis sits above the ground mesh (not half-buried).
-                drop.y = terrainY + GROUND_SHIP_CLEARANCE_Y;
+                drop.y = minY;
             }
-            else
-            {
-                drop.y = drop.y + GROUND_SHIP_CLEARANCE_Y;
-            }
-        }
-        else
-        {
-            drop.y = drop.y + GROUND_SHIP_CLEARANCE_Y;
         }
         LOG("space_transition", "getAtmosphericShipDropLocation: playerY=" + loc.y + " terrainY=" + terrainY + " dropY=" + drop.y);
         return drop;
@@ -679,13 +671,14 @@ public class space_transition extends script.base_script
             setShipLanded(ship, true);
             return;
         }
+        // Only raise if buried; never pull a high Call placement down to terrain.
         float terrainY = getHeightAtLocation(loc.x, loc.z);
         if (terrainY == terrainY)
         {
-            float delta = terrainY - loc.y;
-            if (delta < 40.0f && delta > -40.0f)
+            float minY = terrainY + 5.0f;
+            if (loc.y < minY)
             {
-                loc.y = terrainY + GROUND_SHIP_CLEARANCE_Y;
+                loc.y = minY;
                 setLocation(ship, loc);
             }
         }
@@ -959,12 +952,9 @@ public class space_transition extends script.base_script
      * Call after unpilotShip.
      */
     /**
-     * Reset client camera after Enter / Leave Station on a ground POB.
-     * There is no server "setCamera" API — the only reliable script-side resync
-     * is a same-cell warp with forceLoadScreen so the client rebuilds the view
-     * from the avatar, not residual pilot/ship camera.
-     * Do NOT setYaw to getYaw(ship): that is world hull facing and sticks the
-     * camera to the ship's world heading while the body is cell-local.
+     * Server-side: clear pilot look-at/states only. Camera orientation is fixed
+     * client-side (FreeChaseCamera yaw sync on leave pilot / enter ship cell).
+     * Do not forceLoad or setYaw(ship) — both caused load spam / world-facing cam.
      */
     public static void applyInteriorWalkFacing(obj_id player, obj_id ship) throws InterruptedException
     {
@@ -977,36 +967,6 @@ public class space_transition extends script.base_script
         setState(player, STATE_PILOTING_POB_SHIP, false);
         setState(player, STATE_SHIP_OPERATIONS, false);
         setState(player, STATE_SHIP_GUNNER, false);
-
-        location after = getLocation(player);
-        if (after == null || after.area == null || after.area.length() < 1)
-        {
-            return;
-        }
-
-        // Preserve current cell-local yaw; only re-assert it (no ship world yaw).
-        float yaw = getYaw(player);
-
-        if (isIdValid(after.cell))
-        {
-            // Hard client resync inside the cell (brief load). World coords = ship
-            // if available so the warp stays attached to the chassis.
-            location shipLoc = isIdValid(ship) ? getLocation(ship) : null;
-            float wx = (shipLoc != null) ? shipLoc.x : after.x;
-            float wy = (shipLoc != null) ? shipLoc.y : after.y;
-            float wz = (shipLoc != null) ? shipLoc.z : after.z;
-            warpPlayer(player, after.area, wx, wy, wz, after.cell, after.x, after.y, after.z, null, true);
-        }
-        else
-        {
-            warpPlayer(player, after.area, after.x, after.y, after.z, null, 0.0f, 0.0f, 0.0f, null, true);
-        }
-
-        if (yaw == yaw)
-        {
-            setYaw(player, yaw);
-        }
-        setLookAtTarget(player, null);
     }
 
     public static boolean leavePilotSeatIntoShipInterior(obj_id player, obj_id ship) throws InterruptedException
@@ -1552,8 +1512,7 @@ public class space_transition extends script.base_script
             return PLACE_SHIP_NOT_IN_WORLD;
         }
 
-        // Launch: activate chassis via unpack, IMMEDIATELY eject — never pilot.
-        // Client world refresh happens on Pilot/enter, not here.
+        // Launch: chassis is out. Do not move the player unless they were forced into pilot.
         setOwner(ship, player);
         if (!hasScript(ship, "space.combat.combat_ship"))
         {
@@ -1564,45 +1523,24 @@ public class space_transition extends script.base_script
         {
             snapShipToGroundAndMarkLanded(ship);
             setShipLanded(ship, true);
-            if (getPilotId(ship) == player)
+            boolean wasPiloting = (getPilotId(ship) == player) || (getContainingShip(player) == ship);
+            if (wasPiloting)
             {
-                unpilotShip(player);
-            }
-            setState(player, STATE_PILOTING_SHIP, false);
-            setState(player, STATE_PILOTING_POB_SHIP, false);
-            setState(player, STATE_SHIP_OPERATIONS, false);
-            setState(player, STATE_SHIP_GUNNER, false);
-
-            // Put player back at the exterior point they launched from (not ship center).
-            // Soft only — no forceLoadScreen. Launch is spawn-only; reload is unnecessary.
-            if (exteriorLoc != null && exteriorLoc.area != null)
-            {
-                setLocation(player, exteriorLoc);
-            }
-            forceEjectPlayerFromShipOnGround(player, ship, false);
-            setShipLanded(ship, true);
-
-            if (space_utils.isShipWithInterior(ship))
-            {
-                // Repeat soft extract — POB containment can reassert once after unpilot.
+                if (getPilotId(ship) == player)
+                {
+                    unpilotShip(player);
+                }
+                setState(player, STATE_PILOTING_SHIP, false);
+                setState(player, STATE_PILOTING_POB_SHIP, false);
+                setState(player, STATE_SHIP_OPERATIONS, false);
+                setState(player, STATE_SHIP_GUNNER, false);
+                // Restore only if unpack piloted them — otherwise leave player where they stood.
                 if (exteriorLoc != null && exteriorLoc.area != null)
                 {
                     setLocation(player, exteriorLoc);
                 }
-                forceEjectPlayerFromShipOnGround(player, ship, false);
-                dictionary d2 = new dictionary();
-                d2.put("player", player);
-                d2.put("ship", ship);
-                if (exteriorLoc != null)
-                {
-                    d2.put("x", exteriorLoc.x);
-                    d2.put("y", exteriorLoc.y);
-                    d2.put("z", exteriorLoc.z);
-                    d2.put("area", exteriorLoc.area);
-                }
-                messageTo(ship, "handleAtmosPostLaunchEject", d2, 0.5f, false);
-                messageTo(ship, "handleAtmosPostLaunchEject", d2, 2.0f, false);
             }
+            setShipLanded(ship, true);
         }
 
         boolean placed = isShipPlacedInGroundWorld(ship, player)
@@ -1709,6 +1647,32 @@ public class space_transition extends script.base_script
             }
             setObjVar(shipControlDevice, "ship", ship);
             setObjVar(ship, "shipControlDevice", shipControlDevice);
+
+            // Ground atmospheric Call: spawn only — never pilot the player into the seat.
+            // Piloting would move the character; user stays put and boards via radial later.
+            if (!isSpaceScene())
+            {
+                if (getContainedBy(ship) == shipControlDevice || utils.isNestedWithin(ship, player))
+                {
+                    // Second placement attempt if still nested under SCD/player
+                    setLocation(ship, dropLoc);
+                    snapShipToGroundAndMarkLanded(ship);
+                }
+                if (getContainedBy(ship) != shipControlDevice && !utils.isNestedWithin(ship, player))
+                {
+                    setOwner(ship, player);
+                    if (!hasScript(ship, "space.combat.combat_ship"))
+                    {
+                        attachScript(ship, "space.combat.combat_ship");
+                    }
+                    setShipLanded(ship, true);
+                    LOG("space", "ground Call: ship deployed without piloting ship=" + ship);
+                    return true;
+                }
+                LOG("space", "ground Call: ship still nested after setLocation containedBy=" + getContainedBy(ship));
+                // Fall through to space-style pilot activation only if chassis would not leave SCD
+            }
+
             obj_id pilotSlotObject = findPilotSlotObjectForShip(player, ship);
             if (debugSpaceTransition)
             {
