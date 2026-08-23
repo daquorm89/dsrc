@@ -624,8 +624,8 @@ public class space_transition extends script.base_script
     // Player ships often get no server terrain-collision event, so placement
     // at the player's raw Y can bury the chassis. getHeightAtLocation is the
     // script-side fix; setShipLanded still forced after place/unpack.
-    // Ground Call clearance (meters above terrain). POBs bury into flat ground at ~1.25.
-    public static final float GROUND_SHIP_CLEARANCE_Y = 5.0f;
+    // Ground Call clearance (meters above terrain). POBs bury into flat ground at low values.
+    public static final float GROUND_SHIP_CLEARANCE_Y = 10.0f;
 
     public static location getAtmosphericShipDropLocation(obj_id player) throws InterruptedException
     {
@@ -959,26 +959,54 @@ public class space_transition extends script.base_script
      * Call after unpilotShip.
      */
     /**
-     * After leaving the POB pilot seat into the interior: do NOT copy ship world
-     * yaw onto the player. The character is oriented in ship/cell space; forcing
-     * getYaw(ship) made the camera inherit hull world facing (e.g. ship points
-     * west → camera points west) even though the body left the seat the same way.
-     * Only clear pilot look-at and re-assert the player's current (cell-local) yaw
-     * so the client drops cockpit camera without rotating the body to world axes.
+     * Reset client camera after Enter / Leave Station on a ground POB.
+     * There is no server "setCamera" API — the only reliable script-side resync
+     * is a same-cell warp with forceLoadScreen so the client rebuilds the view
+     * from the avatar, not residual pilot/ship camera.
+     * Do NOT setYaw to getYaw(ship): that is world hull facing and sticks the
+     * camera to the ship's world heading while the body is cell-local.
      */
     public static void applyInteriorWalkFacing(obj_id player, obj_id ship) throws InterruptedException
     {
-        if (!isIdValid(player))
+        if (!isIdValid(player) || isSpaceScene())
         {
             return;
         }
         setLookAtTarget(player, null);
-        // Re-apply existing yaw (no ship world yaw) to nudge client camera resync.
+        setState(player, STATE_PILOTING_SHIP, false);
+        setState(player, STATE_PILOTING_POB_SHIP, false);
+        setState(player, STATE_SHIP_OPERATIONS, false);
+        setState(player, STATE_SHIP_GUNNER, false);
+
+        location after = getLocation(player);
+        if (after == null || after.area == null || after.area.length() < 1)
+        {
+            return;
+        }
+
+        // Preserve current cell-local yaw; only re-assert it (no ship world yaw).
         float yaw = getYaw(player);
+
+        if (isIdValid(after.cell))
+        {
+            // Hard client resync inside the cell (brief load). World coords = ship
+            // if available so the warp stays attached to the chassis.
+            location shipLoc = isIdValid(ship) ? getLocation(ship) : null;
+            float wx = (shipLoc != null) ? shipLoc.x : after.x;
+            float wy = (shipLoc != null) ? shipLoc.y : after.y;
+            float wz = (shipLoc != null) ? shipLoc.z : after.z;
+            warpPlayer(player, after.area, wx, wy, wz, after.cell, after.x, after.y, after.z, null, true);
+        }
+        else
+        {
+            warpPlayer(player, after.area, after.x, after.y, after.z, null, 0.0f, 0.0f, 0.0f, null, true);
+        }
+
         if (yaw == yaw)
         {
             setYaw(player, yaw);
         }
+        setLookAtTarget(player, null);
     }
 
     public static boolean leavePilotSeatIntoShipInterior(obj_id player, obj_id ship) throws InterruptedException
