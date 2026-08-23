@@ -57,7 +57,11 @@ public class combat_ship extends script.base_script
         obj_id player = params != null ? params.getObjId("player") : null;
         if (!isSpaceScene())
         {
-            setShipLanded(self, true);
+            setShipLanded(self, false);
+            if (isIdValid(player))
+            {
+                space_transition.raiseShipAbovePlayer(self, player);
+            }
         }
         if (isIdValid(player))
         {
@@ -228,7 +232,8 @@ public class combat_ship extends script.base_script
 
         if (!isSpaceScene())
         {
-            setShipLanded(self, true);
+            setShipLanded(self, false);
+            space_transition.raiseShipAbovePlayer(self, player);
         }
         setOwner(self, player);
 
@@ -541,7 +546,8 @@ public class combat_ship extends script.base_script
             setLocation(player, dest);
         }
         space_transition.forceEjectPlayerFromShipOnGround(player, ship, false);
-        setShipLanded(ship, true);
+        setShipLanded(ship, false);
+        space_transition.raiseShipAbovePlayer(ship, player);
         setOwner(ship, player);
         sendDirtyObjectMenuNotification(self);
         LOG("space", "combat_ship.handleAtmosPostLaunchEject ship=" + ship + " player=" + player

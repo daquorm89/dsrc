@@ -660,6 +660,10 @@ public class space_transition extends script.base_script
         return drop;
     }
 
+    /**
+     * Atmospheric ground placement: terrain + clearance, leave NOT landed.
+     * setShipLanded(true) + terrain+1.25 sinks fighter/POB meshes.
+     */
     public static void snapShipToGroundAndMarkLanded(obj_id ship) throws InterruptedException
     {
         if (!isIdValid(ship) || isSpaceScene())
@@ -669,20 +673,16 @@ public class space_transition extends script.base_script
         location loc = getLocation(ship);
         if (loc == null || isIdValid(loc.cell))
         {
-            setShipLanded(ship, true);
+            setShipLanded(ship, false);
             return;
         }
         float terrainY = getHeightAtLocation(loc.x, loc.z);
         if (terrainY == terrainY)
         {
-            float delta = terrainY - loc.y;
-            if (delta < 40.0f && delta > -40.0f)
-            {
-                loc.y = terrainY + 1.25f;
-                setLocation(ship, loc);
-            }
+            loc.y = terrainY + GROUND_SHIP_ABOVE_PLAYER_Y;
+            setLocation(ship, loc);
         }
-        setShipLanded(ship, true);
+        setShipLanded(ship, false);
     }
 
     /**
@@ -1265,15 +1265,14 @@ public class space_transition extends script.base_script
             {
                 setYaw(ship, py);
             }
-            snapShipToGroundAndMarkLanded(ship);
+            setShipLanded(ship, false);
+            raiseShipAbovePlayer(ship, player);
         }
         setOwner(ship, player);
         if (!hasScript(ship, "space.combat.combat_ship"))
         {
             attachScript(ship, "space.combat.combat_ship");
         }
-        // Do not auto-pilot. If we somehow own the seat (prior Call), eject so
-        // Launch never leaves the player inside the ship.
         obj_id existingPilot = getPilotId(ship);
         if (existingPilot == player || getContainingShip(player) == ship)
         {
@@ -1281,7 +1280,8 @@ public class space_transition extends script.base_script
         }
         if (!isSpaceScene())
         {
-            setShipLanded(ship, true);
+            setShipLanded(ship, false);
+            raiseShipAbovePlayer(ship, player);
         }
     }
 
@@ -1612,7 +1612,7 @@ public class space_transition extends script.base_script
         if (!isSpaceScene())
         {
             snapShipToGroundAndMarkLanded(ship);
-            setShipLanded(ship, true);
+            setShipLanded(ship, false);
             if (getPilotId(ship) == player)
             {
                 unpilotShip(player);
@@ -1846,7 +1846,7 @@ public class space_transition extends script.base_script
                             attachScript(ship, "space.combat.combat_ship");
                         }
                         snapShipToGroundAndMarkLanded(ship);
-                        setShipLanded(ship, true);
+                        setShipLanded(ship, false);
                         return true;
                     }
                 }
