@@ -911,12 +911,14 @@ public class space_transition extends script.base_script
                 dest.y = terrainY + 0.25f;
             }
             setLocation(player, dest);
-            // Clear residual pilot-camera yaw (~45° drift after piloting on ground).
+            // Exterior is world-space; align to hull and clear pilot look-at so
+            // cockpit camera does not stick after unpilot.
             float shipYaw = getYaw(ship);
             if (shipYaw == shipYaw)
             {
                 setYaw(player, shipYaw);
             }
+            setLookAtTarget(player, null);
             // Only hard-warp when requested (stuck-in-cell recovery). Launch stays soft.
             if (forceLoadScreen && dest.area != null)
             {
@@ -957,8 +959,12 @@ public class space_transition extends script.base_script
      * Call after unpilotShip.
      */
     /**
-     * Reset player yaw after pilot seat so walk direction matches the cell
-     * (pilot cam often leaves residual ~45° offset on ground POBs).
+     * After leaving the POB pilot seat into the interior: do NOT copy ship world
+     * yaw onto the player. The character is oriented in ship/cell space; forcing
+     * getYaw(ship) made the camera inherit hull world facing (e.g. ship points
+     * west → camera points west) even though the body left the seat the same way.
+     * Only clear pilot look-at and re-assert the player's current (cell-local) yaw
+     * so the client drops cockpit camera without rotating the body to world axes.
      */
     public static void applyInteriorWalkFacing(obj_id player, obj_id ship) throws InterruptedException
     {
@@ -966,8 +972,9 @@ public class space_transition extends script.base_script
         {
             return;
         }
-        // Match hull facing exactly (no mesh offset).
-        float yaw = isIdValid(ship) ? getYaw(ship) : getYaw(player);
+        setLookAtTarget(player, null);
+        // Re-apply existing yaw (no ship world yaw) to nudge client camera resync.
+        float yaw = getYaw(player);
         if (yaw == yaw)
         {
             setYaw(player, yaw);
