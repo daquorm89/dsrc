@@ -345,6 +345,9 @@ public class combat_ship extends script.base_script
                 }
             }
 
+            // Remember world yaw before cell attach so body matches world/camera after Enter.
+            space_transition.saveExteriorYaw(player);
+
             // Primary: setLocation with cell id (same pattern as space passengers).
             // Nudge off the start point so we are not inside the pilot-chair collision.
             location cellDest = new location(lx + 0.5f, ly, lz - 1.5f, shipLoc.area, entryCell);
