@@ -686,9 +686,9 @@ public class space_transition extends script.base_script
     }
 
     /**
-     * Raise ship to world Y = refY + 20m. Prefer Call exterior scriptvars (world
-     * coords) — player getLocation while nested in a cell is cell-local and would
-     * place the hull wrong / still partially in the ground.
+     * Raise hull at its CURRENT world XZ to terrain + clearance.
+     * Do NOT use Call atmos.exterior* XZ — that teleports the ship back to the
+     * original Call/Enter point after flight (exit looked like a snap-back).
      */
     public static void raiseShipAbovePlayer(obj_id ship, obj_id player) throws InterruptedException
     {
@@ -701,63 +701,26 @@ public class space_transition extends script.base_script
         {
             return;
         }
-        float refY = shipLoc.y;
         float refX = shipLoc.x;
         float refZ = shipLoc.z;
         String area = shipLoc.area;
-        if (isIdValid(player) && utils.hasScriptVar(player, "atmos.exteriorY"))
-        {
-            refY = utils.getFloatScriptVar(player, "atmos.exteriorY");
-            if (utils.hasScriptVar(player, "atmos.exteriorX"))
-            {
-                refX = utils.getFloatScriptVar(player, "atmos.exteriorX");
-            }
-            if (utils.hasScriptVar(player, "atmos.exteriorZ"))
-            {
-                refZ = utils.getFloatScriptVar(player, "atmos.exteriorZ");
-            }
-            if (utils.hasScriptVar(player, "atmos.exteriorArea"))
-            {
-                String a = utils.getStringScriptVar(player, "atmos.exteriorArea");
-                if (a != null && a.length() > 0)
-                {
-                    area = a;
-                }
-            }
-        }
-        else if (isIdValid(player))
-        {
-            location playerLoc = getLocation(player);
-            if (playerLoc != null && !isIdValid(playerLoc.cell))
-            {
-                refY = playerLoc.y;
-                refX = playerLoc.x;
-                refZ = playerLoc.z;
-                if (playerLoc.area != null)
-                {
-                    area = playerLoc.area;
-                }
-            }
-        }
         float terrainY = getHeightAtLocation(refX, refZ);
-        float y = refY + GROUND_SHIP_ABOVE_PLAYER_Y;
+        float y = shipLoc.y;
         if (terrainY == terrainY)
         {
-            // Always clear terrain by full clearance (POB mesh hangs below origin).
-            float minY = terrainY + GROUND_SHIP_ABOVE_PLAYER_Y;
-            if (y < minY)
-            {
-                y = minY;
-            }
+            y = terrainY + GROUND_SHIP_ABOVE_PLAYER_Y;
+        }
+        else
+        {
+            y = shipLoc.y + GROUND_SHIP_ABOVE_PLAYER_Y;
         }
         location raised = new location(refX, y, refZ, area, null);
-        // Clear landed so engine/client will not clamp Y to terrain under the mesh.
         setShipLanded(ship, false);
         setLocation(ship, raised);
         setLocation(ship, raised);
         location verify = getLocation(ship);
-        LOG("space_transition", "raiseShipAbovePlayer: ship=" + ship + " wantY=" + y
-            + " gotY=" + (verify != null ? verify.y : -1) + " terrainY=" + terrainY);
+        LOG("space_transition", "raiseShipAbovePlayer: ship=" + ship + " xz=(" + refX + "," + refZ
+            + ") wantY=" + y + " gotY=" + (verify != null ? verify.y : -1) + " terrainY=" + terrainY);
     }
 
     // P9 atmospheric flight: place-ship result codes for player feedback.
