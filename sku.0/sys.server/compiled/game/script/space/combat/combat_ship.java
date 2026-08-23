@@ -176,8 +176,8 @@ public class combat_ship extends script.base_script
         // ---------- Exit to exterior (POB interior / stuck) ----------
         if (item == menu_info_types.SERVER_MENU3)
         {
+            // forceEject raises + leaves not-landed (same as Call hover)
             space_transition.forceEjectPlayerFromShipOnGround(player, self);
-            setShipLanded(self, true);
             return SCRIPT_CONTINUE;
         }
 
