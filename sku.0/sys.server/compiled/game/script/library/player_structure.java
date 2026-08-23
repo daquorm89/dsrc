@@ -1367,8 +1367,8 @@ public class player_structure extends script.base_script
     {
         // Pre-CU policy: minimal maintenance. Rate 0 skips the loop entirely
         // (OnInitialize only starts OnMaintenanceLoop when rate > 0) and breaks
-        // pool/decay/mail. Charge 1 credit per heartbeat; heartbeat is 3600s →
-        // 1 credit/hour. A few hundred credits lasts weeks.
+        // pool/decay/mail. Charge 1 credit per heartbeat; heartbeat is 86400s →
+        // 1 credit/day. A few hundred credits lasts many months.
         // Base rates remain in datatables/structure/player_structure.tab (MAINT_RATE).
         // REVERT = restore original body (getBaseMaintenanceRate + mods).
         if (!isIdValid(structure))
@@ -5373,8 +5373,8 @@ public class player_structure extends script.base_script
     }
     public static int getMaintenanceHeartbeat() throws InterruptedException
     {
-        // 3600s pairs with getMaintenanceRate() == 1 → 1 credit per hour.
-        final int MAINTENANCE_HEARTBEAT = 3600;
+        // 86400s pairs with getMaintenanceRate() == 1 → 1 credit per day.
+        final int MAINTENANCE_HEARTBEAT = 86400;
         String strConfigSetting = getConfigSetting("GameServer", "maintenanceHeartbeat");
         if ((strConfigSetting != null) && (!strConfigSetting.equals("")))
         {
