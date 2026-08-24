@@ -167,6 +167,49 @@ public class space_transition extends script.base_script
                 LOG("space_transition", "player " + player + " logging out in ship " + containingShip);
             }
             obj_id owner = getOwner(containingShip);
+
+            // Ground POB: same crash class as the manual Store button —
+            // packShip() tears down the ship's doors/portals synchronously,
+            // which can null-deref an observing client mid-alter (see
+            // Portal::isDisabled crash fixed for Store). Route through the
+            // same delayed/safe store path instead of calling packShip()
+            // directly on logout.
+            if (!isSpaceScene() && space_utils.isShipWithInterior(containingShip) && hasScript(containingShip, "space.combat.combat_ship"))
+            {
+                utils.setLocalVar(player, "loggingOut", true);
+                if (owner == player)
+                {
+                    obj_id scd = findEmptyShipControlDeviceForShip(owner, containingShip);
+                    if (isIdValid(scd))
+                    {
+                        // Ejects player (and anyone else aboard) immediately,
+                        // then schedules the same 6s delayed teardown used by
+                        // the Store button so the portal/door crash can't
+                        // happen here either.
+                        storeShipInControlDeviceSafe(containingShip, scd, player);
+                    }
+                    else
+                    {
+                        // No linked SCD to store into (e.g. already stored,
+                        // or chassis has no home SCD) — just clear the
+                        // logging-out player from the interior and leave the
+                        // chassis parked in the world rather than risk an
+                        // unsafe synchronous pack.
+                        forceEjectPlayerFromShipOnGround(player, containingShip);
+                    }
+                }
+                else
+                {
+                    forceEjectPlayerFromShipOnGround(player, containingShip);
+                }
+                utils.removeLocalVar(player, "loggingOut");
+                if (!isGod(player) && (player != owner || shouldSendToGroundOnLogout()))
+                {
+                    teleportPlayerToLaunchLoc(player);
+                }
+                return;
+            }
+
             if (owner == player)
             {
                 utils.setLocalVar(player, "loggingOut", true);
