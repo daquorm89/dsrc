@@ -4948,6 +4948,8 @@ public class healing extends script.base_script
         int attrib_before = getWoundedMaxAttrib(target, HEALTH);
         float mult = getHealingMultiplier(medic, null, HEAL_TYPE_MEDICAL_TEND_WOUND);
         int heal_power = (int)(VAR_TEND_WOUND_BASE_POWER * mult);
+        // Apply the tend-wound power (was missing — delta was always 0)
+        utils.addAttribMod(target, utils.createHealWoundAttribMod(HEALTH, heal_power));
         int attrib_after = getWoundedMaxAttrib(target, HEALTH);
         int attrib_delta = attrib_after - attrib_before;
         String attribute_string = (attributeToString(HEALTH)).toLowerCase();
@@ -4978,6 +4980,56 @@ public class healing extends script.base_script
         }
         return true;
     }
+    /**
+     * Tend wound without a medikit tool (higher mind cost).
+     */
+    public static boolean performTendWoundNoTool(obj_id medic, obj_id target) throws InterruptedException
+    {
+        if (!isIdValid(medic) || !isIdValid(target))
+        {
+            return false;
+        }
+        if (medic != target)
+        {
+            if (getDistance(medic, target) > consumable.MAX_AFFECT_DISTANCE)
+            {
+                sendMedicalSpam(medic, consumable.SID_TARGET_OUT_OF_RANGE, COMBAT_RESULT_OUT_OF_RANGE);
+                return false;
+            }
+        }
+        if (!isWounded(target, HEALTH))
+        {
+            if (medic == target)
+            {
+                sendMedicalSpam(medic, SID_NO_WOUNDS_OF_TYPE_SELF, COMBAT_RESULT_MEDICAL);
+            }
+            else
+            {
+                prose_package ppNoWounds = prose.getPackage(SID_NO_WOUNDS_OF_TYPE_TARGET);
+                prose.setTT(ppNoWounds, target);
+                sendMedicalSpam(medic, ppNoWounds, COMBAT_RESULT_MEDICAL);
+            }
+            return false;
+        }
+        if (!applyHealingCost(medic, HEAL_TYPE_MEDICAL_TEND_WOUND, 1.0f))
+        {
+            sendMedicalSpam(medic, SID_NOT_ENOUGH_MIND, COMBAT_RESULT_MEDICAL);
+            return false;
+        }
+        int attrib_before = getWoundedMaxAttrib(target, HEALTH);
+        float mult = getHealingMultiplier(medic, null, HEAL_TYPE_MEDICAL_TEND_WOUND);
+        int heal_power = (int)(VAR_TEND_WOUND_BASE_POWER * mult);
+        utils.addAttribMod(target, utils.createHealWoundAttribMod(HEALTH, heal_power));
+        int attrib_after = getWoundedMaxAttrib(target, HEALTH);
+        int attrib_delta = attrib_after - attrib_before;
+        if (medic != target)
+        {
+            grantHealingExperience(attrib_delta, medic, target, HEAL_TYPE_MEDICAL_TEND_WOUND);
+            pvpHelpPerformed(medic, target);
+        }
+        return true;
+    }
+
     public static boolean performQuickHealTool(obj_id medic, obj_id target, boolean tend_damage, obj_id medikit) throws InterruptedException
     {
         if (!isIdValid(medic))
@@ -5086,7 +5138,10 @@ public class healing extends script.base_script
             {
                 grantHealingExperience(delta, medic, target, HEAL_TYPE_MEDICAL_QUICK_HEAL);
             }
-            incrementCount(medikit, -1);
+            if (isIdValid(medikit))
+            {
+                incrementCount(medikit, -1);
+            }
             pvpHelpPerformed(medic, target);
             addHealingKillCredit(medic, target, delta);
         }

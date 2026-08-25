@@ -69,7 +69,7 @@ maxHitPoints = 15000
 
 volume=1000000
 
-scripts = [ "player.base.base_player", "player.player_utility", "systems.missions.base.mission_player", "systems.spawning.spawn_player", "systems.combat.combat_player", "systems.combat.combat_actions_humanoid", 
+scripts = [ "player.base.base_player", "player.player_utility", "systems.healing.medical_commands", "systems.missions.base.mission_player", "systems.spawning.spawn_player", "systems.combat.combat_player", "systems.combat.combat_actions_humanoid", 
 	"player.skill.player_healing", "player.player_building", "player.skill.player_teaching", "player.skill.cleanup", "player.player_travel", "player.species_innate",
 	"player.player_sui", "player.player_exploration", "player.player_faction", "player.player_money", "player.player_chat", "space.combat.combat_ship_player"]
 
