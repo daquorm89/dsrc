@@ -59,6 +59,11 @@ public class player_utility extends script.base_script
     public static final String GUARD_OCCUPIED = "occupied";
     public int OnLogin(obj_id self) throws InterruptedException
     {
+        // Ensure Pre-CU medical command wrappers are present on existing characters
+        if (!hasScript(self, "systems.healing.medical_commands"))
+        {
+            attachScript(self, "systems.healing.medical_commands");
+        }
         if (utils.checkConfigFlag("GameServer", "jediTestResources"))
         {
             if (hasSkill(self, "class_bountyhunter_phase4_novice"))
