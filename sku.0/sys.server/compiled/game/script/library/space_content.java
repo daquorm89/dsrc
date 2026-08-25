@@ -17,8 +17,15 @@ public class space_content extends script.base_script
     public static final string_id SID_NO_HOMING_BEACON = new string_id("space/space_interaction", "no_homing_beacon");
     public static void landPlayer(obj_id objPlayer, obj_id objStation, String strDestination) throws InterruptedException
     {
-        float fltDistance = getDistance(objStation, space_transition.getContainingShip(objPlayer));
-        if (fltDistance > space_transition.STATION_COMM_MAX_DISTANCE)
+        obj_id playerShip = space_transition.getContainingShip(objPlayer);
+        if (!isIdValid(playerShip))
+        {
+            string_id strSpam = new string_id("space/space_interaction", "too_far");
+            sendSystemMessage(objPlayer, strSpam);
+            return;
+        }
+        float fltDistance = getDistance(objStation, playerShip);
+        if (fltDistance < 0.0f || fltDistance > space_transition.STATION_COMM_MAX_DISTANCE)
         {
             string_id strSpam = new string_id("space/space_interaction", "too_far");
             sendSystemMessage(objPlayer, strSpam);

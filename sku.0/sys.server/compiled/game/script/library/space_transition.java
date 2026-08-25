@@ -255,6 +255,17 @@ public class space_transition extends script.base_script
             }
             containedBy = getContainedBy(containedBy);
         }
+        // Fallback: pilot slot is set but containment walk failed (residual atmos /
+        // board state). Station isTooFar / landPlayer use this for range checks;
+        // without a ship they never open the landing conversation.
+        if (isIdValid(obj) && isPlayer(obj))
+        {
+            obj_id piloted = getPilotedShip(obj);
+            if (isIdValid(piloted))
+            {
+                return piloted;
+            }
+        }
         return null;
     }
     public static obj_id[] findShipControlDevicesForPlayer(obj_id player) throws InterruptedException
