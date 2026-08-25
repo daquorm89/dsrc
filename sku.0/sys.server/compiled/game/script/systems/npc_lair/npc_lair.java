@@ -944,6 +944,11 @@ public class npc_lair extends script.theme_park.poi.base
         {
             return;
         }
+        // Already a baby from create.maybeMakeBaby — do not re-scale.
+        if (hasScript(mobile, "ai.pet_advance"))
+        {
+            return;
+        }
         float tameChance = utils.dataTableGetFloat(CREATURE_TABLE, name, "canTame");
         if (rand(0.0f, 1.0f) > tameChance)
         {
