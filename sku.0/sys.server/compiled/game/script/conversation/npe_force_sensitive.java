@@ -3,6 +3,7 @@ package script.conversation;
 import script.library.ai_lib;
 import script.library.chat;
 import script.library.groundquests;
+import script.library.npe;
 import script.library.utils;
 import script.*;
 
