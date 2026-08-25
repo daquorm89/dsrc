@@ -612,6 +612,19 @@ public class player_utility extends script.base_script
     }
     public int forage(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException
     {
+        return startForageSession(self, false);
+    }
+    public int medicalForage(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException
+    {
+        // Pre-CU Medic: medicalForage was granted by science_medic_novice but had no scriptHook method.
+        return startForageSession(self, true);
+    }
+    public int failForage(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException
+    {
+        return SCRIPT_CONTINUE;
+    }
+    public int startForageSession(obj_id self, boolean medical) throws InterruptedException
+    {
         location curLoc = getLocation(self);
         if (isIdValid(curLoc.cell))
         {
@@ -673,14 +686,26 @@ public class player_utility extends script.base_script
             }
         }
         doAnimationAction(self, "forage");
-        messageTo(self, "handlerForPlayerForaging", null, 2.0f, false);
+        dictionary d = new dictionary();
+        d.put("medical", medical);
+        messageTo(self, "handlerForPlayerForaging", d, 2.0f, false);
         return SCRIPT_CONTINUE;
     }
     public int handlerForPlayerForaging(obj_id self, dictionary params) throws InterruptedException
     {
-        if (!loot.playerForaging(self))
+        boolean medical = (params != null && params.containsKey("medical") && params.getBoolean("medical"));
+        boolean ok;
+        if (medical)
         {
-            CustomerServiceLog("foraging", "Foraging failed for Player: " + self + " " + getName(self));
+            ok = loot.playerMedicalForaging(self);
+        }
+        else
+        {
+            ok = loot.playerForaging(self);
+        }
+        if (!ok)
+        {
+            CustomerServiceLog("foraging", "Foraging failed for Player: " + self + " " + getName(self) + " medical=" + medical);
         }
         return SCRIPT_CONTINUE;
     }

@@ -67,6 +67,7 @@ public class loot extends script.base_script
     public static final String FORAGING_RARE_TABLE = "datatables/foraging/forage_global_rare.iff";
     public static final String FORAGING_ENEMY_TABLE = "datatables/foraging/forage_enemy.iff";
     public static final String FORAGING_LOOT_ROLL_TABLE = "datatables/foraging/foraging_loot_roll.iff";
+    public static final String FORAGING_FOOD_TABLE = "datatables/foraging/forage_global.iff";
     public static final String LOOT_LOW_COL = "low";
     public static final String LOOT_HIGH_COL = "high";
     public static final String LOOT_ENZYME = "enzyme";
@@ -1936,6 +1937,112 @@ public class loot extends script.base_script
         showLootBox(player, finalLootList);
         return true;
     }
+    /**
+     * Pre-CU Medic medicalForage: outdoor flora resource (1 unit) using medical_foraging skill.
+     * Success chance scales with medical_foraging (and falls back to a base chance).
+     */
+    public static boolean playerMedicalForaging(obj_id player) throws InterruptedException
+    {
+        if (!isValidId(player) || !exists(player))
+        {
+            return false;
+        }
+        obj_id pInv = utils.getInventoryContainer(player);
+        if (!isValidId(pInv) || !exists(pInv))
+        {
+            return false;
+        }
+        if (getVolumeFree(pInv) <= 0)
+        {
+            sendSystemMessage(player, SID_FULL_INVENTORY);
+            return false;
+        }
+        location curLoc = getLocation(player);
+        int medForage = getEnhancedSkillStatisticModifierUncapped(player, "medical_foraging");
+        // SWGANH-style: base ~15% + skill contribution, capped
+        int chance = 15 + (medForage / 2);
+        if (chance > 85)
+        {
+            chance = 85;
+        }
+        if (chance < 15)
+        {
+            chance = 15;
+        }
+        int roll = rand(1, 100);
+        CustomerServiceLog("foraging", "medicalForage player=" + player + " mod=" + medForage + " chance=" + chance + " roll=" + roll);
+        Vector newListOfLocs = new Vector();
+        newListOfLocs.setSize(0);
+        if (roll > chance)
+        {
+            sendSystemMessage(player, FOUND_NOTHING);
+            saveForageLocationOnPlayer(player, newListOfLocs, curLoc);
+            return true;
+        }
+        // One unit of local flora resource (Pre-CU medical forage behaviour)
+        obj_id[] crates = resource.createRandom(resource.RT_FLORA_RESOURCES, 1, curLoc, pInv, player, 1);
+        if (crates == null || crates.length == 0)
+        {
+            crates = resource.createRandom(resource.RT_FLORA_FOOD, 1, curLoc, pInv, player, 1);
+        }
+        if (crates == null || crates.length == 0)
+        {
+            // Fallback: Pre-CU foraged food if no resource pool available
+            if (!givePreCuForagedFood(player, pInv))
+            {
+                sendSystemMessage(player, FOUND_NOTHING);
+                saveForageLocationOnPlayer(player, newListOfLocs, curLoc);
+                return true;
+            }
+        }
+        sendSystemMessage(player, FOUND_SOMETHING);
+        saveForageLocationOnPlayer(player, newListOfLocs, curLoc);
+        return true;
+    }
+
+    /**
+     * Grant a random Pre-CU foraged food from forage_global.tab into inventory.
+     */
+    public static boolean givePreCuForagedFood(obj_id player, obj_id pInv) throws InterruptedException
+    {
+        if (!dataTableOpen(FORAGING_FOOD_TABLE))
+        {
+            CustomerServiceLog("foraging", "forage_global table missing/unopened for player " + player);
+            return false;
+        }
+        int rows = dataTableGetNumRows(FORAGING_FOOD_TABLE);
+        if (rows <= 0)
+        {
+            return false;
+        }
+        int row = rand(0, rows - 1);
+        String template = dataTableGetString(FORAGING_FOOD_TABLE, row, "ITEM_TANGIBLE");
+        if (template == null || template.equals(""))
+        {
+            return false;
+        }
+        if (!template.startsWith("object/"))
+        {
+            template = "object/tangible/" + template;
+        }
+        obj_id item = createObject(template, pInv, "");
+        if (!isIdValid(item))
+        {
+            item = createObjectOverloaded(template, pInv);
+        }
+        if (!isIdValid(item))
+        {
+            CustomerServiceLog("foraging", "Failed to create foraged food " + template + " for " + player);
+            return false;
+        }
+        // Attach foraged consumable behaviour if the template expects it
+        if (!hasScript(item, "item.comestible.foraged"))
+        {
+            attachScript(item, "item.comestible.foraged");
+        }
+        return true;
+    }
+
     public static boolean playerForaging(obj_id player) throws InterruptedException
     {
         if (!isValidId(player) || !exists(player))
@@ -1961,8 +2068,18 @@ public class loot extends script.base_script
         forage_blog("scene: " + scene);
         Vector newListOfLocs = new Vector();
         newListOfLocs.setSize(0);
-        int something = 50;
-        int nothing = 50;
+        // Pre-CU: foraging skill improves find chance (base 50%, +foraging/2, cap 90)
+        int forageSkill = getEnhancedSkillStatisticModifierUncapped(player, "foraging");
+        int something = 50 + (forageSkill / 2);
+        if (something > 90)
+        {
+            something = 90;
+        }
+        if (something < 25)
+        {
+            something = 25;
+        }
+        int nothing = 100 - something;
         int somethingMod = 0;
         int lootMod = 0;
         String bonusMessage = "";
@@ -2059,6 +2176,16 @@ public class loot extends script.base_script
         }
         CustomerServiceLog("foraging", "Player: " + getName(player) + " OID: " + player + " has rolled a " + initialRoll + " and gets some yet to be determined item from the foraging system.");
         forage_blog("playerForaging: YOU GET SOMETHING");
+        // Pre-CU primary reward: foraged foods from forage_global.tab (~80% of successful finds)
+        if (rand(1, 100) <= 80)
+        {
+            if (givePreCuForagedFood(player, pInv))
+            {
+                sendSystemMessage(player, FOUND_SOMETHING);
+                saveForageLocationOnPlayer(player, newListOfLocs, curLoc);
+                return true;
+            }
+        }
         int enzymeMod = 0;
         int treasMod = 0;
         String buffMsg = "";
