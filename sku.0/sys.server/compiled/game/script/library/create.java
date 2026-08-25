@@ -420,6 +420,12 @@ public class create extends script.base_script
         randomlyNameCreature(creature, finalCreatureName);
         initializeCreature(creature, creatureName, creatureDict, level);
         attachCreatureScripts(creature, creatureDict.getString("scripts"), withAi);
+        // Pre-CU: area/buildout spawners (e.g. Kashyyyk EP3) never go through
+        // npc_lair.makeBaby — apply the same canTame baby chance here.
+        if (!isPet)
+        {
+            maybeMakeBaby(creature, creatureName, creatureDict);
+        }
         return creature;
     }
     public static obj_id createCreature(String creatureName, String templateName, obj_id objContainer, dictionary creatureDict, boolean withAi, boolean isPet) throws InterruptedException
@@ -461,8 +467,62 @@ public class create extends script.base_script
         randomlyNameCreature(creature, finalCreatureName);
         initializeCreature(creature, creatureName, creatureDict, level);
         attachCreatureScripts(creature, creatureDict.getString("scripts"), withAi);
+        if (!isPet)
+        {
+            maybeMakeBaby(creature, creatureName, creatureDict);
+        }
         return creature;
     }
+
+    /**
+     * Pre-CU baby chance for non-lair spawns (region/area/buildout).
+     * Mirrors systems.npc_lair.npc_lair.makeBaby using canTame from creatures.tab.
+     * Skips pets, non-monsters, elites/bosses, and creatures already marked baby.
+     */
+    public static void maybeMakeBaby(obj_id creature, String creatureName, dictionary creatureDict) throws InterruptedException
+    {
+        if (!isIdValid(creature) || creatureDict == null)
+        {
+            return;
+        }
+        if (hasScript(creature, "ai.pet_advance"))
+        {
+            return;
+        }
+        // Only natural monsters (not humanoids / NPCs)
+        if (!ai_lib.isMonster(creature))
+        {
+            return;
+        }
+        // Skip elite/boss difficulty
+        int difficultyClass = creatureDict.getInt("difficultyClass");
+        if (difficultyClass >= 2)
+        {
+            return;
+        }
+        float tameChance = creatureDict.getFloat("canTame");
+        if (tameChance <= 0.0f)
+        {
+            return;
+        }
+        if (rand(0.0f, 1.0f) > tameChance)
+        {
+            return;
+        }
+        attachScript(creature, "ai.pet_advance");
+        String myName = getAssignedName(creature);
+        if (myName != null && !myName.equals("") && !myName.equals("null"))
+        {
+            setName(creature, myName + " (baby)");
+        }
+        else
+        {
+            setName(creature, (getString(getNameStringId(creature)) + " (baby)"));
+        }
+        float adultScale = getScale(creature);
+        setScale(creature, adultScale * 0.4f);
+    }
+
     public static void initializeCreature(obj_id creature, String creatureName, dictionary creatureDict) throws InterruptedException
     {
         initializeCreature(creature, creatureName, creatureDict, -1);
