@@ -43,8 +43,40 @@ public class combat_ship_player extends script.base_script
     public static final string_id SID_EXIT_SHIP = new string_id("sui", "exit");
 
     /**
-     * After unpilot on a ground planet, native unpilot often returns the player to the
-     * location where they boarded (Call spot). Force them beside the ship instead.
+     * Record the ship hull's current world position on the player before unpilotShip.
+     * Native unpilot often teleports the player back to the original board/Call
+     * location; exitBesideShipOnGround prefers this stashed position so the player
+     * ends up beside where the ship actually is after flight.
+     */
+    public static void stashAtmosExitShipLocation(obj_id player, obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(player) || !isIdValid(ship) || !exists(ship))
+        {
+            return;
+        }
+        location sl = getLocation(ship);
+        if (sl == null || sl.area == null)
+        {
+            return;
+        }
+        // Prefer world-cell hull position. If the ship reports a cell (unusual for
+        // fighters), still store XZ so we can snap to terrain later.
+        utils.setScriptVar(player, "atmos.exitShipX", sl.x);
+        utils.setScriptVar(player, "atmos.exitShipY", sl.y);
+        utils.setScriptVar(player, "atmos.exitShipZ", sl.z);
+        utils.setScriptVar(player, "atmos.exitShipArea", sl.area);
+        LOG("space", "stashAtmosExitShipLocation: player=" + player + " ship=" + ship
+            + " at (" + sl.x + "," + sl.y + "," + sl.z + ") area=" + sl.area);
+    }
+
+    /**
+     * After unpilot on a ground planet, native unpilotShip often returns the player to
+     * the original board/Call location. Force them beside the CURRENT ship hull instead.
+     *
+     * Capture the ship world position BEFORE any eject/unpilot side-effects, then
+     * hard-place the player there (setLocation + soft warp + delayed snap). Fighters
+     * were especially prone to staying at the Call point because the native unpilot
+     * packet won the race against the follow-up placement.
      */
     public static void exitBesideShipOnGround(obj_id player, obj_id ship) throws InterruptedException
     {
@@ -52,35 +84,89 @@ public class combat_ship_player extends script.base_script
         {
             return;
         }
-        // Prefer the shared force-eject helper (unpilot + place + warp to terrain)
+
+        // Prefer location stashed BEFORE unpilot (most reliable for fighters).
+        location shipWorld = null;
+        if (utils.hasScriptVar(player, "atmos.exitShipArea"))
+        {
+            String area = utils.getStringScriptVar(player, "atmos.exitShipArea");
+            float sx = utils.getFloatScriptVar(player, "atmos.exitShipX");
+            float sy = utils.getFloatScriptVar(player, "atmos.exitShipY");
+            float sz = utils.getFloatScriptVar(player, "atmos.exitShipZ");
+            if (area != null && area.length() > 0)
+            {
+                shipWorld = new location(sx, sy, sz, area, null);
+            }
+            utils.removeScriptVar(player, "atmos.exitShipX");
+            utils.removeScriptVar(player, "atmos.exitShipY");
+            utils.removeScriptVar(player, "atmos.exitShipZ");
+            utils.removeScriptVar(player, "atmos.exitShipArea");
+        }
+        // Fallback: live ship transform (may already be stale after some unpilot paths).
+        if (shipWorld == null && isIdValid(ship) && exists(ship))
+        {
+            location sl = getLocation(ship);
+            if (sl != null && sl.area != null && !isIdValid(sl.cell))
+            {
+                shipWorld = new location(sl.x, sl.y, sl.z, sl.area, null);
+            }
+        }
+
         if (isIdValid(ship) && exists(ship))
         {
             space_transition.forceEjectPlayerFromShipOnGround(player, ship);
-            return;
         }
-        // Ship already gone/packed — drop player at their current world XY with terrain Y
-        location here = getLocation(player);
-        if (here == null)
+
+        // Hard place beside the captured hull position so native unpilot board-loc
+        // cannot win. Offset ~6m so the player is not inside the chassis.
+        location dest = null;
+        if (shipWorld != null)
         {
-            return;
+            dest = new location(shipWorld.x + 6.0f, shipWorld.y, shipWorld.z + 6.0f, shipWorld.area, null);
         }
-        if (!isIdValid(here.cell))
+        else if (isIdValid(ship) && exists(ship))
         {
-            float terrainY = getHeightAtLocation(here.x, here.z);
-            if (terrainY == terrainY)
+            location sl = getLocation(ship);
+            if (sl != null && sl.area != null)
             {
-                here.y = terrainY + 0.25f;
-            }
-            setLocation(player, here);
-            if (here.area != null)
-            {
-                warpPlayer(player, here.area, here.x, here.y, here.z, null, 0.0f, 0.0f, 0.0f, null, false);
+                dest = new location(sl.x + 6.0f, sl.y, sl.z + 6.0f, sl.area, null);
             }
         }
-        else
+        if (dest == null)
         {
-            setLocation(player, here);
+            location here = getLocation(player);
+            if (here == null)
+            {
+                return;
+            }
+            dest = new location(here.x, here.y, here.z, here.area, null);
         }
+
+        dest.cell = null;
+        float terrainY = getHeightAtLocation(dest.x, dest.z);
+        if (terrainY == terrainY) // not NaN
+        {
+            dest.y = terrainY + 0.35f;
+        }
+
+        setLocation(player, dest);
+        if (dest.area != null)
+        {
+            // Soft warp (no load screen) so the client accepts the new world pos.
+            warpPlayer(player, dest.area, dest.x, dest.y, dest.z, null, 0.0f, 0.0f, 0.0f, null, false);
+        }
+
+        // Delayed snap in case a late native packet still tries to restore board loc.
+        dictionary params = new dictionary();
+        params.put("x", dest.x);
+        params.put("y", dest.y);
+        params.put("z", dest.z);
+        params.put("area", dest.area);
+        messageTo(player, "handleAtmosExitGroundSnap", params, 0.35f, false);
+        messageTo(player, "handleAtmosExitGroundSnap", params, 1.25f, false);
+
+        LOG("space", "exitBesideShipOnGround: player=" + player + " ship=" + ship
+            + " dest=(" + dest.x + "," + dest.y + "," + dest.z + ") area=" + dest.area);
     }
 
 
@@ -213,6 +299,8 @@ public class combat_ship_player extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
+        // Stash CURRENT hull world pos before native unpilot can restore board loc.
+        stashAtmosExitShipLocation(self, ship);
         unpilotShip(self);
         exitBesideShipOnGround(self, ship);
         return SCRIPT_CONTINUE;
@@ -481,6 +569,11 @@ public class combat_ship_player extends script.base_script
                     {
                         return SCRIPT_CONTINUE;
                     }
+                }
+                // Stash CURRENT hull world pos before native unpilot can restore board loc.
+                if (!isSpaceScene() && isIdValid(piloted))
+                {
+                    stashAtmosExitShipLocation(self, piloted);
                 }
                 unpilotShip(self);
                 if (!isSpaceScene() && isIdValid(piloted))
