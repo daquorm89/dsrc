@@ -1,8 +1,5 @@
 // ======================================================================
-//
-// shared_command_module.tpf
-// Pre-CU multi-droid command module (mirrors harvest_module structure)
-//
+// shared_command_module.tpf — structure matches shared_detonation_module
 // ======================================================================
 
 @base object/draft_schematic/base/shared_base_draft_schematic.iff
@@ -10,8 +7,8 @@
 @class draft_schematic_object_template 3
 
 attributes = [
-	[name = "crafting" "complexity", experiment = "" "", value = 20..20],
-	[name = "crafting" "xp", experiment = "" "", value = 200..200],
+	[name = "crafting" "complexity", experiment = "" "", value = 21..21],
+	[name = "crafting" "xp", experiment = "" "", value = 100..100],
 	[name = "crafting" "decayRate", experiment = "crafting" "expDurability", value = 5..15],
 	[name = "crafting" "hitPoints", experiment = "" "", value = 1000..1000],
 	[name = "crafting" "mechanism_quality", experiment = "crafting" "expEffectiveness", value = -10..15],
@@ -20,7 +17,7 @@ attributes = [
 slots = [
 	[name = "craft_droid_ingredients_n" "module_frame", hardpoint = ""],
 	[name = "craft_droid_ingredients_n" "data_storage_matrix", hardpoint = ""],
-	[name = "craft_droid_ingredients_n" "micro_harvesters", hardpoint = ""]]
+	[name = "craft_droid_ingredients_n" "reaction_chamber", hardpoint = ""]]
 
 craftedSharedTemplate="object/tangible/component/droid/shared_command_module.iff"
 
