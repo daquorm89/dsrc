@@ -134,7 +134,7 @@ public class crafting_base_droid extends script.systems.crafting.crafting_base
                         // Pre-CU multi-droid command. Modules STACK on this droid (sum quality/rating).
                         // Runtime: only the highest-total out droid grants extras; 1-5 direct or 6-100 quality map.
                         {
-                            int cmd = (int)(itemAttributes[i].currentValue + 0.5f);
+                            int cmd = (int)(itemAttribute.currentValue + 0.5f);
                             if (cmd > 0)
                             {
                                 int existing = 0;
