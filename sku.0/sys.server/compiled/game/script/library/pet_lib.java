@@ -47,8 +47,8 @@ public class pet_lib extends script.base_script
     // Pre-CU multi-droid: base 1 out + extras from module_data.droid_command on OUT droids.
     public static final String SCRIPTVAR_ACTIVE_DROIDS = "callable.active_droids";
     public static final String MODULE_DROID_COMMAND = "module_data.droid_command";
-    // Hard cap on extras from one commanding droid (total out = 1 + extras). 24 → up to 25 out.
-    public static final int MAX_EXTRA_DROID_COMMAND_SLOTS = 24;
+    // Hard cap on extras from one commanding droid (total out = 1 + extras). 100 → up to 101 out (test-friendly).
+    public static final int MAX_EXTRA_DROID_COMMAND_SLOTS = 100;
     public static final int MAX_FAMILIAR_PETS = 1;
     public static final int MAX_MOUNT_PETS = 1;
     public static final int MAX_UNTRAINED_PETS = 1;
@@ -578,15 +578,17 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
         {
             return 0;
         }
-        // Stacked module total: values 1-5 mean "that many extras" (or one module with that rating);
-        // larger totals are craft quality points summed across modules on this droid.
-        // Map quality to extras: every ~20 quality ≈ +1 slot, cap MAX_EXTRA_DROID_COMMAND_SLOTS.
-        int effectiveQuality = rating;
+        // Direct extras: module_data.droid_command N → +N slots when N <= cap (clear tests).
+        // Above cap: treat as stacked quality (~20 points → +1 slot), still hard-capped.
+        int extra;
         if (rating <= MAX_EXTRA_DROID_COMMAND_SLOTS)
         {
-            effectiveQuality = rating * 20;
+            extra = rating;
         }
-        int extra = (effectiveQuality + 19) / 20;
+        else
+        {
+            extra = (rating + 19) / 20;
+        }
         if (extra < 1)
         {
             extra = 1;
