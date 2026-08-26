@@ -44,6 +44,11 @@ public class pet_lib extends script.base_script
     public static final int PET_TYPE_MOUNT = 5;
     public static final int MAX_NPC_PETS = 1;
     public static final int MAX_DROID_PETS = 1;
+    // Pre-CU multi-droid: base 1 out + extras from module_data.droid_command on OUT droids.
+    public static final String SCRIPTVAR_ACTIVE_DROIDS = "callable.active_droids";
+    public static final String MODULE_DROID_COMMAND = "module_data.droid_command";
+    // Hard cap on extras from one commanding droid (total out = 1 + extras). 100 → up to 101 out (test-friendly).
+    public static final int MAX_EXTRA_DROID_COMMAND_SLOTS = 100;
     public static final int MAX_FAMILIAR_PETS = 1;
     public static final int MAX_MOUNT_PETS = 1;
     public static final int MAX_UNTRAINED_PETS = 1;
@@ -446,8 +451,18 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
             return;
         }
         obj_id master = getMaster(pet);
+        if (!isValidId(master) || !exists(master))
+        {
+            return;
+        }
+        // Pre-CU multi-droid: dropping the commander recalls the linked army.
+        if (isDroidPet(pet) || callable.getCallableType(pet) == callable.CALLABLE_TYPE_COMBAT_OTHER)
+        {
+            removeActiveDroid(master, pet);
+            return;
+        }
         int petSpecies = ai_lib.aiGetSpecies(pet);
-        if (!isValidId(master) || !exists(master) || petSpecies == -1 || callable.getCallable(master, callable.getCallableType(pet)) != pet)
+        if (petSpecies == -1 || callable.getCallable(master, callable.getCallableType(pet)) != pet)
         {
             return;
         }
@@ -487,7 +502,7 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
         }
         else if (petType == PET_TYPE_DROID)
         {
-            return MAX_DROID_PETS;
+            return getMaxDroidPets(master);
         }
         else if (petType == PET_TYPE_FAMILIAR)
         {
@@ -501,6 +516,10 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
     }
     public static int countPetsOfType(obj_id master, int petType) throws InterruptedException
     {
+        if (petType == PET_TYPE_DROID)
+        {
+            return countActiveDroids(master);
+        }
         int petCount = 0;
         if (hasMaxPets(master, petType))
         {
@@ -514,15 +533,18 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
     }
     public static boolean hasMaxPets(obj_id master, int petType, obj_id pet) throws InterruptedException
     {
-        // Pre-CU: creature pets use COMBAT_PET slot; droids use COMBAT_OTHER so
-        // one pet + one droid can both be out (not two of either).
-        // REVERT: droids also used CALLABLE_TYPE_COMBAT_PET.
-        int callableType = callable.CALLABLE_TYPE_COMBAT_PET;
+        // Pre-CU multi-droid: active list + command modules; creature pets stay single-slot.
         if (petType == PET_TYPE_DROID)
         {
-            callableType = callable.CALLABLE_TYPE_COMBAT_OTHER;
+            int count = countActiveDroids(master);
+            if (isIdValid(pet) && isActiveDroid(master, pet))
+            {
+                count -= 1;
+            }
+            return count >= getMaxDroidPets(master);
         }
-        else if (petType == PET_TYPE_FAMILIAR)
+        int callableType = callable.CALLABLE_TYPE_COMBAT_PET;
+        if (petType == PET_TYPE_FAMILIAR)
         {
             callableType = callable.CALLABLE_TYPE_FAMILIAR;
         }
@@ -532,27 +554,287 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
         }
         if (!isIdValid(pet))
         {
-            if (callable.hasCallable(master, callableType))
+            return callable.hasCallable(master, callableType);
+        }
+        return callable.hasCallable(master, callableType, pet);
+    }
+
+    /**
+     * Extra droid slots from one PCD/deed command module.
+     * 1-5 = direct extras; 6-100 = craft quality mapped to 1-5 via (q+19)/20.
+     */
+    public static int getDroidCommandExtraSlots(obj_id pcdOrDeed) throws InterruptedException
+    {
+        if (!isIdValid(pcdOrDeed) || !exists(pcdOrDeed))
+        {
+            return 0;
+        }
+        if (!hasObjVar(pcdOrDeed, MODULE_DROID_COMMAND))
+        {
+            return 0;
+        }
+        int rating = getIntObjVar(pcdOrDeed, MODULE_DROID_COMMAND);
+        if (rating <= 0)
+        {
+            return 0;
+        }
+        // Direct extras: module_data.droid_command N → +N slots when N <= cap (clear tests).
+        // Above cap: treat as stacked quality (~20 points → +1 slot), still hard-capped.
+        int extra;
+        if (rating <= MAX_EXTRA_DROID_COMMAND_SLOTS)
+        {
+            extra = rating;
+        }
+        else
+        {
+            extra = (rating + 19) / 20;
+        }
+        if (extra < 1)
+        {
+            extra = 1;
+        }
+        if (extra > MAX_EXTRA_DROID_COMMAND_SLOTS)
+        {
+            extra = MAX_EXTRA_DROID_COMMAND_SLOTS;
+        }
+        return extra;
+    }
+
+    public static int getMaxDroidPets(obj_id master) throws InterruptedException
+    {
+        if (!isIdValid(master))
+        {
+            return MAX_DROID_PETS;
+        }
+        // Only the single highest-rated command droid among those OUT grants extras.
+        // Modules stack on that one droid (module_data.droid_command total); other droids' modules do not add.
+        obj_id commander = getCommandingDroid(master);
+        int extra = 0;
+        if (isIdValid(commander))
+        {
+            extra = getDroidCommandExtraSlotsForOutDroid(commander);
+        }
+        int max = 1 + extra;
+        int hardCap = 1 + MAX_EXTRA_DROID_COMMAND_SLOTS;
+        if (max > hardCap)
+        {
+            max = hardCap;
+        }
+        if (max < 1)
+        {
+            max = 1;
+        }
+        return max;
+    }
+
+    /**
+     * Total command-module extras for an out droid (PCD preferred, else body).
+     * Stacked modules are already summed into module_data.droid_command at craft/install.
+     */
+    public static int getDroidCommandExtraSlotsForOutDroid(obj_id droid) throws InterruptedException
+    {
+        if (!isIdValid(droid) || !exists(droid))
+        {
+            return 0;
+        }
+        obj_id pcd = callable.getCallableCD(droid);
+        int fromPcd = getDroidCommandExtraSlots(pcd);
+        if (fromPcd > 0)
+        {
+            return fromPcd;
+        }
+        return getDroidCommandExtraSlots(droid);
+    }
+
+    /**
+     * Among OUT droids, the one with the highest command-module extras is the commander.
+     * Ties: first in the active list wins.
+     */
+    public static obj_id getCommandingDroid(obj_id master) throws InterruptedException
+    {
+        if (!isIdValid(master))
+        {
+            return null;
+        }
+        Vector active = getActiveDroidVector(master);
+        obj_id best = null;
+        int bestExtra = 0;
+        if (active == null)
+        {
+            return null;
+        }
+        for (int i = 0; i < active.size(); i++)
+        {
+            obj_id droid = (obj_id)active.get(i);
+            if (!isIdValid(droid) || !exists(droid))
             {
-                return true;
+                continue;
             }
-            else 
+            int extra = getDroidCommandExtraSlotsForOutDroid(droid);
+            if (extra > bestExtra)
             {
-                return false;
+                bestExtra = extra;
+                best = droid;
             }
         }
-        else 
+        // Prefer any droid with extras > 0; if none, no commander (max stays 1).
+        if (bestExtra <= 0)
         {
-            if (callable.hasCallable(master, callableType, pet))
+            return null;
+        }
+        return best;
+    }
+
+    /**
+     * When the commanding droid is stored or dies, recall every other linked out droid.
+     */
+    public static void recallLinkedDroidsUnderCommander(obj_id master, obj_id commander) throws InterruptedException
+    {
+        if (!isIdValid(master) || !isIdValid(commander))
+        {
+            return;
+        }
+        Vector active = getActiveDroidVector(master);
+        for (int i = active.size() - 1; i >= 0; i--)
+        {
+            obj_id d = (obj_id)active.get(i);
+            if (!isIdValid(d) || !exists(d) || d == commander)
             {
-                return true;
+                continue;
             }
-            else 
-            {
-                return false;
-            }
+            storePet(d, master);
         }
     }
+
+    public static int countActiveDroids(obj_id master) throws InterruptedException
+    {
+        return getActiveDroidVector(master).size();
+    }
+
+    public static Vector getActiveDroidVector(obj_id master) throws InterruptedException
+    {
+        if (!isIdValid(master))
+        {
+            return new Vector();
+        }
+        if (!utils.hasScriptVar(master, SCRIPTVAR_ACTIVE_DROIDS))
+        {
+            return new Vector();
+        }
+        Vector v = utils.getResizeableObjIdArrayScriptVar(master, SCRIPTVAR_ACTIVE_DROIDS);
+        if (v == null)
+        {
+            return new Vector();
+        }
+        Vector cleaned = new Vector();
+        for (int i = 0; i < v.size(); i++)
+        {
+            obj_id id = (obj_id)v.get(i);
+            if (isIdValid(id) && exists(id))
+            {
+                cleaned.add(id);
+            }
+        }
+        if (cleaned.size() != v.size())
+        {
+            utils.setScriptVar(master, SCRIPTVAR_ACTIVE_DROIDS, cleaned);
+        }
+        return cleaned;
+    }
+
+    public static boolean isActiveDroid(obj_id master, obj_id pet) throws InterruptedException
+    {
+        Vector v = getActiveDroidVector(master);
+        for (int i = 0; i < v.size(); i++)
+        {
+            if (pet == (obj_id)v.get(i))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static void addActiveDroid(obj_id master, obj_id pet) throws InterruptedException
+    {
+        if (!isIdValid(master) || !isIdValid(pet))
+        {
+            return;
+        }
+        Vector v = getActiveDroidVector(master);
+        if (!isActiveDroid(master, pet))
+        {
+            v.add(pet);
+            utils.setScriptVar(master, SCRIPTVAR_ACTIVE_DROIDS, v);
+        }
+        if (!callable.hasCallable(master, callable.CALLABLE_TYPE_COMBAT_OTHER))
+        {
+            callable.setCallable(master, pet, callable.CALLABLE_TYPE_COMBAT_OTHER);
+        }
+    }
+
+    public static void removeActiveDroid(obj_id master, obj_id pet) throws InterruptedException
+    {
+        if (!isIdValid(master) || !isIdValid(pet))
+        {
+            return;
+        }
+        // If this was the commanding droid, pull the whole linked army before list update.
+        obj_id commander = getCommandingDroid(master);
+        boolean wasCommander = isIdValid(commander) && commander == pet;
+        if (wasCommander)
+        {
+            recallLinkedDroidsUnderCommander(master, pet);
+        }
+        Vector v = getActiveDroidVector(master);
+        Vector next = new Vector();
+        for (int i = 0; i < v.size(); i++)
+        {
+            obj_id id = (obj_id)v.get(i);
+            if (isIdValid(id) && id != pet && exists(id))
+            {
+                next.add(id);
+            }
+        }
+        if (next.size() == 0)
+        {
+            utils.removeScriptVar(master, SCRIPTVAR_ACTIVE_DROIDS);
+            callable.setCallable(master, null, callable.CALLABLE_TYPE_COMBAT_OTHER);
+        }
+        else
+        {
+            utils.setScriptVar(master, SCRIPTVAR_ACTIVE_DROIDS, next);
+            obj_id primary = (obj_id)next.get(0);
+            callable.setCallable(master, primary, callable.CALLABLE_TYPE_COMBAT_OTHER);
+        }
+        enforceDroidCommandCap(master);
+    }
+
+    public static void enforceDroidCommandCap(obj_id master) throws InterruptedException
+    {
+        if (!isIdValid(master))
+        {
+            return;
+        }
+        int max = getMaxDroidPets(master);
+        Vector v = getActiveDroidVector(master);
+        int guard = 0;
+        while (v.size() > max && guard++ < 16)
+        {
+            obj_id excess = (obj_id)v.get(v.size() - 1);
+            if (isIdValid(excess) && exists(excess))
+            {
+                storePet(excess, master);
+            }
+            else
+            {
+                v.remove(v.size() - 1);
+                utils.setScriptVar(master, SCRIPTVAR_ACTIVE_DROIDS, v);
+            }
+            v = getActiveDroidVector(master);
+        }
+    }
+
     public static void initializePetCommandList(obj_id pet, obj_id pcd) throws InterruptedException
     {
         dictionary petCommandList = new dictionary();
@@ -2161,6 +2443,11 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
                 setCount(petControlDevice, 0);
             }
         }
+        // Multi-droid: update active list immediately (commander store recalls linked army).
+        if (isIdValid(master) && (isDroidPet(pet) || callable.getCallableType(pet) == callable.CALLABLE_TYPE_COMBAT_OTHER))
+        {
+            removeActiveDroid(master, pet);
+        }
 //        sendSystemMessageTestingOnly(master, "TAMEDEBUG: storePet about to messageTo handlePackRequest pet=" + pet);
         messageTo(pet, "handlePackRequest", null, 0, false);
     }
@@ -2465,6 +2752,14 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
     }
     public static void addToPetList(obj_id master, obj_id pet) throws InterruptedException
     {
+        // Pre-CU multi-droid: register on active list; do not store other droids.
+        int _ctype = callable.getCallableType(pet);
+        if (_ctype == callable.CALLABLE_TYPE_COMBAT_OTHER || isDroidPet(pet))
+        {
+            addActiveDroid(master, pet);
+            return;
+        }
+
         if (!isIdValid(master) || !exists(master) || !isIdValid(pet) || !exists(pet))
         {
             return;
@@ -2487,6 +2782,17 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
     }
     public static void storeAllPets(obj_id master) throws InterruptedException
     {
+        // Pre-CU multi-droid: pack every active droid, then remaining callables.
+        Vector active = getActiveDroidVector(master);
+        for (int i = active.size() - 1; i >= 0; i--)
+        {
+            obj_id d = (obj_id)active.get(i);
+            if (isIdValid(d) && exists(d))
+            {
+                storePet(d, master);
+            }
+        }
+
         callable.storeCallables(master);
     }
     public static boolean isNearMedicalDroid(obj_id master, float range) throws InterruptedException

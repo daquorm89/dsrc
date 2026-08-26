@@ -130,7 +130,23 @@ public class crafting_base_droid extends script.systems.crafting.crafting_base
                             }
                         }
                         break;
-                    case "merchant_barker":
+                                        case "droid_command_module":
+                        // Pre-CU multi-droid command. Modules STACK on this droid (sum quality/rating).
+                        // Runtime: only the highest-total out droid grants extras; 1-5 direct or 6-100 quality map.
+                        {
+                            int cmd = (int)(itemAttributes[i].currentValue + 0.5f);
+                            if (cmd > 0)
+                            {
+                                int existing = 0;
+                                if (hasObjVar(prototype, "module_data.droid_command"))
+                                {
+                                    existing = getIntObjVar(prototype, "module_data.droid_command");
+                                }
+                                setObjVar(prototype, "module_data.droid_command", existing + cmd);
+                            }
+                        }
+                        break;
+case "merchant_barker":
                         if (itemAttribute.currentValue > 0) {
                             setObjVar(prototype, "module_data.merchant_barker", true);
                         }
