@@ -5375,18 +5375,11 @@ public class player_structure extends script.base_script
     }
     public static int getMaintenanceHeartbeat() throws InterruptedException
     {
-        // 86400s pairs with getMaintenanceRate() == 1 → 1 credit per day.
-        final int MAINTENANCE_HEARTBEAT = 86400;
-        String strConfigSetting = getConfigSetting("GameServer", "maintenanceHeartbeat");
-        if ((strConfigSetting != null) && (!strConfigSetting.equals("")))
-        {
-            int intHeartBeat = utils.stringToInt(strConfigSetting);
-            if (intHeartBeat > 0)
-            {
-                return intHeartBeat;
-            }
-        }
-        return MAINTENANCE_HEARTBEAT;
+        // Pre-CU policy: ALWAYS 1 day. Paired with getMaintenanceRate() == 1 →
+        // exactly 1 credit per day. Config override removed so a short
+        // maintenanceHeartbeat in server cfg cannot accelerate pool drain.
+        // REVERT = restore getConfigSetting("GameServer", "maintenanceHeartbeat").
+        return 86400;
     }
     public static void sendOutOfMaintenanceMail(obj_id objStructure) throws InterruptedException
     {

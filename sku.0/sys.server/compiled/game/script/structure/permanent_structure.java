@@ -342,10 +342,13 @@ public class permanent_structure extends script.base_script
                 CustomerServiceLog("playerStructure", "Structure " + self + " has a loop of less than zero (" + loops + ")  Owner is " + player_structure.getStructureOwner(self));
                 loops = 0;
             }
-            if (loops > 200)
+            // Cap catch-up at 7 days so a long offline / restart cannot wipe
+            // hundreds of credits in one shot (old cap was 200). With rate=1
+            // and heartbeat=86400 that is at most 7 credits per structure.
+            if (loops > 7)
             {
-                CustomerServiceLog("playerStructure", "Structure " + self + " has a suspicious number of unpaid maintenance loops (" + loops + ")  Owner is " + player_structure.getStructureOwner(self));
-                loops = 200;
+                CustomerServiceLog("playerStructure", "Structure " + self + " has a suspicious number of unpaid maintenance loops (" + loops + ")  Owner is " + player_structure.getStructureOwner(self) + " — capping at 7");
+                loops = 7;
             }
             if (boolSender)
             {
