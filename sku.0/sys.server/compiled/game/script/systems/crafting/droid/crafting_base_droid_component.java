@@ -35,6 +35,8 @@ public class crafting_base_droid_component extends script.systems.crafting.craft
                     setObjVar(prototype, craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".useModifier", itemAttribute.currentValue);
                 } else if (((itemAttribute.name).getAsciiId()).equals("cmbt_module")) {
                     setObjVar(prototype, craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".cmbt_module", itemAttribute.currentValue);
+                } else if (((itemAttribute.name).getAsciiId()).equals("droid_command_module")) {
+                    setObjVar(prototype, craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".droid_command_module", itemAttribute.currentValue);
                 } else if (((itemAttribute.name).getAsciiId()).equals("struct_module")) {
                     setObjVar(prototype, craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".struct_module", (int) itemAttribute.currentValue);
                 } else if (((itemAttribute.name).getAsciiId()).equals("fire_potency") && itemAttribute.currentValue > 0) {

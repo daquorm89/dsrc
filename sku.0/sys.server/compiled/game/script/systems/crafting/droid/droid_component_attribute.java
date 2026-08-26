@@ -242,6 +242,17 @@ public class droid_component_attribute extends script.base_script
                 return SCRIPT_CONTINUE;
             }
         }
+        if (hasObjVar(self, craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".droid_command_module"))
+        {
+            names[idx] = "droid_command_module";
+            int cmd = (int)getFloatObjVar(self, craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".droid_command_module");
+            attribs[idx] = " " + cmd + " (+slots)";
+            idx++;
+            if (idx >= names.length)
+            {
+                return SCRIPT_CONTINUE;
+            }
+        }
         if (hasObjVar(self, craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".harvest_power"))
         {
             names[idx] = "harvest_power";
