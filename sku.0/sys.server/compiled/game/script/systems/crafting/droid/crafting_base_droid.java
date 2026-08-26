@@ -130,7 +130,17 @@ public class crafting_base_droid extends script.systems.crafting.crafting_base
                             }
                         }
                         break;
-                    case "merchant_barker":
+                                        case "droid_command_module":
+                        // Pre-CU multi-droid command. 1-5 = direct extras; 6-100 = quality → 1-5 extras at runtime.
+                        {
+                            int cmd = (int)(itemAttributes[i].currentValue + 0.5f);
+                            if (cmd > 0)
+                            {
+                                setObjVar(prototype, "module_data.droid_command", cmd);
+                            }
+                        }
+                        break;
+case "merchant_barker":
                         if (itemAttribute.currentValue > 0) {
                             setObjVar(prototype, "module_data.merchant_barker", true);
                         }
