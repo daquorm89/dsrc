@@ -47,7 +47,8 @@ public class pet_lib extends script.base_script
     // Pre-CU multi-droid: base 1 out + extras from module_data.droid_command on OUT droids.
     public static final String SCRIPTVAR_ACTIVE_DROIDS = "callable.active_droids";
     public static final String MODULE_DROID_COMMAND = "module_data.droid_command";
-    public static final int MAX_EXTRA_DROID_COMMAND_SLOTS = 5;
+    // Hard cap on extras from one commanding droid (total out = 1 + extras). 24 → up to 25 out.
+    public static final int MAX_EXTRA_DROID_COMMAND_SLOTS = 24;
     public static final int MAX_FAMILIAR_PETS = 1;
     public static final int MAX_MOUNT_PETS = 1;
     public static final int MAX_UNTRAINED_PETS = 1;
