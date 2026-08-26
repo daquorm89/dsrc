@@ -73,6 +73,11 @@ public class crafting_droid_components extends script.systems.crafting.droid.cra
             new resource_weight.weight(craftinglib.RESOURCE_QUALITY, 1),
             new resource_weight.weight(craftinglib.RESOURCE_CONDUCTIVITY, 1)
         }),
+        new resource_weight("droid_command_module", new resource_weight.weight[]
+        {
+            new resource_weight.weight(craftinglib.RESOURCE_QUALITY, 1),
+            new resource_weight.weight(craftinglib.RESOURCE_CONDUCTIVITY, 1)
+        }),
         new resource_weight("harvest_power", new resource_weight.weight[]
         {
             new resource_weight.weight(craftinglib.RESOURCE_QUALITY, 1),
@@ -177,6 +182,11 @@ public class crafting_droid_components extends script.systems.crafting.droid.cra
             new resource_weight.weight(craftinglib.RESOURCE_CONDUCTIVITY, 1)
         }),
         new resource_weight("trap_bonus", new resource_weight.weight[]
+        {
+            new resource_weight.weight(craftinglib.RESOURCE_QUALITY, 1),
+            new resource_weight.weight(craftinglib.RESOURCE_CONDUCTIVITY, 1)
+        }),
+        new resource_weight("droid_command_module", new resource_weight.weight[]
         {
             new resource_weight.weight(craftinglib.RESOURCE_QUALITY, 1),
             new resource_weight.weight(craftinglib.RESOURCE_CONDUCTIVITY, 1)
