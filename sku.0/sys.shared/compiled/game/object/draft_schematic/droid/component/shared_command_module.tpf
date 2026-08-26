@@ -1,7 +1,7 @@
 // ======================================================================
 //
 // shared_command_module.tpf
-// Pre-CU multi-droid command module
+// Pre-CU multi-droid command module (mirrors harvest_module structure)
 //
 // ======================================================================
 
@@ -20,7 +20,7 @@ attributes = [
 slots = [
 	[name = "craft_droid_ingredients_n" "module_frame", hardpoint = ""],
 	[name = "craft_droid_ingredients_n" "data_storage_matrix", hardpoint = ""],
-	[name = "craft_droid_ingredients_n" "processor_unit", hardpoint = ""]]
+	[name = "craft_droid_ingredients_n" "micro_harvesters", hardpoint = ""]]
 
 craftedSharedTemplate="object/tangible/component/droid/shared_command_module.iff"
 
