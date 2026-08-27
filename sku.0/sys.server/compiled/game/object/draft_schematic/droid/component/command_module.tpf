@@ -1,8 +1,5 @@
 // ======================================================================
-//
-// command_module.tpf
-// Pre-CU multi-droid command module — craftable DE component
-//
+// command_module.tpf — Pre-CU multi-droid command (structure = detonation_module)
 // ======================================================================
 
 @base object/draft_schematic/droid/base_droid_schematic.iff
@@ -16,7 +13,7 @@ slots = [
 	optional = false,
 	name = "craft_droid_ingredients_n" "module_frame",
 	options = [
-		[ingredientType=IT_resourceClass, ingredients = [[name="craft_droid_ingredients_n" "module_frame", ingredient="copper", count=50]], complexity = 0, skillCommand = "unskilled"]],
+		[ingredientType=IT_resourceClass, ingredients = [[name="craft_droid_ingredients_n" "module_frame", ingredient="copper", count=40]], complexity = 0, skillCommand = "unskilled"]],
 	optionalSkillCommand = "",
 	complexity = 0,
 	appearance = "" ],
@@ -24,15 +21,15 @@ slots = [
 	optional = false,
 	name = "craft_droid_ingredients_n" "data_storage_matrix",
 	options = [
-		[ingredientType=IT_resourceClass, ingredients = [[name="craft_droid_ingredients_n" "data_storage_matrix", ingredient="gas_inert", count=25]], complexity = 0, skillCommand = "unskilled"]],
+		[ingredientType=IT_resourceClass, ingredients = [[name="craft_droid_ingredients_n" "data_storage_matrix", ingredient="gas_inert", count=20]], complexity = 0, skillCommand = "unskilled"]],
 	optionalSkillCommand = "",
 	complexity = 0,
 	appearance = "" ],
 	[
 	optional = false,
-	name = "craft_droid_ingredients_n" "processor_unit",
+	name = "craft_droid_ingredients_n" "reaction_chamber",
 	options = [
-		[ingredientType=IT_resourceClass, ingredients = [[name="craft_droid_ingredients_n" "processor_unit", ingredient="steel", count=60]], complexity = 0, skillCommand = "unskilled"]],
+		[ingredientType=IT_resourceClass, ingredients = [[name="craft_droid_ingredients_n" "reaction_chamber", ingredient="steel", count=55]], complexity = 0, skillCommand = "unskilled"]],
 	optionalSkillCommand = "",
 	complexity = 0,
 	appearance = "" ]]
@@ -43,6 +40,6 @@ manufactureScripts = [ "systems.crafting.droid.crafted_items.crafting_droid_comp
 
 @class object_template 8
 
-complexity = 20
+complexity = 21
 sharedTemplate = "object/draft_schematic/droid/component/shared_command_module.iff"
 volume = 1
