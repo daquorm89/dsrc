@@ -37,6 +37,15 @@ public class crafting_base_droid_component extends script.systems.crafting.craft
                     setObjVar(prototype, craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".cmbt_module", itemAttribute.currentValue);
                 } else if (((itemAttribute.name).getAsciiId()).equals("droid_command_module")) {
                     setObjVar(prototype, craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".droid_command_module", itemAttribute.currentValue);
+                } else if (((itemAttribute.name).getAsciiId()).equals("bomb_level")) {
+                    // command_module schematic uses bomb_level (known client attr) as the rating field
+                    setObjVar(prototype, craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".bomb_level", (int) itemAttribute.currentValue);
+                    String tmpl = getTemplateName(prototype);
+                    if (tmpl != null && tmpl.indexOf("command_module") >= 0)
+                    {
+                        // Multi-droid command: map experiment rating onto droid_command_module
+                        setObjVar(prototype, craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".droid_command_module", itemAttribute.currentValue);
+                    }
                 } else if (((itemAttribute.name).getAsciiId()).equals("struct_module")) {
                     setObjVar(prototype, craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".struct_module", (int) itemAttribute.currentValue);
                 } else if (((itemAttribute.name).getAsciiId()).equals("fire_potency") && itemAttribute.currentValue > 0) {

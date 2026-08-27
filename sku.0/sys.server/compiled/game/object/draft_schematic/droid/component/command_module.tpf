@@ -1,7 +1,4 @@
-// ======================================================================
-// command_module.tpf — Pre-CU multi-droid command (structure = detonation_module)
-// ======================================================================
-
+// Pre-CU multi-droid command module — identical structure to detonation_module
 @base object/draft_schematic/droid/base_droid_schematic.iff
 
 @class draft_schematic_object_template 7
@@ -29,7 +26,7 @@ slots = [
 	optional = false,
 	name = "craft_droid_ingredients_n" "reaction_chamber",
 	options = [
-		[ingredientType=IT_resourceClass, ingredients = [[name="craft_droid_ingredients_n" "reaction_chamber", ingredient="steel", count=55]], complexity = 0, skillCommand = "unskilled"]],
+		[ingredientType=IT_resourceClass, ingredients = [[name="craft_droid_ingredients_n" "reaction_chamber", ingredient="gas_reactive_tolium", count=80]], complexity = 0, skillCommand = "unskilled"]],
 	optionalSkillCommand = "",
 	complexity = 0,
 	appearance = "" ]]
