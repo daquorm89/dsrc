@@ -64,15 +64,27 @@ public class player_utility extends script.base_script
         {
             final String cmdSchem = "object/draft_schematic/droid/component/command_module.iff";
             boolean ok = grantSchematic(self, cmdSchem);
+            boolean okGroup = grantSchematicGroup(self, "craftdroidgenmodGroupE");
+            CustomerServiceLog("precu_command_module", "player " + getFirstName(self) + " grantSchematic=" + ok + " grantSchematicGroupE=" + okGroup);
+            // Always-visible flytext-style system message (not TestingOnly)
             if (ok)
             {
-                sendSystemMessageTestingOnly(self, "granted command_module schematic OK");
+                sendSystemMessage(self, "Command module schematic: GRANT OK", null);
             }
             else
             {
-                sendSystemMessageTestingOnly(self, "grantSchematic command_module FAILED (template load?)");
+                sendSystemMessage(self, "Command module schematic: GRANT FAILED - template missing on server", null);
+            }
+            if (okGroup)
+            {
+                sendSystemMessage(self, "Group E schematic grant: OK", null);
+            }
+            else
+            {
+                sendSystemMessage(self, "Group E schematic grant: FAILED", null);
             }
         }
+
 
         // Ensure Pre-CU medical command wrappers are present on existing characters
         if (!hasScript(self, "systems.healing.medical_commands"))
