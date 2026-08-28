@@ -546,6 +546,18 @@ public class pet extends script.base_script
                             return SCRIPT_CONTINUE;
                         }
                     }
+                    // Pre-CU multi-droid command module (from PCD)
+                    if (hasObjVar(petControlDevice, "module_data.droid_command"))
+                    {
+                        names[idx] = "pet_stats.droid_command_module";
+                        int cmd = getIntObjVar(petControlDevice, "module_data.droid_command");
+                        attribs[idx] = " " + cmd + " (+slots)";
+                        idx++;
+                        if (idx >= names.length)
+                        {
+                            return SCRIPT_CONTINUE;
+                        }
+                    }
                     if (hasObjVar(petControlDevice, "module_data.entertainer_effects"))
                     {
                         String[] effects = pet_lib.getLightingEffects(petControlDevice);
