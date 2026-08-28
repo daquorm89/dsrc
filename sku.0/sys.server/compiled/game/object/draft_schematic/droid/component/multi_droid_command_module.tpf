@@ -25,7 +25,7 @@ slots = [
 	optional = false,
 	name = "craft_droid_ingredients_n" "reaction_chamber",
 	options = [
-		[ingredientType=IT_resourceClass, ingredients = [[name="craft_droid_ingredients_n" "reaction_chamber", ingredient="gas_reactive_tolium", count=80]], complexity = 0, skillCommand = "unskilled"]],
+		[ingredientType=IT_resourceClass, ingredients = [[name="craft_droid_ingredients_n" "reaction_chamber", ingredient="steel", count=55]], complexity = 0, skillCommand = "unskilled"]],
 	optionalSkillCommand = "",
 	complexity = 0,
 	appearance = "" ]]
