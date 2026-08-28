@@ -2320,8 +2320,6 @@ craftSaberNovice	object/draft_schematic/weapon/lightsaber/lightsaber_polearm_gen
 craftSaberOneHand2	object/draft_schematic/weapon/lightsaber/lightsaber_one_hand_gen2.iff
 craftSaberOneHand3	object/draft_schematic/weapon/lightsaber/lightsaber_one_hand_gen3.iff
 craftSaberOneHand5	object/draft_schematic/weapon/lightsaber/lightsaber_one_hand_gen5.iff
-craftSaberPoleArm2	object/draft_schematic/weapon/lightsaber/lightsaber_polearm_gen2.iff
-craftSaberPoleArm3	object/draft_schematic/weapon/lightsaber/lightsaber_polearm_gen3.iff
 craftSaberTraining	object/draft_schematic/weapon/lightsaber/lightsaber_training.iff
 craftSaberTwoHand2	object/draft_schematic/weapon/lightsaber/lightsaber_two_hand_gen2.iff
 craftSaberTwoHand3	object/draft_schematic/weapon/lightsaber/lightsaber_two_hand_gen3.iff
