@@ -33,6 +33,7 @@ attributes = [
 	[name = "crafting" "playback_module", experiment = "" "", value = 0..0],
 	[name = "crafting" "struct_module", experiment = "" "", value = 0..0],
 	[name = "crafting" "harvest_power", experiment = "" "", value = 0..0],
+	[name = "crafting" "droid_command_module", experiment = "" "", value = 0..0],
 	[name = "crafting" "trap_bonus", experiment = "" "", value = 0..0],
 	[name = "crafting" "entertainer_effects", experiment = "" "", value = 0..0],
 	[name = "crafting" "fire_potency", experiment = "" "", value = 0..0],
