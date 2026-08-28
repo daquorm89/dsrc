@@ -783,7 +783,7 @@ craftdroidgenmodGroupE	object/draft_schematic/droid/component/personality_module
 craftdroidgenmodGroupE	object/draft_schematic/droid/component/crafting_module_structure.iff
 craftdroidgenmodGroupE	object/draft_schematic/droid/component/performer_effects_e.iff
 craftdroidgenmodGroupE	object/draft_schematic/droid/component/detonation_module.iff
-craftdroidgenmodGroupE	object/draft_schematic/droid/component/command_module.iff
+craftdroidgenmodGroupE	object/draft_schematic/droid/component/multi_droid_command_module.iff
 craftdroidgenmodGroupE	object/draft_schematic/droid/droid_cww8_droid.iff
 craftdroidgenmodGroupE	object/draft_schematic/droid/component/chassis_droid_cww8.iff
 craftdroiddefmodGroupE	object/draft_schematic/droid/component/armor_module_5.iff

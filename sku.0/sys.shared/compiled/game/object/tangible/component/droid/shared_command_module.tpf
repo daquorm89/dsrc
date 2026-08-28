@@ -5,9 +5,9 @@
 
 @class object_template 7
 
-objectName = "craft_droid_ingredients_n" "detonation_module"
-detailedDescription = "craft_droid_ingredients_d" "detonation_module"
-lookAtText = "weapon_lookat" "detonation_module"
+objectName = "craft_droid_ingredients_n" "merchant_barker"
+detailedDescription = "craft_droid_ingredients_d" "merchant_barker"
+lookAtText = "weapon_lookat" "merchant_barker"
 appearanceFilename = "appearance/eqp_comp_droid_module_s01.apt"
 
 portalLayoutFilename = ""
