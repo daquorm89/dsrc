@@ -4,7 +4,9 @@ import script.dictionary;
 import script.draft_schematic;
 import script.library.craftinglib;
 import script.library.pet_lib;
+import script.library.utils;
 import script.obj_id;
+import script.modifiable_int;
 
 public class crafting_base_droid extends script.systems.crafting.crafting_base
 {
@@ -255,6 +257,78 @@ case "merchant_barker":
         {
             pet_lib.initDroidDefaultStats(deed);
         }
+    }
+    /**
+     * Before assembly finishes, read droid_command_module from slotted ingredient
+     * components and ensure module_data.droid_command is on the deed prototype.
+     * Does not rely on schematic attribute merge (which can miss if IFF is stale).
+     */
+    public int OnManufacturingSchematicCreation(obj_id self, obj_id player, obj_id prototype, draft_schematic schematic, modifiable_int assemblyResult, modifiable_int experimentPoints) throws InterruptedException
+    {
+        int cmdTotal = 0;
+        if (schematic != null)
+        {
+            draft_schematic.slot[] slots = schematic.getSlots();
+            if (slots != null)
+            {
+                for (int i = 0; i < slots.length; i++)
+                {
+                    if (slots[i] == null || slots[i].ingredients == null)
+                    {
+                        continue;
+                    }
+                    for (int j = 0; j < slots[i].ingredients.length; j++)
+                    {
+                        if (slots[i].ingredients[j] == null)
+                        {
+                            continue;
+                        }
+                        obj_id ing = slots[i].ingredients[j].ingredient;
+                        if (!isIdValid(ing) || !exists(ing))
+                        {
+                            continue;
+                        }
+                        String key = craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".droid_command_module";
+                        if (hasObjVar(ing, key))
+                        {
+                            float f = getFloatObjVar(ing, key);
+                            int v = (int)(f + 0.5f);
+                            if (v <= 0)
+                            {
+                                v = getIntObjVar(ing, key);
+                            }
+                            if (v > 0)
+                            {
+                                cmdTotal += v;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (cmdTotal > 0)
+        {
+            utils.setScriptVar(self, "precu.pending_droid_command", cmdTotal);
+        }
+        int result = super.OnManufacturingSchematicCreation(self, player, prototype, schematic, assemblyResult, experimentPoints);
+        if (utils.hasScriptVar(self, "precu.pending_droid_command") && isIdValid(prototype) && exists(prototype))
+        {
+            int cmd = utils.getIntScriptVar(self, "precu.pending_droid_command");
+            utils.removeScriptVar(self, "precu.pending_droid_command");
+            if (cmd > 0)
+            {
+                int existing = 0;
+                if (hasObjVar(prototype, "module_data.droid_command"))
+                {
+                    existing = getIntObjVar(prototype, "module_data.droid_command");
+                }
+                if (cmd > existing)
+                {
+                    setObjVar(prototype, "module_data.droid_command", cmd);
+                }
+            }
+        }
+        return result;
     }
     public String getCreatureName() throws InterruptedException
     {
