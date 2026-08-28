@@ -47,8 +47,8 @@ public class pet_lib extends script.base_script
     // Pre-CU multi-droid: base 1 out + extras from module_data.droid_command on OUT droids.
     public static final String SCRIPTVAR_ACTIVE_DROIDS = "callable.active_droids";
     public static final String MODULE_DROID_COMMAND = "module_data.droid_command";
-    // Hard cap on extras from one commanding droid (total out = 1 + extras). 100 → up to 101 out (test-friendly).
-    public static final int MAX_EXTRA_DROID_COMMAND_SLOTS = 100;
+    // Hard cap on extras from one commanding droid (total out = 1 + extras). Module quality 0-5 → +0..5 slots.
+    public static final int MAX_EXTRA_DROID_COMMAND_SLOTS = 5;
     public static final int MAX_FAMILIAR_PETS = 1;
     public static final int MAX_MOUNT_PETS = 1;
     public static final int MAX_UNTRAINED_PETS = 1;
@@ -561,7 +561,8 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
 
     /**
      * Extra droid slots from one PCD/deed command module.
-     * 1-5 = direct extras; 6-100 = craft quality mapped to 1-5 via (q+19)/20.
+     * Module quality is 0-5 (experiment range); rating maps 1:1 to extra slots (capped).
+     * Legacy high ratings (6+) from older crafts still map ~20 quality points → +1 slot.
      */
     public static int getDroidCommandExtraSlots(obj_id pcdOrDeed) throws InterruptedException
     {
@@ -578,15 +579,15 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
         {
             return 0;
         }
-        // Direct extras: module_data.droid_command N → +N slots when N <= cap (clear tests).
-        // Above cap: treat as stacked quality (~20 points → +1 slot), still hard-capped.
         int extra;
         if (rating <= MAX_EXTRA_DROID_COMMAND_SLOTS)
         {
+            // 1-5: direct extras from new 0-5 quality range
             extra = rating;
         }
         else
         {
+            // Legacy 6-100+ crafts: map quality to 1-5
             extra = (rating + 19) / 20;
         }
         if (extra < 1)
