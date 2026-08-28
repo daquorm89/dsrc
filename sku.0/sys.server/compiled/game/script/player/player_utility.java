@@ -59,33 +59,6 @@ public class player_utility extends script.base_script
     public static final String GUARD_OCCUPIED = "occupied";
     public int OnLogin(obj_id self) throws InterruptedException
     {
-        // TEMP: force multi-droid command schematic; remove after verified in craft tool
-        /* PRECU_CMD_MODULE_GRANT */
-        {
-            final String cmdSchem = "object/draft_schematic/droid/component/multi_droid_command_module.iff";
-            boolean ok = grantSchematic(self, cmdSchem);
-            boolean okGroup = grantSchematicGroup(self, "craftdroidgenmodGroupE");
-            CustomerServiceLog("precu_command_module", "player " + getFirstName(self) + " grantSchematic=" + ok + " grantSchematicGroupE=" + okGroup);
-            // Always-visible flytext-style system message (not TestingOnly)
-            if (ok)
-            {
-                sendSystemMessage(self, "Command module schematic: GRANT OK", null);
-            }
-            else
-            {
-                sendSystemMessage(self, "Command module schematic: GRANT FAILED - template missing on server", null);
-            }
-            if (okGroup)
-            {
-                sendSystemMessage(self, "Group E schematic grant: OK", null);
-            }
-            else
-            {
-                sendSystemMessage(self, "Group E schematic grant: FAILED", null);
-            }
-        }
-
-
         // Ensure Pre-CU medical command wrappers are present on existing characters
         if (!hasScript(self, "systems.healing.medical_commands"))
         {
