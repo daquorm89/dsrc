@@ -244,7 +244,8 @@ public class droid_component_attribute extends script.base_script
         }
         if (hasObjVar(self, craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".droid_command_module"))
         {
-            names[idx] = "droid_command_module";
+            // Client needs obj_attr_n / pet_stats key; until STF exists shows raw id
+            names[idx] = "pet_stats.droid_command_module";
             int cmd = (int)getFloatObjVar(self, craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".droid_command_module");
             attribs[idx] = " " + cmd + " (+slots)";
             idx++;

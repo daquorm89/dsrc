@@ -1355,6 +1355,18 @@ public class pet_control_device extends script.base_script
                         return SCRIPT_CONTINUE;
                     }
                 }
+                // Pre-CU multi-droid command module rating (extras = this value when <= 100)
+                if (hasObjVar(self, "module_data.droid_command"))
+                {
+                    names[idx] = "pet_stats.droid_command_module";
+                    int cmd = getIntObjVar(self, "module_data.droid_command");
+                    attribs[idx] = " " + cmd + " (+slots)";
+                    idx++;
+                    if (idx >= names.length)
+                    {
+                        return SCRIPT_CONTINUE;
+                    }
+                }
                 if (hasObjVar(self, "module_data.entertainer_effects"))
                 {
                     String[] effects = pet_lib.getLightingEffects(self);
