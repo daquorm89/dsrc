@@ -62,7 +62,7 @@ public class player_utility extends script.base_script
         // TEMP: force multi-droid command schematic; remove after verified in craft tool
         /* PRECU_CMD_MODULE_GRANT */
         {
-            final String cmdSchem = "object/draft_schematic/droid/component/command_module.iff";
+            final String cmdSchem = "object/draft_schematic/droid/component/multi_droid_command_module.iff";
             boolean ok = grantSchematic(self, cmdSchem);
             boolean okGroup = grantSchematicGroup(self, "craftdroidgenmodGroupE");
             CustomerServiceLog("precu_command_module", "player " + getFirstName(self) + " grantSchematic=" + ok + " grantSchematicGroupE=" + okGroup);

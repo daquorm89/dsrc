@@ -41,7 +41,7 @@ public class crafting_base_droid_component extends script.systems.crafting.craft
                     // command_module schematic uses bomb_level (known client attr) as the rating field
                     setObjVar(prototype, craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".bomb_level", (int) itemAttribute.currentValue);
                     String tmpl = getTemplateName(prototype);
-                    if (tmpl != null && tmpl.indexOf("command_module") >= 0)
+                    if (tmpl != null && tmpl.indexOf("multi_droid_command_module") >= 0 || tmpl.indexOf("command_module") >= 0)
                     {
                         // Multi-droid command: map experiment rating onto droid_command_module
                         setObjVar(prototype, craftinglib.COMPONENT_ATTRIBUTE_OBJVAR_NAME + ".droid_command_module", itemAttribute.currentValue);
