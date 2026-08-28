@@ -133,18 +133,21 @@ public class crafting_base_droid extends script.systems.crafting.crafting_base
                         }
                         break;
                                         case "droid_command_module":
-                        // Pre-CU multi-droid command. Modules STACK on this droid (sum quality/rating).
+                        // Pre-CU multi-droid command. itemAttribute.currentValue is the schematic's
+                        // CURRENT MERGED TOTAL for this attribute (already summed across any stacked
+                        // droid_command_module ingredients) - it is a snapshot of full state, not a delta.
+                        // calcAndSetPrototypeProperties() fires multiple times per single craft
+                        // (OnCraftingExperiment per experiment click, OnManufacturingSchematicCreation
+                        // x2, OnFinalizeSchematic) so this MUST overwrite, not add to existing, or the
+                        // value multiplies with every re-fire (e.g. a rating of 3 becoming 12 after 4
+                        // calls). Every other case in this switch (storage_module, personality_module,
+                        // etc.) already treats currentValue this way - this case was the one exception.
                         // Runtime: only the highest-total out droid grants extras; 1-5 direct or 6-100 quality map.
                         {
                             int cmd = (int)(itemAttribute.currentValue + 0.5f);
                             if (cmd > 0)
                             {
-                                int existing = 0;
-                                if (hasObjVar(prototype, "module_data.droid_command"))
-                                {
-                                    existing = getIntObjVar(prototype, "module_data.droid_command");
-                                }
-                                setObjVar(prototype, "module_data.droid_command", existing + cmd);
+                                setObjVar(prototype, "module_data.droid_command", cmd);
                             }
                         }
                         break;
