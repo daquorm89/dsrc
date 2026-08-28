@@ -59,6 +59,21 @@ public class player_utility extends script.base_script
     public static final String GUARD_OCCUPIED = "occupied";
     public int OnLogin(obj_id self) throws InterruptedException
     {
+        // TEMP: force multi-droid command schematic; remove after verified in craft tool
+        /* PRECU_CMD_MODULE_GRANT */
+        {
+            final String cmdSchem = "object/draft_schematic/droid/component/command_module.iff";
+            boolean ok = grantSchematic(self, cmdSchem);
+            if (ok)
+            {
+                sendSystemMessageTestingOnly(self, "granted command_module schematic OK");
+            }
+            else
+            {
+                sendSystemMessageTestingOnly(self, "grantSchematic command_module FAILED (template load?)");
+            }
+        }
+
         // Ensure Pre-CU medical command wrappers are present on existing characters
         if (!hasScript(self, "systems.healing.medical_commands"))
         {
