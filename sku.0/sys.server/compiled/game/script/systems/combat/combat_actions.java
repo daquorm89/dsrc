@@ -11745,6 +11745,33 @@ public class combat_actions extends script.systems.combat.combat_base {
         return SCRIPT_CONTINUE;
     }
 
+
+    public int at_xt_vehicle_blaster(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
+        if (!vehicle.isRidingVehicle(self)) {
+            removeDefaultAttackOverride(self);
+            return SCRIPT_OVERRIDE;
+        }
+        obj_id mount = getMountId(self);
+        if (!isIdValid(mount)) {
+            return SCRIPT_OVERRIDE;
+        }
+        String tmpl = getTemplateName(mount);
+        if (tmpl == null || tmpl.indexOf("walker_at_xt") < 0) {
+            return SCRIPT_OVERRIDE;
+        }
+        if (!isIdValid(target)) {
+            return SCRIPT_CONTINUE;
+        }
+        if (!combatStandardAction("at_xt_vehicle_blaster", self, target, params, "", "")) {
+            return SCRIPT_CONTINUE;
+        }
+        // Client blaster FX from the walker toward the target
+        createClientProjectileObjectToObject(self, "object/weapon/ranged/turret/shared_turret_energy.iff", mount, "muzzle", target, "", 200.0f, 1.0f, false, 0, 0, 0, 0);
+        play2dNonLoopingSound(self, "sound/hoth_snowspeeder_blaster_fire_01.snd");
+        return SCRIPT_CONTINUE;
+    }
+
+
     public int hoth_speeder_takeoff(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
         if (!vehicle.isRidingVehicle(self)) {
             return SCRIPT_OVERRIDE;
