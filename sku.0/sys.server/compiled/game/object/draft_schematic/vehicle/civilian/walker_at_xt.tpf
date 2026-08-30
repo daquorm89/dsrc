@@ -1,0 +1,72 @@
+// ======================================================================
+//
+// walker_at_xt.tpf
+// Craftable AT-XT Walker vehicle deed schematic
+//
+// ======================================================================
+
+@base object/draft_schematic/vehicle/base/base_vehicle_schematic.iff
+
+@class draft_schematic_object_template 7
+
+itemsPerContainer = 50
+craftedObjectTemplate = "object/tangible/deed/vehicle_deed/walker_at_xt_deed.iff"
+slots = [
+	[
+	optional = false,
+	name = "craft_vehicle_ingredients_n" "plating_assembly",
+	options = [
+		[ingredientType=IT_resourceClass, ingredients = [[name="craft_vehicle_ingredients_n" "plating_assembly", ingredient="steel", count=400]], complexity = 0, skillCommand = "unskilled"]],
+	optionalSkillCommand = "",
+	complexity = 0,
+	appearance = "" ],
+	[
+	optional = false,
+	name = "craft_vehicle_ingredients_n" "stabilizor_subframe",
+	options = [
+		[ingredientType=IT_resourceClass, ingredients = [[name="craft_vehicle_ingredients_n" "stabilizor_subframe", ingredient="steel", count=1000]], complexity = 0, skillCommand = "unskilled"]],
+	optionalSkillCommand = "",
+	complexity = 0,
+	appearance = "" ],
+	[
+	optional = false,
+	name = "craft_vehicle_ingredients_n" "avionic_subassembly",
+	options = [
+		[ingredientType=IT_resourceClass, ingredients = [[name="craft_vehicle_ingredients_n" "avionic_subassembly", ingredient="metal", count=350]], complexity = 0, skillCommand = "unskilled"]],
+	optionalSkillCommand = "",
+	complexity = 0,
+	appearance = "" ],
+	[
+	optional = false,
+	name = "craft_vehicle_ingredients_n" "repulsor_assembly",
+	options = [
+		[ingredientType=IT_resourceClass, ingredients = [[name="craft_vehicle_ingredients_n" "repulsor_assembly", ingredient="ore", count=450]], complexity = 0, skillCommand = "unskilled"]],
+	optionalSkillCommand = "",
+	complexity = 0,
+	appearance = "" ],
+	[
+	optional = false,
+	name = "craft_vehicle_ingredients_n" "cockpit_fitout",
+	options = [
+		[ingredientType=IT_resourceClass, ingredients = [[name="craft_vehicle_ingredients_n" "cockpit_fitout", ingredient="petrochem_fuel_liquid", count=300]], complexity = 0, skillCommand = "unskilled"]],
+	optionalSkillCommand = "",
+	complexity = 0,
+	appearance = "" ],
+	[
+	optional = false,
+	name = "craft_vehicle_ingredients_n" "structural_frame",
+	options = [
+		[ingredientType=IT_resourceClass, ingredients = [[name="craft_vehicle_ingredients_n" "structural_frame", ingredient="iron", count=1200]], complexity = 0, skillCommand = "unskilled"]],
+	optionalSkillCommand = "",
+	complexity = 0,
+	appearance = "" ]]
+skillCommands = ["unskilled"]
+manufactureScripts = [ "systems.crafting.vehicle.crafted_item.crafting_vehicle_at_xt" ]
+
+@class intangible_object_template 1
+
+@class object_template 8
+
+complexity = 30
+sharedTemplate = "object/draft_schematic/vehicle/civilian/shared_walker_at_xt.iff"
+volume = 1

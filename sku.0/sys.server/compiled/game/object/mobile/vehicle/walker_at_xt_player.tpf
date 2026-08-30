@@ -8,3 +8,4 @@
 
 sharedTemplate = "object/mobile/vehicle/shared_walker_at_xt_player.iff"
 
+scripts = +[ "systems.vehicle_system.at_xt_combat" ]
