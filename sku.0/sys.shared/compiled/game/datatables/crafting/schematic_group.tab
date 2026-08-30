@@ -1417,6 +1417,7 @@ craftArtisanVehicle	object/draft_schematic/vehicle/vehicle_customization_kit.iff
 craftArtisanVehicle	object/draft_schematic/vehicle/civilian/landspeeder_v35.iff
 craftArtisanVehicle	object/draft_schematic/vehicle/civilian/landspeeder_xp38.iff
 craftArtisanVehicle	object/draft_schematic/vehicle/civilian/landspeeder_ab1.iff
+craftArtisanVehicle	object/draft_schematic/vehicle/civilian/walker_at_xt.iff
 craftShipwrightNoviceGroupA	object/draft_schematic/space/chassis/z95.iff
 craftShipwrightNoviceGroupA	object/draft_schematic/space/chassis/tie_light_duty.iff
 craftShipwrightNoviceGroupA	object/draft_schematic/space/chassis/hutt_light_s01.iff

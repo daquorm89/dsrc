@@ -38,6 +38,7 @@ public class combat_trainer_spawner extends script.base_script
         spawnRanger(self);
         spawnSmuggler(self);
         spawnSquadLeader(self);
+        spawnCommando(self);
         return;
     }
     public void spawnMarksman(obj_id self) throws InterruptedException
@@ -116,6 +117,18 @@ public class combat_trainer_spawner extends script.base_script
         setCreatureStatic(trainer, true);
         setInvulnerable(trainer, true);
         setYaw(trainer, 90);
+        return;
+    }
+
+    public void spawnCommando(obj_id self) throws InterruptedException
+    {
+        obj_id room = getCellId(self, "meetinga");
+        location loc = new location(-13.0f, 1.13f, 0.0f, "tatooine", room);
+        obj_id trainer = create.object("trainer_commando", loc);
+        create.addDestroyMessage(trainer, "commandoDied", 10.0f, self);
+        setCreatureStatic(trainer, true);
+        setInvulnerable(trainer, true);
+        setYaw(trainer, 180);
         return;
     }
     public void spawnJunkdealer(obj_id self) throws InterruptedException
