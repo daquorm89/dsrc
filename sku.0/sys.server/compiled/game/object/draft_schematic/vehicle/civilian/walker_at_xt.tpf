@@ -9,6 +9,8 @@
 
 @class draft_schematic_object_template 7
 
+category = CT_vehicle
+
 itemsPerContainer = 50
 craftedObjectTemplate = "object/tangible/deed/vehicle_deed/walker_at_xt_deed.iff"
 slots = [
@@ -48,7 +50,7 @@ slots = [
 	optional = false,
 	name = "craft_vehicle_ingredients_n" "cockpit_fitout",
 	options = [
-		[ingredientType=IT_resourceClass, ingredients = [[name="craft_vehicle_ingredients_n" "cockpit_fitout", ingredient="petrochem_fuel_liquid", count=300]], complexity = 0, skillCommand = "unskilled"]],
+		[ingredientType=IT_resourceClass, ingredients = [[name="craft_vehicle_ingredients_n" "cockpit_fitout", ingredient="petrochem_fuel_liquid_type5", count=350]], complexity = 0, skillCommand = "unskilled"]],
 	optionalSkillCommand = "",
 	complexity = 0,
 	appearance = "" ],

@@ -28,6 +28,10 @@ craftedSharedTemplate="object/tangible/deed/vehicle_deed/shared_walker_at_xt_dee
 
 @class object_template 8
 
+objectName = "monster_name" "walker_at_xt"
+detailedDescription = "monster_detail" "walker_at_xt"
+lookAtText = "monster_name" "walker_at_xt"
+appearanceFilename = "appearance/pv_at_xt.sat"
 snapToTerrain = false
 containerType = CT_none
 tintPalette = ""
