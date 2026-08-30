@@ -1,4 +1,4 @@
-// Craftable AT-XT Walker vehicle deed (shared)
+// Craftable AT-XT Walker vehicle deed (shared) — matches Basilisk pattern
 
 @base object/tangible/deed/vehicle_deed/shared_vehicle_deed_base.iff
 
@@ -8,4 +8,5 @@
 
 objectName = "monster_name" "walker_at_xt"
 detailedDescription = "monster_detail" "walker_at_xt"
+lookAtText = "monster_name" "walker_at_xt"
 appearanceFilename = "appearance/pv_at_xt.sat"
