@@ -9,7 +9,6 @@
 
 @class draft_schematic_object_template 7
 
-category = CT_vehicle
 
 itemsPerContainer = 50
 craftedObjectTemplate = "object/tangible/deed/vehicle_deed/walker_at_xt_deed.iff"
