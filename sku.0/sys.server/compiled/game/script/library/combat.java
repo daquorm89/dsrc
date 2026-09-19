@@ -2596,20 +2596,8 @@ public class combat extends script.base_script
                     hasCert = false;
                 }
             }
-            int levelRequired = -1;
-            int playerLevel = getLevel(objPlayer);
-            if (hasObjVar(objWeapon, weapons.OBJVAR_WP_LEVEL))
-            {
-                levelRequired = getIntObjVar(objWeapon, weapons.OBJVAR_WP_LEVEL);
-            }
-            else 
-            {
-                levelRequired = dataTableGetInt(WEAPON_LEVEL_TABLE, template, "weapon_level");
-            }
-            if (playerLevel < levelRequired)
-            {
-                hasCert = false;
-            }
+            // Pre-CU: ignore NGE weapon combat-level gate (weapon_level / coreLevel).
+            // Skill/cert restrictions above still apply.
         }
         // Pre-CU Jedi: ignore NGE weapon_level gate on lightsabers (levels are NGE balancing)
         if (!hasCert && isLightsaberWeapon(objWeapon) && precuJedi)

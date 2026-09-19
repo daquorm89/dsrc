@@ -340,27 +340,8 @@ public class combat_weapon extends script.base_script
             {
                 itemData = static_item.getMasterItemDictionary(self);
             }
-            int levelRequired = -1;
-            if (hasObjVar(self, weapons.OBJVAR_WP_LEVEL))
-            {
-                levelRequired = getIntObjVar(self, weapons.OBJVAR_WP_LEVEL);
-            }
-            else 
-            {
-                levelRequired = dataTableGetInt(combat.WEAPON_LEVEL_TABLE, template, "weapon_level");
-                if (staticItem)
-                {
-                    levelRequired = itemData.getInt("required_level");
-                }
-                if (static_item.isDynamicItem(self))
-                {
-                    levelRequired = getIntObjVar(self, "dynamic_item.intLevelRequired");
-                }
-            }
-            names[free] = "healing_combat_level_required";
-            attribs[free++] = "" + levelRequired;
-            names[free] = "tooltip.healing_combat_level_required";
-            attribs[free++] = "" + levelRequired;
+            // Pre-CU: do not show NGE combat-level requirement on weapons.
+            // (weapon_level.tab / coreLevel are NGE balancing; this server does not use combat levels.)
             String skillRequired = dataTableGetString(combat.WEAPON_LEVEL_TABLE, template, "secondary_restriction");
             if (staticItem)
             {
