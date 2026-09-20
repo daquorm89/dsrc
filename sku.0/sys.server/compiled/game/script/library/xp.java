@@ -1183,6 +1183,11 @@ public class xp extends script.base_script
         String damPath = basePath + ".damage";
         int tally = utils.getIntScriptVar(target, damPath);
         tally -= utils.getIntScriptVar(target, xpListBasePath + "." + PERMISSIONS_ONLY);
+        // Pre-CU: pet/droid damage is logged on the master as PET_DAMAGE for kill credit
+        // but must not dilute weapon XP. Otherwise a combat droid out heavily nerfs XP
+        // while creature pets that deal little damage barely show the problem.
+        // REVERT: remove the PET_DAMAGE line.
+        tally -= utils.getIntScriptVar(target, xpListBasePath + "." + PET_DAMAGE);
         if (tally < 1)
         {
             return;

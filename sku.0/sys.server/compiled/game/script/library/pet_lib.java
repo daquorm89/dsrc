@@ -1741,18 +1741,21 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
             doConfusedEmote(pet);
             return;
         }
+        // Clear post-combat "ignore attacks" so guard can re-engage (doAttack clears this;
+        // guard previously left it set after a fight, so droids never defended).
+        utils.removeScriptVar(pet, "petIgnoreAttacks");
         utils.removeScriptVar(pet, "ai.pet.staying");
         utils.setScriptVar(pet, "ai.pet.guarding", master);
         setWantSawAttackTriggers(pet, true);
-        // If the pet was following, keep it following; otherwise let calm behaviour resume.
-        // Do NOT force a fresh petFollow – that was stopping ordinary pets.
+        // Stay near the guarded master so OnSawAttack can fire.
+        // Combat droids that were not already following were left idle and never reacted.
         if (ai_lib.isFollowing(pet))
         {
             ai_lib.resumeFollow(pet);
         }
         else
         {
-            messageTo(pet, "resumeDefaultCalmBehavior", null, 0, false);
+            doFollowCommand(pet, master);
         }
     }
     public static boolean isGuarding(obj_id pet, obj_id target) throws InterruptedException

@@ -762,12 +762,33 @@ public class ai extends script.base_script
         {
             if (pet_lib.isPet(self) && pet_lib.isGuarding(self, defender))
             {
+                // Re-enable combat after post-combat ignore window
+                utils.removeScriptVar(self, "petIgnoreAttacks");
                 for (final obj_id attacker : attackers) {
-                    if (isIdValid(attacker)) {
+                    if (!isIdValid(attacker) || attacker == self) {
+                        continue;
+                    }
+                    // Match doAttackCommand gates so droids do not confuse-spam
+                    if (!pvpCanAttack(self, attacker)) {
+                        continue;
+                    }
+                    obj_id master = getMaster(self);
+                    if (isIdValid(master) && !pvpCanAttack(master, attacker)) {
+                        continue;
+                    }
+                    if (pet_lib.cancelAttackDueToFactionalRestrictions(self, attacker)) {
+                        continue;
+                    }
+                    if (!ai_lib.isInCombat(self)) {
                         startCombat(self, attacker);
-                        if (!ai_lib.isInCombat(self) && (defender == getMaster(self))) {
+                        utils.setScriptVar(self, "ai.combat.target", attacker);
+                        if (defender == master) {
                             ai_lib.barkString(self, "ally");
                         }
+                    } else {
+                        float maxHate = getMaxHate(self);
+                        setHate(self, attacker, maxHate + 5000);
+                        utils.setScriptVar(self, "ai.combat.target", attacker);
                     }
                 }
             }
