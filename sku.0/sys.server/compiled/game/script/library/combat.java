@@ -705,9 +705,11 @@ public class combat extends script.base_script
         {
             return 1.0f;
         }
-        // Scale only when the defender is a player or a player-owned pet/droid
+        // Scale only when the defender is a player or a player-owned pet/droid.
+        // getMaster() is creature-only; lairs/buildings/tangibles throw
+        // "getMasterId called with non-creature target" (e.g. poi lair nests).
         boolean defenderPlayerSide = isPlayer(defender);
-        if (!defenderPlayerSide)
+        if (!defenderPlayerSide && isMob(defender))
         {
             obj_id master = getMaster(defender);
             if (isIdValid(master) && isPlayer(master))
