@@ -37,10 +37,19 @@ public class pet_master extends script.base_script
         }
         return SCRIPT_CONTINUE;
     }
-    // Helper: live pet that is currently out (combat pet or trained mount acting as pet)
+    // Helper: live pet/droid that is currently out.
+    // Pre-CU droids use CALLABLE_TYPE_COMBAT_OTHER (separate slot from creature pets).
+    // Guard assist previously only checked COMBAT_PET / RIDEABLE, so droids never
+    // joined attacks when the master was hit or started combat.
     private obj_id getOutCallablePet(obj_id master) throws InterruptedException
     {
         obj_id pet = callable.getCallable(master, callable.CALLABLE_TYPE_COMBAT_PET);
+        if (isIdValid(pet) && exists(pet))
+        {
+            return pet;
+        }
+        // Combat droids / "combat other" callables (Pre-CU droid slot)
+        pet = callable.getCallable(master, callable.CALLABLE_TYPE_COMBAT_OTHER);
         if (isIdValid(pet) && exists(pet))
         {
             return pet;
@@ -52,21 +61,47 @@ public class pet_master extends script.base_script
         }
         return null;
     }
-    public int OnDefenderCombatAction(obj_id self, obj_id attacker, obj_id weapon, int combatResult) throws InterruptedException
-    {
-        obj_id pet = getOutCallablePet(self);
-        if (isIdValid(pet) && exists(pet) && !ai_lib.isInCombat(pet) && !beast_lib.isBeast(pet) && utils.hasScriptVar(pet, "ai.pet.guarding"))
-        {
-            addHate(pet, attacker, 0.0f);
-        }
-        return SCRIPT_CONTINUE;
-    }
-    public int OnAttackerCombatAction(obj_id self, obj_id weapon, obj_id defender) throws InterruptedException
+        public int OnDefenderCombatAction(obj_id self, obj_id attacker, obj_id weapon, int combatResult) throws InterruptedException
     {
         obj_id pet = getOutCallablePet(self);
         if (isIdValid(pet) && exists(pet) && !beast_lib.isBeast(pet) && utils.hasScriptVar(pet, "ai.pet.guarding"))
         {
-            startCombat(pet, defender);
+            utils.removeScriptVar(pet, "petIgnoreAttacks");
+            if (isIdValid(attacker) && pvpCanAttack(pet, attacker) && !pet_lib.cancelAttackDueToFactionalRestrictions(pet, attacker))
+            {
+                if (!ai_lib.isInCombat(pet))
+                {
+                    startCombat(pet, attacker);
+                }
+                else
+                {
+                    float maxHate = getMaxHate(pet);
+                    setHate(pet, attacker, maxHate + 5000);
+                }
+                utils.setScriptVar(pet, "ai.combat.target", attacker);
+            }
+        }
+        return SCRIPT_CONTINUE;
+    }
+        public int OnAttackerCombatAction(obj_id self, obj_id weapon, obj_id defender) throws InterruptedException
+    {
+        obj_id pet = getOutCallablePet(self);
+        if (isIdValid(pet) && exists(pet) && !beast_lib.isBeast(pet) && utils.hasScriptVar(pet, "ai.pet.guarding"))
+        {
+            utils.removeScriptVar(pet, "petIgnoreAttacks");
+            if (isIdValid(defender) && pvpCanAttack(pet, defender) && !pet_lib.cancelAttackDueToFactionalRestrictions(pet, defender))
+            {
+                if (!ai_lib.isInCombat(pet))
+                {
+                    startCombat(pet, defender);
+                }
+                else
+                {
+                    float maxHate = getMaxHate(pet);
+                    setHate(pet, defender, maxHate + 5000);
+                }
+                utils.setScriptVar(pet, "ai.combat.target", defender);
+            }
         }
         return SCRIPT_CONTINUE;
     }
