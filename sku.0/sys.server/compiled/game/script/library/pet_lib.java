@@ -3427,10 +3427,18 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
     }
     public static int getXpForNextLevel(int level) throws InterruptedException
     {
+        // Pre-CU-style faster growth. Stock used *300 which needed thousands of
+        // kills for high-level pets (per-kill growth XP is capped at 2000).
+        // *40 ≈ 7.5x faster stage advances while still scaling with adult level.
         float modifiedLevel = (level + 4) / 2.0f;
         float levelSquared = modifiedLevel * modifiedLevel;
-        float total = levelSquared * 300;
-        return (int)total - 500;
+        float total = levelSquared * 40;
+        int need = (int)total - 50;
+        if (need < 100)
+        {
+            need = 100;
+        }
+        return need;
     }
     public static int getMaxAbilitySlots(int level) throws InterruptedException
     {
