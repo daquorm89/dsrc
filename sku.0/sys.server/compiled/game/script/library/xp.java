@@ -547,7 +547,9 @@ public class xp extends script.base_script
             case WEAPON_TYPE_HEAVY:
             case WEAPON_TYPE_GROUND_TARGETTING:
             case WEAPON_TYPE_DIRECTIONAL:
-                xp_type = COMBAT_RANGEDSPECIALIZE_RIFLE;
+                // Pre-CU Commando: heavy / AOE launchers feed combat_rangedspecialize_heavy
+                // (skill boxes use that XP type). NGE mapped these to rifle XP by mistake.
+                xp_type = COMBAT_RANGEDSPECIALIZE_HEAVY;
                 break;
             case WEAPON_TYPE_1HAND_MELEE:
                 xp_type = COMBAT_MELEESPECIALIZE_ONEHAND;
