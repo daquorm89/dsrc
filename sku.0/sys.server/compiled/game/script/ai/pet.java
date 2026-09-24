@@ -2000,8 +2000,30 @@ public int handleForceFollow(obj_id self, dictionary params) throws InterruptedE
     }
     public int followHeartbeat(obj_id self, dictionary params) throws InterruptedException
     {
-        obj_id master = getMaster(self);
-        if (!isIdValid(master) || isIncapacitated(self) || isDead(self) || ai_lib.isAiDead(self))
+        // Scheduled messageTo can fire after the pet is stored/destroyed or
+        // while the object is not fully resolved — getMaster then throws
+        // "getMasterId called with target which could not be resolved".
+        if (!isIdValid(self) || !exists(self) || !self.isLoaded())
+        {
+            return SCRIPT_CONTINUE;
+        }
+        // Not a creature pet (or already despawned) — native getMaster would throw.
+        if (!isMob(self) || isPlayer(self))
+        {
+            utils.removeScriptVar(self, "pet.watchdogRunning");
+            return SCRIPT_CONTINUE;
+        }
+        obj_id master = null;
+        try
+        {
+            master = getMaster(self);
+        }
+        catch (Throwable t)
+        {
+            utils.removeScriptVar(self, "pet.watchdogRunning");
+            return SCRIPT_CONTINUE;
+        }
+        if (!isIdValid(master) || !exists(master) || isIncapacitated(self) || isDead(self) || ai_lib.isAiDead(self))
         {
             utils.removeScriptVar(self, "pet.watchdogRunning");
             return SCRIPT_CONTINUE;
