@@ -11759,15 +11759,15 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (tmpl == null || tmpl.indexOf("walker_at_xt") < 0) {
             return SCRIPT_OVERRIDE;
         }
-        if (!isIdValid(target)) {
-            return SCRIPT_CONTINUE;
-        }
+        // Free-target / ground-target AOE (like heavy launchers): no hard target required.
+        // combat_data uses delayAttackEggPosition=LOCATION + TARGET_AREA splash.
         if (!combatStandardAction("at_xt_vehicle_blaster", self, target, params, "", "")) {
             return SCRIPT_CONTINUE;
         }
-        // Client blaster FX from the walker toward the target
-        createClientProjectileObjectToObject(self, "object/weapon/ranged/turret/shared_turret_energy.iff", mount, "muzzle", target, "", 200.0f, 1.0f, false, 0, 0, 0, 0);
         play2dNonLoopingSound(self, "sound/hoth_snowspeeder_blaster_fire_01.snd");
+        if (isIdValid(target)) {
+            createClientProjectileObjectToObject(self, "object/weapon/ranged/turret/shared_turret_energy.iff", mount, "muzzle", target, "", 200.0f, 1.0f, false, 0, 0, 0, 0);
+        }
         return SCRIPT_CONTINUE;
     }
 
