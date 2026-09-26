@@ -1009,7 +1009,7 @@ public class vehicle extends script.base_script
         setName(newSchem, "Advanced " + name);
         setObjVar(newSchem, "loot_schematic.schematic", schemName);
         setObjVar(newSchem, "loot_schematic.uses", 1);
-        setObjVar(newSchem, "loot_schematic.skill_req", "class_engineering_phase1_master");
+        setObjVar(newSchem, "loot_schematic.skill_req", "crafting_droidengineer_master");
         setBioLink(newSchem, player);
         attachScript(newSchem, "item.loot_schematic.loot_schematic");
         CustomerServiceLog("new_vehicle_conversion", "vehiclePCD(" + vehiclePCD + ") about to be destroyed on player " + getFirstName(player) + "(" + player + ") because it was converted into schematic " + schemName + "(" + newSchem + ")");

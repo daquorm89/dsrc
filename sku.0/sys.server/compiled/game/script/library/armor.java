@@ -1666,11 +1666,11 @@ public class armor extends script.base_script
         setObjVar(newSchem, "loot_schematic.uses", 1);
         if (getGameObjectType(armor) == GOT_cybernetic_forearm)
         {
-            setObjVar(newSchem, "loot_schematic.skill_req", "class_engineering_phase1_master");
+            setObjVar(newSchem, "loot_schematic.skill_req", "crafting_droidengineer_master");
         }
         else 
         {
-            setObjVar(newSchem, "loot_schematic.skill_req", "class_munitions_phase1_master");
+            setObjVar(newSchem, "loot_schematic.skill_req", "crafting_weaponsmith_master");
         }
         obj_id bioLink = getBioLink(armor);
         if (isIdValid(bioLink))

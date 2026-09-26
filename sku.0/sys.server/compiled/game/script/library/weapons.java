@@ -2293,7 +2293,7 @@ public class weapons extends script.base_script
         setName(newSchem, utils.packStringId(getNameFromTemplate(template)));
         setObjVar(newSchem, "loot_schematic.schematic", "object/draft_schematic/weapon/appearance/" + schemName + ".iff");
         setObjVar(newSchem, "loot_schematic.uses", 1);
-        setObjVar(newSchem, "loot_schematic.skill_req", "class_munitions_phase1_master");
+        setObjVar(newSchem, "loot_schematic.skill_req", "crafting_weaponsmith_master");
         obj_id bioLink = getBioLink(weapon);
         if (isIdValid(bioLink))
         {

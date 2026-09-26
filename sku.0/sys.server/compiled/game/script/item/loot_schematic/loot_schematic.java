@@ -52,11 +52,138 @@ public class loot_schematic extends script.base_script
     public static final string_id SID_WAYPOINT_GRANTED = new string_id("loot_schematic", "waypoint_granted");
     public static final string_id SID_SKILL_GRANTED = new string_id("loot_schematic", "skill_granted");
     public static final string_id SID_SCHEMATIC_ERROR = new string_id("loot_schematic", "schematic_error");
+
+    /**
+     * NGE class_* skill_req values → Pre-CU skills so loot schematics remain learnable
+     * on a Pre-CU skill tree (and so old items still work after TPF/datatable remaps).
+     */
+    public static String remapSkillReqToPrecu(String skill_req) throws InterruptedException
+    {
+        if (skill_req == null || skill_req.length() == 0)
+        {
+            return skill_req;
+        }
+        if (!skill_req.startsWith("class_"))
+        {
+            return skill_req;
+        }
+        // Structures / architect
+        if (skill_req.startsWith("class_structures"))
+        {
+            if (skill_req.contains("phase4") && skill_req.contains("master"))
+            {
+                return "crafting_architect_master";
+            }
+            if (skill_req.contains("phase3") && (skill_req.contains("_03") || skill_req.contains("03")))
+            {
+                return "crafting_architect_production_03";
+            }
+            if (skill_req.contains("master"))
+            {
+                return "crafting_architect_master";
+            }
+            return "crafting_architect_novice";
+        }
+        // Munitions / weaponsmith
+        if (skill_req.startsWith("class_munitions"))
+        {
+            if (skill_req.contains("master"))
+            {
+                return "crafting_weaponsmith_master";
+            }
+            return "crafting_weaponsmith_novice";
+        }
+        // Engineering / droid
+        if (skill_req.startsWith("class_engineering"))
+        {
+            if (skill_req.contains("master"))
+            {
+                return "crafting_droidengineer_master";
+            }
+            return "crafting_droidengineer_novice";
+        }
+        // Domestics / tailor / artisan
+        if (skill_req.startsWith("class_domestics"))
+        {
+            if (skill_req.contains("master"))
+            {
+                return "crafting_tailor_master";
+            }
+            return "crafting_artisan_novice";
+        }
+        // Smuggler
+        if (skill_req.startsWith("class_smuggler"))
+        {
+            return "combat_smuggler_novice";
+        }
+        // Entertainer
+        if (skill_req.startsWith("class_entertainer") || skill_req.startsWith("class_musician") || skill_req.startsWith("class_dancer"))
+        {
+            return "social_entertainer_novice";
+        }
+        // Medic / doctor
+        if (skill_req.startsWith("class_medic") || skill_req.startsWith("class_doctor"))
+        {
+            return "science_medic_novice";
+        }
+        // Ranger / scout
+        if (skill_req.startsWith("class_ranger") || skill_req.startsWith("class_scout"))
+        {
+            return "outdoors_scout_novice";
+        }
+        // Bounty hunter
+        if (skill_req.startsWith("class_bountyhunter"))
+        {
+            return "combat_bountyhunter_novice";
+        }
+        // Commando
+        if (skill_req.startsWith("class_commando"))
+        {
+            return "combat_commando_novice";
+        }
+        // Jedi
+        if (skill_req.startsWith("class_force") || skill_req.startsWith("class_jedi"))
+        {
+            return "force_title_jedi_novice";
+        }
+        // Generic fallback: strip NGE gate so Pre-CU characters can learn
+        return "crafting_artisan_novice";
+    }
+
+    public static boolean playerMeetsLootSchematicSkillReq(obj_id player, String skill_req) throws InterruptedException
+    {
+        if (skill_req == null || skill_req.length() == 0)
+        {
+            return true;
+        }
+        skill_req = remapSkillReqToPrecu(skill_req);
+        if (hasSkill(player, skill_req))
+        {
+            return true;
+        }
+        // NGE skill-template fallback (class_structures… etc.)
+        String classTemplate = getSkillTemplate(player);
+        if (classTemplate != null && classTemplate.length() > 0)
+        {
+            if (classTemplate.startsWith(skill_req))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public int OnInitialize(obj_id self) throws InterruptedException
     {
         if (hasObjVar(self, VAR_SKILL_REQ) && !static_item.isStaticItem(self))
         {
             String skill_req = getStringObjVar(self, VAR_SKILL_REQ);
+            String remapped = remapSkillReqToPrecu(skill_req);
+            if (remapped != null && !remapped.equals(skill_req))
+            {
+                setObjVar(self, VAR_SKILL_REQ, remapped);
+                skill_req = remapped;
+            }
             if (skill_req.startsWith("crafting"))
             {
                 String template = getTemplateName(self);
@@ -148,16 +275,18 @@ public class loot_schematic extends script.base_script
             if (hasObjVar(self, VAR_SKILL_REQ))
             {
                 String skill_req = getStringObjVar(self, VAR_SKILL_REQ);
-                if (!hasSkill(player, skill_req))
+                skill_req = remapSkillReqToPrecu(skill_req);
+                // Persist remap on the item so examine / next use show Pre-CU skill
+                if (hasObjVar(self, VAR_SKILL_REQ) && !skill_req.equals(getStringObjVar(self, VAR_SKILL_REQ)))
                 {
-                    String classTemplate = getSkillTemplate(player);
-                    if (!classTemplate.startsWith(skill_req))
-                    {
-                        string_id skill_id = utils.unpackString("@skl_n:" + skill_req);
-                        prose_package pp = prose.getPackage(SID_NOT_ENOUGH_SKILL, skill_id);
-                        sendSystemMessageProse(player, pp);
-                        return SCRIPT_CONTINUE;
-                    }
+                    setObjVar(self, VAR_SKILL_REQ, skill_req);
+                }
+                if (!playerMeetsLootSchematicSkillReq(player, skill_req))
+                {
+                    string_id skill_id = utils.unpackString("@skl_n:" + skill_req);
+                    prose_package pp = prose.getPackage(SID_NOT_ENOUGH_SKILL, skill_id);
+                    sendSystemMessageProse(player, pp);
+                    return SCRIPT_CONTINUE;
                 }
             }
             switch (type)
