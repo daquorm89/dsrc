@@ -11747,9 +11747,18 @@ public class combat_actions extends script.systems.combat.combat_base {
 
 
     public int at_xt_vehicle_blaster(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
-        if (!vehicle.isRidingVehicle(self)) {
-            removeDefaultAttackOverride(self);
-            return SCRIPT_OVERRIDE;
+        if (!vehicle.isRidingVehicle(self) && !vehicle.isRidingMount(self)) {
+            // Still allow if mounted on AT-XT by mount id check
+            obj_id maybe = getMountId(self);
+            if (!isIdValid(maybe)) {
+                removeDefaultAttackOverride(self);
+                return SCRIPT_OVERRIDE;
+            }
+            String t0 = getTemplateName(maybe);
+            if (t0 == null || t0.indexOf("walker_at_xt") < 0) {
+                removeDefaultAttackOverride(self);
+                return SCRIPT_OVERRIDE;
+            }
         }
         obj_id mount = getMountId(self);
         if (!isIdValid(mount)) {
@@ -11759,13 +11768,12 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (tmpl == null || tmpl.indexOf("walker_at_xt") < 0) {
             return SCRIPT_OVERRIDE;
         }
-        // Free-target / ground-target AOE (like heavy launchers): no hard target required.
-        // combat_data uses delayAttackEggPosition=LOCATION + TARGET_AREA splash.
+        // Free-target AOE: target may be invalid (ground click). Engine uses LOCATION from combat_data.
         if (!combatStandardAction("at_xt_vehicle_blaster", self, target, params, "", "")) {
             return SCRIPT_CONTINUE;
         }
         play2dNonLoopingSound(self, "sound/hoth_snowspeeder_blaster_fire_01.snd");
-        if (isIdValid(target)) {
+        if (isIdValid(target) && exists(target)) {
             createClientProjectileObjectToObject(self, "object/weapon/ranged/turret/shared_turret_energy.iff", mount, "muzzle", target, "", 200.0f, 1.0f, false, 0, 0, 0, 0);
         }
         return SCRIPT_CONTINUE;
