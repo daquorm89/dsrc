@@ -7,7 +7,7 @@ sharedTemplate = "object/tangible/loot/loot_schematic/shared_corellian_flagpole_
 
 objvars =+ [ 
 		"loot_schematic.schematic" = "object/draft_schematic/furniture/furniture_corellia_flagpole.iff", 
-		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "class_structures_phase4_master"]
+		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "crafting_architect_master"]
 
 scripts = +[
 	"item.loot_schematic.loot_schematic"]

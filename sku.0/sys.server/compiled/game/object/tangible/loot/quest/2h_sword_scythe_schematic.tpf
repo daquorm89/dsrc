@@ -6,7 +6,7 @@
 sharedTemplate = "object/tangible/loot/quest/shared_2h_sword_scythe_schematic.iff"
 
 objvars =+ [ 
-		"loot_schematic.schematic" = "object/draft_schematic/weapon/appearance/weapon_appearance_2h_sword_scythe.iff", "loot_schematic.uses" = 2, "loot_schematic.skill_req" = "class_munitions_phase4_master"]
+		"loot_schematic.schematic" = "object/draft_schematic/weapon/appearance/weapon_appearance_2h_sword_scythe.iff", "loot_schematic.uses" = 2, "loot_schematic.skill_req" = "crafting_weaponsmith_master"]
 
 scripts = +[
 	"item.loot_schematic.loot_schematic"]

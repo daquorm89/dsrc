@@ -6,7 +6,7 @@
 sharedTemplate = "object/tangible/loot/loot_schematic/shared_death_watch_mandalorian_belt_schematic.iff"
 
 objvars =+ [ 
-		"loot_schematic.schematic" = "object/draft_schematic/armor/armor_appearance_mandalorian_belt.iff", "loot_schematic.uses" = 1, "loot_schematic.skill_req" = "class_domestics_phase4_master"]
+		"loot_schematic.schematic" = "object/draft_schematic/armor/armor_appearance_mandalorian_belt.iff", "loot_schematic.uses" = 1, "loot_schematic.skill_req" = "crafting_tailor_master"]
 
 
 scripts = +[

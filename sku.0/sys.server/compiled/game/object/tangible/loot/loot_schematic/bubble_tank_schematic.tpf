@@ -7,7 +7,7 @@ sharedTemplate = "object/tangible/loot/loot_schematic/shared_bubble_tank_schemat
 
 objvars =+ [ 
 		"loot_schematic.schematic" = "object/draft_schematic/furniture/furniture_bubble_tank.iff", 
-		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "class_smuggler_phase2_02"]
+		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "combat_smuggler_novice"]
 
 scripts = +[
 	"item.loot_schematic.loot_schematic"]

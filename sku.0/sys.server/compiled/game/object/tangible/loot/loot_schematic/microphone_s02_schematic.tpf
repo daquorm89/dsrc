@@ -7,7 +7,7 @@ sharedTemplate = "object/tangible/loot/loot_schematic/shared_microphone_s02_sche
 
 objvars =+ [ 
 		"loot_schematic.schematic" = "object/draft_schematic/furniture/furniture_microphone_s02.iff", 
-		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "class_entertainer_phase1_03"]
+		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "social_entertainer_novice"]
 
 scripts = +[
 	"item.loot_schematic.loot_schematic"]

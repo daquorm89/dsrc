@@ -6,6 +6,6 @@
 sharedTemplate = "object/tangible/loot/loot_schematic/shared_agitator_motor_schematic.iff"
 
 objvars =+ ["loot_schematic.schematic" = "object/draft_schematic/item/item_agitator_motor.iff", 
-		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "class_engineering_phase1_02"]
+		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "crafting_droidengineer_novice"]
 
 scripts = +["item.loot_schematic.loot_schematic"]

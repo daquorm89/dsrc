@@ -7,7 +7,7 @@ sharedTemplate = "object/tangible/loot/loot_schematic/shared_stove_schematic.iff
 
 objvars =+ [ 
 		"loot_schematic.schematic" = "object/draft_schematic/furniture/furniture_stove.iff", 
-		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "class_domestics_phase4_master"]
+		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "crafting_tailor_master"]
 
 scripts = +[
 	"item.loot_schematic.loot_schematic"]

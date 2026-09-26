@@ -5,7 +5,7 @@
 
 sharedTemplate = "object/tangible/loot/quest/shared_schematic_republic_blaster_quest.iff"
 
-objvars =+ ["loot_schematic.schematic" = "object/draft_schematic/weapon/appearance/weapon_appearance_pistol_republic_blaster_quest.iff", "loot_schematic.uses" = 3, "loot_schematic.skill_req" = "class_munitions_phase4_master"]
+objvars =+ ["loot_schematic.schematic" = "object/draft_schematic/weapon/appearance/weapon_appearance_pistol_republic_blaster_quest.iff", "loot_schematic.uses" = 3, "loot_schematic.skill_req" = "crafting_weaponsmith_master"]
 
 scripts = +[
 	"item.loot_schematic.loot_schematic"]

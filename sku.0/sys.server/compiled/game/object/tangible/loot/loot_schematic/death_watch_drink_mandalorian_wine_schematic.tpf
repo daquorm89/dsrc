@@ -6,7 +6,7 @@
 sharedTemplate = "object/tangible/loot/loot_schematic/shared_death_watch_drink_mandalorian_wine_schematic.iff"
 
 objvars =+ [ 
-		"loot_schematic.schematic" = "object/draft_schematic/food/drink_mandalorian_wine.iff", "loot_schematic.skill_req" = "class_domestics_phase4_master"]
+		"loot_schematic.schematic" = "object/draft_schematic/food/drink_mandalorian_wine.iff", "loot_schematic.skill_req" = "crafting_tailor_master"]
 
 scripts = +[
 	"item.loot_schematic.loot_schematic"]

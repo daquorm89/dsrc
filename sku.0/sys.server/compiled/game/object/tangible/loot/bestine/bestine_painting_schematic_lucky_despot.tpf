@@ -6,7 +6,7 @@
 sharedTemplate = "object/tangible/loot/bestine/shared_bestine_painting_schematic_lucky_despot.iff"
 
 objvars =+ [ 
-		"loot_schematic.schematic" = "object/draft_schematic/furniture/bestine/painting_bestine_lucky_despot.iff", "loot_schematic.uses" = 2, "loot_schematic.skill_req" = "class_structures_phase3_03"]
+		"loot_schematic.schematic" = "object/draft_schematic/furniture/bestine/painting_bestine_lucky_despot.iff", "loot_schematic.uses" = 2, "loot_schematic.skill_req" = "crafting_architect_production_03"]
 
 scripts = +[
 	"item.loot_schematic.loot_schematic"]

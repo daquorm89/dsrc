@@ -5,7 +5,7 @@
 sharedTemplate = "object/tangible/loot/loot_schematic/shared_spice_crash_n_burn_schematic.iff"
 
 objvars =+ [ 
-		"loot_schematic.schematic" = "object/draft_schematic/spices/spice_crash_n_burn.iff", "loot_schematic.uses" = 1, "loot_schematic.skill_req" = "class_smuggler_phase4_master"]
+		"loot_schematic.schematic" = "object/draft_schematic/spices/spice_crash_n_burn.iff", "loot_schematic.uses" = 1, "loot_schematic.skill_req" = "combat_smuggler_novice"]
 
 scripts = +[
 	"item.loot_schematic.loot_schematic"]

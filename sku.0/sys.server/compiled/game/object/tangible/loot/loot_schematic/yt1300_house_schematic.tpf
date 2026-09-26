@@ -6,7 +6,7 @@
 sharedTemplate = "object/tangible/loot/loot_schematic/shared_yt1300_schematic.iff"
 
 objvars =+ [ 
-		"loot_schematic.schematic" = "object/draft_schematic/structure/yt1300_house.iff", "loot_schematic.uses" = 1, "loot_schematic.skill_req" = "class_structures_phase4_novice"]
+		"loot_schematic.schematic" = "object/draft_schematic/structure/yt1300_house.iff", "loot_schematic.uses" = 1, "loot_schematic.skill_req" = "crafting_architect_novice"]
 
 scripts = +[
 	"item.loot_schematic.loot_schematic"]

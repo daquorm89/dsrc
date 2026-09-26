@@ -6,7 +6,7 @@
 sharedTemplate = "object/tangible/loot/loot_schematic/shared_geonosian_acklay_bone_armor_schematic.iff"
 
 objvars =+ [ 
-		"loot_schematic.schematic" = "object/draft_schematic/armor/armor_segment_bone_acklay.iff", "loot_schematic.uses" = 5, "loot_schematic.skill_req" = "class_munitions_phase4_master"]
+		"loot_schematic.schematic" = "object/draft_schematic/armor/armor_segment_bone_acklay.iff", "loot_schematic.uses" = 5, "loot_schematic.skill_req" = "crafting_weaponsmith_master"]
 
 scripts = +[
 	"item.loot_schematic.loot_schematic"]

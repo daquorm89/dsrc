@@ -6,7 +6,7 @@
 sharedTemplate = "object/tangible/collection/reward/shared_dejarik_table_schematic_reward.iff"
 
 objvars =+ [ 
-		"loot_schematic.schematic" = "object/draft_schematic/armor/armor_appearance_mandalorian_leggings.iff", "loot_schematic.uses" = 1, "loot_schematic.skill_req" = "class_structures_phase4_master"]
+		"loot_schematic.schematic" = "object/draft_schematic/armor/armor_appearance_mandalorian_leggings.iff", "loot_schematic.uses" = 1, "loot_schematic.skill_req" = "crafting_architect_master"]
 
 
 scripts = +[
