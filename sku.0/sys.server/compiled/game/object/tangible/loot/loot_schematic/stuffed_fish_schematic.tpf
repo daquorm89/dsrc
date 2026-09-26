@@ -7,7 +7,7 @@ sharedTemplate = "object/tangible/loot/loot_schematic/shared_stuffed_fish_schema
 
 objvars =+ [ 
 		"loot_schematic.schematic" = "object/draft_schematic/furniture/furniture_display_fish.iff", 
-		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "class_domestics_phase2_novice"]
+		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "crafting_tailor_novice"]
 
 scripts = +[
 	"item.loot_schematic.loot_schematic"]

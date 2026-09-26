@@ -7,7 +7,7 @@ sharedTemplate = "object/tangible/loot/loot_schematic/shared_bacta_tank_schemati
 
 objvars =+ [ 
 		"loot_schematic.schematic" = "object/draft_schematic/furniture/furniture_bacta_tank_large.iff", 
-		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "class_structures_phase1_novice"]
+		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "crafting_architect_novice"]
 
 scripts = +[
 	"item.loot_schematic.loot_schematic"]

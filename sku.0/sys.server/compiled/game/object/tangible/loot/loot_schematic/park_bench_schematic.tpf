@@ -7,7 +7,7 @@ sharedTemplate = "object/tangible/loot/loot_schematic/shared_park_bench_schemati
 
 objvars =+ [ 
 		"loot_schematic.schematic" = "object/draft_schematic/furniture/furniture_bench_park.iff", 
-		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "class_structures_phase1_master"]
+		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "crafting_architect_novice"]
 
 scripts = +[
 	"item.loot_schematic.loot_schematic"]

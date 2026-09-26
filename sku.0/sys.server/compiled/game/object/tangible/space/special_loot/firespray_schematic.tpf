@@ -6,7 +6,7 @@
 sharedTemplate = "object/tangible/space/special_loot/shared_firespray_schematic.iff"
 
 objvars =+ [ 
-		"loot_schematic.schematic" = "object/draft_schematic/space/chassis/firespray.iff", "loot_schematic.uses" = 3..6 , "loot_schematic.skill_req" = "class_structures_phase4_05"]
+		"loot_schematic.schematic" = "object/draft_schematic/space/chassis/firespray.iff", "loot_schematic.uses" = 3..6 , "loot_schematic.skill_req" = "crafting_architect_master"]
 
 scripts = +[
 	"item.loot_schematic.loot_schematic"]

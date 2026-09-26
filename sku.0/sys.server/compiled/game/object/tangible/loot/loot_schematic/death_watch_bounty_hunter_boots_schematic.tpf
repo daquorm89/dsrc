@@ -6,7 +6,7 @@
 sharedTemplate = "object/tangible/loot/loot_schematic/shared_death_watch_bounty_hunter_boots_schematic.iff"
 
 objvars =+ [ 
-		"loot_schematic.schematic" = "object/draft_schematic/armor/armor_appearance_bounty_hunter_crafted_boots.iff", "loot_schematic.uses" = 1, "loot_schematic.skill_req" = "class_munitions_phase4_master"]
+		"loot_schematic.schematic" = "object/draft_schematic/armor/armor_appearance_bounty_hunter_crafted_boots.iff", "loot_schematic.uses" = 1, "loot_schematic.skill_req" = "crafting_weaponsmith_master"]
 
 
 scripts = +[

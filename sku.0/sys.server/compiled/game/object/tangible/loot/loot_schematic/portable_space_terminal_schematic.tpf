@@ -7,7 +7,7 @@ sharedTemplate = "object/tangible/loot/loot_schematic/shared_portable_space_term
 
 objvars =+ [ 
 		"loot_schematic.schematic" = "object/draft_schematic/item/portable_space_terminal.iff", 
-		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "class_structures_phase1_novice"]
+		"loot_schematic.uses" = 1, "loot_schematic.skill_req" = "crafting_architect_novice"]
 
 scripts = +[
 	"item.loot_schematic.loot_schematic"]
