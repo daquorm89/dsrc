@@ -11747,25 +11747,18 @@ public class combat_actions extends script.systems.combat.combat_base {
 
 
     public int at_xt_vehicle_blaster(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
-        if (!vehicle.isRidingVehicle(self) && !vehicle.isRidingMount(self)) {
-            // Still allow if mounted on AT-XT by mount id check
-            obj_id maybe = getMountId(self);
-            if (!isIdValid(maybe)) {
-                removeDefaultAttackOverride(self);
-                return SCRIPT_OVERRIDE;
-            }
-            String t0 = getTemplateName(maybe);
-            if (t0 == null || t0.indexOf("walker_at_xt") < 0) {
-                removeDefaultAttackOverride(self);
-                return SCRIPT_OVERRIDE;
-            }
-        }
+        // vehicle.isRidingMount does not exist — use isRidingVehicle + mount template check.
         obj_id mount = getMountId(self);
         if (!isIdValid(mount)) {
+            removeDefaultAttackOverride(self);
             return SCRIPT_OVERRIDE;
         }
         String tmpl = getTemplateName(mount);
         if (tmpl == null || tmpl.indexOf("walker_at_xt") < 0) {
+            return SCRIPT_OVERRIDE;
+        }
+        if (!vehicle.isRidingVehicle(self) && !vehicle.isDriveableVehicle(mount)) {
+            removeDefaultAttackOverride(self);
             return SCRIPT_OVERRIDE;
         }
         // Free-target AOE: target may be invalid (ground click). Engine uses LOCATION from combat_data.
