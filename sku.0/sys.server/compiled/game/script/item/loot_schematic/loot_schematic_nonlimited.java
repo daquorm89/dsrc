@@ -117,7 +117,9 @@ public class loot_schematic_nonlimited extends script.base_script
             if (hasObjVar(self, VAR_SKILL_REQ))
             {
                 String skill_req = getStringObjVar(self, VAR_SKILL_REQ);
-                if (!hasSkill(player, skill_req))
+                skill_req = loot_schematic.remapSkillReqToPrecu(skill_req);
+                setObjVar(self, VAR_SKILL_REQ, skill_req);
+                if (!loot_schematic.playerMeetsLootSchematicSkillReq(player, skill_req))
                 {
                     string_id skill_id = utils.unpackString("@skl_n:" + skill_req);
                     prose_package pp = prose.getPackage(SID_NOT_ENOUGH_SKILL, skill_id);
