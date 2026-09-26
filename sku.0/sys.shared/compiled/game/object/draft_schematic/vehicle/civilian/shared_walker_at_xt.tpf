@@ -29,6 +29,10 @@ craftedSharedTemplate="object/tangible/deed/vehicle_deed/shared_walker_at_xt_dee
 
 @class object_template 8
 
+objectName = "pet_deed" "walker_at_xt"
+detailedDescription = "pet_deed" "walker_at_xt"
+lookAtText = "pet_deed" "walker_at_xt"
+
 snapToTerrain = false
 containerType = CT_none
 tintPalette = ""
