@@ -151,9 +151,20 @@ public class combat_base extends script.base_script
                 isAutoAiming = true;
             }
         }
-        if (params.equals("") && isLocationTargetOk)
+        if ((params == null || params.equals("")) && isLocationTargetOk && targetLoc == null)
         {
-            targetLoc = getLocation(objWeapon);
+            if (isIdValid(target))
+            {
+                targetLoc = getLocation(target);
+            }
+            else if (isIdValid(objWeapon))
+            {
+                targetLoc = getLocation(objWeapon);
+            }
+            else
+            {
+                targetLoc = getLocation(self);
+            }
         }
         if (utils.hasScriptVar(objWeapon, "isAutoAimed"))
         {
@@ -445,6 +456,16 @@ public class combat_base extends script.base_script
         }
         else if (isGroundTarget && !isSpecialAttack)
         {
+            // targetLoc can be null if the client did not send ground coords (common when
+            // a ground-targetting weapon is equipped but the shot is mob-targeted).
+            if (targetLoc == null && isIdValid(combatTarget))
+            {
+                targetLoc = getLocation(combatTarget);
+            }
+            if (targetLoc == null)
+            {
+                targetLoc = getLocation(self);
+            }
             attacker_results atkRslt = new attacker_results();
             defender_results[] dfndRslt = new defender_results[0];
             atkRslt.id = self;
