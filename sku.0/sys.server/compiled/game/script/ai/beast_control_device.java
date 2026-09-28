@@ -94,14 +94,8 @@ public class beast_control_device extends script.base_script
                     return SCRIPT_CONTINUE;
                 }
             }
-            if (callable.hasCallable(player, callable.CALLABLE_TYPE_RIDEABLE))
-            {
-                obj_id rideable = callable.getCallable(player, callable.CALLABLE_TYPE_RIDEABLE);
-                if (isIdValid(rideable) && exists(rideable))
-                {
-                    callable.storeCallable(player, rideable);
-                }
-            }
+            // Pre-CU: do not pack the mount when calling a beast/pet.
+            // Mount + combat pet may both remain out.
             obj_id currentBeast = null;
             if (callable.hasCallable(player, callable.CALLABLE_TYPE_COMBAT_PET))
             {

@@ -265,14 +265,10 @@ public class pet_control_device extends script.base_script
                     return SCRIPT_CONTINUE;
                 }
             }
-            if (callable.hasCallable(player, callable.CALLABLE_TYPE_RIDEABLE) && callable.getControlDeviceType(self) != callable.CALLABLE_TYPE_RIDEABLE)
-            {
-                obj_id rideable = callable.getCallable(player, callable.CALLABLE_TYPE_RIDEABLE);
-                if (isIdValid(rideable) && exists(rideable))
-                {
-                    callable.storeCallable(player, rideable);
-                }
-            }
+            // Pre-CU: keep the mount out when calling a droid/creature pet/familiar.
+            // NGE packed the rideable whenever any non-rideable was called; that is wrong
+            // for skill-era multi-callable (mount + combat droid).
+            // (Intentionally no storeCallable on RIDEABLE here.)
             if (callable.hasCDCallable(self) && !ai_lib.isInCombat(player))
             {
                 callable.storeCallable(player, callable.getCDCallable(self));
