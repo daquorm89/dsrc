@@ -65,6 +65,12 @@ public class harvest_module extends script.base_script
         {
             copyObjVar(controlDevice, self, AUTO_HARVEST);
         }
+        else
+        {
+            // Default ON so harvest-module droids auto-run without a one-time radial toggle.
+            setObjVar(self, AUTO_HARVEST, true);
+            setObjVar(controlDevice, AUTO_HARVEST, true);
+        }
         return SCRIPT_CONTINUE;
     }
     public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
