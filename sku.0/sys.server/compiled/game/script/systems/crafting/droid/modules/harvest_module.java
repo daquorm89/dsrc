@@ -75,6 +75,11 @@ public class harvest_module extends script.base_script
         messageTo(self, "harvestScanPulse", null, 5.0f, false);
         return SCRIPT_CONTINUE;
     }
+    public int OnInitialize(obj_id self) throws InterruptedException
+    {
+        messageTo(self, "harvestScanPulse", null, 5.0f, false);
+        return SCRIPT_CONTINUE;
+    }
     public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
     {
         if (isDead(self) || ai_lib.aiIsDead(player))
