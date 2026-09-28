@@ -9,6 +9,8 @@ import script.library.*;
  *   (area marker / click ground) like heavy particle / lightning cannons.
  * - Grant and override default attack to at_xt_vehicle_blaster (LOCATION + TARGET_AREA splash).
  * Must not rely on getRiderId() during OnReceivedItem (often still unset at that moment).
+ *
+ * Attack must still work if the temp weapon fails to create (missing IFF/CRC): command allows ALL.
  */
 public class at_xt_combat extends script.base_script
 {
@@ -18,6 +20,8 @@ public class at_xt_combat extends script.base_script
 
     public static final String AT_XT_BLASTER = "at_xt_vehicle_blaster";
     public static final String AT_XT_WEAPON_TEMPLATE = "object/weapon/ranged/vehicle/at_xt_vehicle_blaster.iff";
+    /** Fallback if custom AT-XT weapon IFF is not loaded yet. */
+    public static final String FALLBACK_GROUND_WEAPON = "object/weapon/ranged/heavy/heavy_particle_beam.iff";
     public static final String VAR_DRIVER = "at_xt.driver";
     public static final String VAR_TEMP_WEAPON = "at_xt.tempWeapon";
     public static final String VAR_PREV_WEAPON = "at_xt.prevWeapon";
@@ -74,14 +78,20 @@ public class at_xt_combat extends script.base_script
         utils.setScriptVar(driver, combat.DAMAGE_REDIRECT, vehicle);
         utils.setScriptVar(vehicle, VAR_DRIVER, driver);
 
-        // Remember current weapon so we can restore on dismount.
+        // Always grant command + default attack first so fire works even if weapon create fails.
+        grantCommand(driver, AT_XT_BLASTER);
+        overrideDefaultAttack(driver, AT_XT_BLASTER);
+
         obj_id currentWep = getCurrentWeapon(driver);
         if (isIdValid(currentWep) && !utils.hasScriptVar(driver, VAR_PREV_WEAPON))
         {
-            utils.setScriptVar(driver, VAR_PREV_WEAPON, currentWep);
+            // Do not treat our temp weapon as "previous".
+            if (!hasObjVar(currentWep, "at_xt.temp"))
+            {
+                utils.setScriptVar(driver, VAR_PREV_WEAPON, currentWep);
+            }
         }
 
-        // Equip (or reuse) a ground-targeting weapon so the client shows the ground area marker.
         obj_id tempWep = obj_id.NULL_ID;
         if (utils.hasScriptVar(driver, VAR_TEMP_WEAPON))
         {
@@ -89,26 +99,31 @@ public class at_xt_combat extends script.base_script
         }
         if (!isIdValid(tempWep) || !exists(tempWep))
         {
-            tempWep = weapons.createWeapon(AT_XT_WEAPON_TEMPLATE, driver, 1.0f);
+            tempWep = createGroundTargetWeapon(driver);
             if (isIdValid(tempWep))
             {
-                setInvulnerable(tempWep, true);
                 utils.setScriptVar(driver, VAR_TEMP_WEAPON, tempWep);
             }
         }
         if (isIdValid(tempWep) && exists(tempWep))
         {
             setObjVar(tempWep, "at_xt.temp", 1);
-            queue_id already = getCurrentWeapon(driver);
-            if (already != tempWep)
+            setInvulnerable(tempWep, true);
+            if (getCurrentWeapon(driver) != tempWep)
             {
-                // queueObject returns bool in some builds; ignore failure and still grant command.
                 equip(tempWep, driver);
             }
         }
+    }
 
-        grantCommand(driver, AT_XT_BLASTER);
-        overrideDefaultAttack(driver, AT_XT_BLASTER);
+    public obj_id createGroundTargetWeapon(obj_id driver) throws InterruptedException
+    {
+        obj_id wep = weapons.createWeapon(AT_XT_WEAPON_TEMPLATE, driver, 1.0f);
+        if (!isIdValid(wep))
+        {
+            wep = weapons.createWeapon(FALLBACK_GROUND_WEAPON, driver, 1.0f);
+        }
+        return wep;
     }
 
     public void clearDriverCombat(obj_id vehicle, obj_id driver) throws InterruptedException
@@ -121,7 +136,6 @@ public class at_xt_combat extends script.base_script
         utils.removeScriptVar(driver, combat.DAMAGE_REDIRECT);
         revokeCommand(driver, AT_XT_BLASTER);
 
-        // Restore previous weapon and destroy the temp ground-target weapon.
         obj_id tempWep = obj_id.NULL_ID;
         if (utils.hasScriptVar(driver, VAR_TEMP_WEAPON))
         {

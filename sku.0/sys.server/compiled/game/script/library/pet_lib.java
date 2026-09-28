@@ -6333,9 +6333,22 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
         {
             return;
         }
+        // Pre-CU droids are CALLABLE_TYPE_COMBAT_OTHER; creature pets are COMBAT_PET.
+        // Check both slots so harvest-module droids actually receive corpses.
+        final int[] types = new int[]
+        {
+            callable.CALLABLE_TYPE_COMBAT_PET,
+            callable.CALLABLE_TYPE_COMBAT_OTHER
+        };
         for (obj_id player : players) {
-            if (callable.hasCallable(player, callable.CALLABLE_TYPE_COMBAT_PET)) {
-                obj_id objCallable = callable.getCallable(player, callable.CALLABLE_TYPE_COMBAT_PET);
+            if (!isIdValid(player)) {
+                continue;
+            }
+            for (int ctype : types) {
+                if (!callable.hasCallable(player, ctype)) {
+                    continue;
+                }
+                obj_id objCallable = callable.getCallable(player, ctype);
                 if (!isIdValid(objCallable) || !exists(objCallable) || !hasScript(objCallable, "systems.crafting.droid.modules.harvest_module")) {
                     continue;
                 }
