@@ -599,6 +599,61 @@ public class harvest_module extends script.base_script
         }
         return (int)bonusSkill;
     }
+    public int harvestScanPulse(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (isIdValid(self) && exists(self) && !ai_lib.aiIsDead(self))
+        {
+            messageTo(self, "harvestScanPulse", null, 8.0f, false);
+        }
+        if (!autoHarvestEnabled(self) || onHarvestRun(self) || ai_lib.isInCombat(self) || pet_lib.isLowOnPower(self))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        obj_id master = getMaster(self);
+        if (!isIdValid(master) || !exists(master))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        obj_id[] near = getObjectsInRange(getLocation(master), 48.0f);
+        if (near == null || near.length == 0)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        Vector toHarvest = new Vector();
+        toHarvest.setSize(0);
+        if (utils.hasScriptVar(self, pet_lib.DROID_HARVEST_ARRAY))
+        {
+            toHarvest = utils.getResizeableObjIdArrayScriptVar(self, pet_lib.DROID_HARVEST_ARRAY);
+        }
+        boolean added = false;
+        for (obj_id obj : near)
+        {
+            if (!isIdValid(obj) || !exists(obj))
+            {
+                continue;
+            }
+            if (!hasObjVar(obj, corpse.VAR_HAS_RESOURCE))
+            {
+                continue;
+            }
+            if (utils.hasScriptVar(obj, "harvestedBy." + master))
+            {
+                continue;
+            }
+            if (getDistance(self, obj) > MAX_HARVEST_DISTANCE)
+            {
+                continue;
+            }
+            utils.addElement(toHarvest, obj);
+            added = true;
+        }
+        if (added)
+        {
+            utils.setScriptVar(self, pet_lib.DROID_HARVEST_ARRAY, toHarvest);
+            messageTo(self, "runHarvestRoutine", null, 0.5f, false);
+        }
+        return SCRIPT_CONTINUE;
+    }
     public void doLogging(String section, String message) throws InterruptedException
     {
         LOG("doLogging/harvest_module/" + section, message);
