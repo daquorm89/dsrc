@@ -215,7 +215,7 @@ public class combat_base extends script.base_script
                 return false;
             }
         }
-        else if (!isTangibleAttacking && !isGroundTarget && !isDirectionTarget)
+        else if (!isTangibleAttacking && !isGroundTarget && !isDirectionTarget && !isLocationTargetOk)
         {
             combatTarget = getCorrectCombatTarget(self, target, actionData, verbose);
             if (!isIdValid(combatTarget))
@@ -224,6 +224,8 @@ public class combat_base extends script.base_script
                 return false;
             }
         }
+        // LOCATION egg actions (e.g. AT-XT vehicle blaster) may fire with no mob target when the
+        // client sent ground coords, even if the equipped weapon is not WT_groundTargetting yet.
         attacker_data attackerData = new attacker_data();
         defender_data[] defenderData = null;
         if (isGroundTarget || isDirectionTarget)

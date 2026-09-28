@@ -71,6 +71,8 @@ public class harvest_module extends script.base_script
             setObjVar(self, AUTO_HARVEST, true);
             setObjVar(controlDevice, AUTO_HARVEST, true);
         }
+        // Periodic scan: do not rely only on xp death-hook (misses non-primary kills / follow lag).
+        messageTo(self, "harvestScanPulse", null, 5.0f, false);
         return SCRIPT_CONTINUE;
     }
     public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
@@ -221,7 +223,7 @@ public class harvest_module extends script.base_script
             }
             while (0 < toHarvest.size())
             {
-                if (isIdValid(((obj_id)toHarvest.get(0))) && exists(((obj_id)toHarvest.get(0))) && canSee(self, ((obj_id)toHarvest.get(0))) && hasObjVar(((obj_id)toHarvest.get(0)), corpse.VAR_HAS_RESOURCE) && !utils.hasScriptVar(((obj_id)toHarvest.get(0)), "harvestedBy." + getMaster(self)))
+                if (isIdValid(((obj_id)toHarvest.get(0))) && exists(((obj_id)toHarvest.get(0))) && hasObjVar(((obj_id)toHarvest.get(0)), corpse.VAR_HAS_RESOURCE) && !utils.hasScriptVar(((obj_id)toHarvest.get(0)), "harvestedBy." + getMaster(self)))
                 {
                     dictionary dict = new dictionary();
                     dict.put("droid", self);

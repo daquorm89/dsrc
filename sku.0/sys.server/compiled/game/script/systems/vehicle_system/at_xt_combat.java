@@ -5,12 +5,8 @@ import script.library.*;
 
 /**
  * AT-XT combat while driven:
- * - Equip a temporary WT_groundTargetting weapon so the client enters ground-target mode
- *   (area marker / click ground) like heavy particle / lightning cannons.
- * - Grant and override default attack to at_xt_vehicle_blaster (LOCATION + TARGET_AREA splash).
- * Must not rely on getRiderId() during OnReceivedItem (often still unset at that moment).
- *
- * Attack must still work if the temp weapon fails to create (missing IFF/CRC): command allows ALL.
+ * Equip WT_groundTargetting weapon so the client enters ground-target mode (area marker).
+ * Grant/override default attack to at_xt_vehicle_blaster (LOCATION + TARGET_AREA).
  */
 public class at_xt_combat extends script.base_script
 {
@@ -20,7 +16,6 @@ public class at_xt_combat extends script.base_script
 
     public static final String AT_XT_BLASTER = "at_xt_vehicle_blaster";
     public static final String AT_XT_WEAPON_TEMPLATE = "object/weapon/ranged/vehicle/at_xt_vehicle_blaster.iff";
-    /** Fallback if custom AT-XT weapon IFF is not loaded yet. */
     public static final String FALLBACK_GROUND_WEAPON = "object/weapon/ranged/heavy/heavy_particle_beam.iff";
     public static final String VAR_DRIVER = "at_xt.driver";
     public static final String VAR_TEMP_WEAPON = "at_xt.tempWeapon";
@@ -46,6 +41,7 @@ public class at_xt_combat extends script.base_script
         dictionary d = new dictionary();
         d.put("driver", item);
         messageTo(self, "handleAtXtDriverCombat", d, 0.5f, false);
+        messageTo(self, "handleAtXtDriverCombat", d, 1.5f, false);
         return SCRIPT_CONTINUE;
     }
 
@@ -78,14 +74,12 @@ public class at_xt_combat extends script.base_script
         utils.setScriptVar(driver, combat.DAMAGE_REDIRECT, vehicle);
         utils.setScriptVar(vehicle, VAR_DRIVER, driver);
 
-        // Always grant command + default attack first so fire works even if weapon create fails.
         grantCommand(driver, AT_XT_BLASTER);
         overrideDefaultAttack(driver, AT_XT_BLASTER);
 
         obj_id currentWep = getCurrentWeapon(driver);
         if (isIdValid(currentWep) && !utils.hasScriptVar(driver, VAR_PREV_WEAPON))
         {
-            // Do not treat our temp weapon as "previous".
             if (!hasObjVar(currentWep, "at_xt.temp"))
             {
                 utils.setScriptVar(driver, VAR_PREV_WEAPON, currentWep);
@@ -104,12 +98,17 @@ public class at_xt_combat extends script.base_script
             {
                 utils.setScriptVar(driver, VAR_TEMP_WEAPON, tempWep);
             }
+            else
+            {
+                LOG("at_xt", "createGroundTargetWeapon failed for driver " + driver + " — ground marker will not appear until weapon IFF/CRC/DB load is fixed");
+            }
         }
         if (isIdValid(tempWep) && exists(tempWep))
         {
             setObjVar(tempWep, "at_xt.temp", 1);
             setInvulnerable(tempWep, true);
-            if (getCurrentWeapon(driver) != tempWep)
+            // Force into default weapon slot so client sees WT_groundTargetting.
+            if (!equipOverride(tempWep, driver))
             {
                 equip(tempWep, driver);
             }
@@ -118,10 +117,12 @@ public class at_xt_combat extends script.base_script
 
     public obj_id createGroundTargetWeapon(obj_id driver) throws InterruptedException
     {
-        obj_id wep = weapons.createWeapon(AT_XT_WEAPON_TEMPLATE, driver, 1.0f);
+        // Prefer stock particle beam (already in templates DB) so ground mode works even before
+        // custom AT-XT weapon CRC/load_templates.
+        obj_id wep = weapons.createWeapon(FALLBACK_GROUND_WEAPON, driver, 1.0f);
         if (!isIdValid(wep))
         {
-            wep = weapons.createWeapon(FALLBACK_GROUND_WEAPON, driver, 1.0f);
+            wep = weapons.createWeapon(AT_XT_WEAPON_TEMPLATE, driver, 1.0f);
         }
         return wep;
     }
@@ -156,7 +157,6 @@ public class at_xt_combat extends script.base_script
         {
             destroyObject(tempWep);
         }
-
         if (isIdValid(vehicle))
         {
             utils.removeScriptVar(vehicle, VAR_DRIVER);
