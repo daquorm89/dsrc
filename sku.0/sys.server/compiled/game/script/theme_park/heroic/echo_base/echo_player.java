@@ -252,6 +252,7 @@ public class echo_player extends script.base_script
             }
             else 
             {
+                utils.setScriptVar(self, "dismount.fromRadial", 1);
                 queueCommand(self, (117012717), self, creature_name, COMMAND_PRIORITY_FRONT);
             }
         }

@@ -964,6 +964,7 @@ public class vehicle extends script.base_script
             }
             else 
             {
+                utils.setScriptVar(player, "dismount.fromRadial", 1);
                 queueCommand(player, (117012717), playerCurrentMount, getName(playerCurrentMount), COMMAND_PRIORITY_IMMEDIATE);
             }
             return true;

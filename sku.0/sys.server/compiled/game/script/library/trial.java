@@ -1614,6 +1614,7 @@ public class trial extends script.base_script
             }
             else 
             {
+                utils.setScriptVar(getRiderId(object), "dismount.fromRadial", 1);
                 queueCommand(getRiderId(object), (117012717), object, getName(object), COMMAND_PRIORITY_FRONT);
             }
         }

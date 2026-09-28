@@ -126,9 +126,16 @@ public class vehicle_base extends script.base_script
         {
             if (!vehicle.isJetPackVehicle(self))
             {
-                if (pet_lib.canMount(self, player) || isMountedOn)
+                // Pre-CU: do not use a single enter/exit toggle as the clickable default —
+                // that caused constant accidental dismounts. Enter when unmounted;
+                // dismount only via explicit radial (SERVER_PET_DISMOUNT).
+                if (isMountedOn)
                 {
-                    mi.addRootMenu(menu_info_types.SERVER_VEHICLE_ENTER_EXIT, new string_id(MENU_FILE, "menu_enter_exit"));
+                    mi.addRootMenu(menu_info_types.SERVER_PET_DISMOUNT, new string_id(MENU_FILE, "menu_dismount"));
+                }
+                else if (pet_lib.canMount(self, player))
+                {
+                    mi.addRootMenu(menu_info_types.SERVER_VEHICLE_ENTER_EXIT, new string_id(MENU_FILE, "menu_enter"));
                 }
             }
         }
@@ -197,24 +204,20 @@ public class vehicle_base extends script.base_script
         }
         else if (item == menu_info_types.SERVER_VEHICLE_ENTER_EXIT)
         {
-            debugServerConsoleMsg(player, "+++ pet . onObjectMenuSelect +++ SERVER_VEHICLE_ENTER_EXIT menu object selected");
-            if (getMountsEnabled())
+            // Mount only — never dismount from this menu id (avoids left-click accidental exit).
+            debugServerConsoleMsg(player, "+++ vehicle_base.onObjectMenuSelect +++ SERVER_VEHICLE_ENTER_EXIT (mount only)");
+            if (getMountsEnabled() && !isMountedOnCreatureQueried(self, player) && pet_lib.canMount(self, player))
             {
-                debugServerConsoleMsg(player, "+++ pet . onObjectMenuSelect +++ getMountsEneabled returnted TRUE");
-                if (isMountedOnCreatureQueried(self, player))
-                {
-                    queueCommand(player, (117012717), self, creature_name, COMMAND_PRIORITY_FRONT);
-                }
-                else if (pet_lib.canMount(self, player))
-                {
-                    debugServerConsoleMsg(player, "+++ pet . onObjectMenuSelect +++ pet_lib.canMount(self,player) returned TRUE");
-                    queueCommand(player, (-536363215), self, creature_name, COMMAND_PRIORITY_FRONT);
-                    debugServerConsoleMsg(player, "+++ pet . onObjectMenuSelect +++ just attempted to Enqueue MOUNT command");
-                }
+                queueCommand(player, (-536363215), self, creature_name, COMMAND_PRIORITY_FRONT);
             }
-            else 
+        }
+        else if (item == menu_info_types.SERVER_PET_DISMOUNT)
+        {
+            // Explicit radial dismount only.
+            if (getMountsEnabled() && isMountedOnCreatureQueried(self, player))
             {
-                debugServerConsoleMsg(player, "+++ pet . onObjectMenuSelect +++ getMountsEneabled returnted FALSE");
+                utils.setScriptVar(player, "dismount.fromRadial", 1);
+                queueCommand(player, (117012717), self, creature_name, COMMAND_PRIORITY_FRONT);
             }
         }
         else if (item == menu_info_types.SERVER_MENU1)

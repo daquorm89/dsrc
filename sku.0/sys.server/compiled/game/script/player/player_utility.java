@@ -217,6 +217,7 @@ public class player_utility extends script.base_script
                 }
                 else 
                 {
+                    utils.setScriptVar(self, "dismount.fromRadial", 1);
                     queueCommand(self, (117012717), self, creature_name, COMMAND_PRIORITY_FRONT);
                 }
                 return SCRIPT_OVERRIDE;
