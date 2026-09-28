@@ -1,0 +1,22 @@
+@base object/weapon/ranged/heavy/base/heavy_base.iff
+
+@class weapon_object_template 11
+weaponType = WT_groundTargetting
+attackType = AT_ranged
+damageType = DT_energy
+minDamageAmount = 800
+maxDamageAmount = 1400
+attackSpeed = 1.0
+audibleRange = 40
+maxRange = 64
+damageRadius = 8
+woundChance = 10
+attackCost = 100
+
+@class tangible_object_template 3
+
+@class object_template 10
+
+sharedTemplate = "object/weapon/ranged/vehicle/shared_at_xt_vehicle_blaster.iff"
+volume = 1
+moveFlags = [ MF_player ]

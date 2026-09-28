@@ -4,7 +4,10 @@ import script.*;
 import script.library.*;
 
 /**
- * AT-XT combat while driven: grant free-target splash blaster and force it as default attack.
+ * AT-XT combat while driven:
+ * - Equip a temporary WT_groundTargetting weapon so the client enters ground-target mode
+ *   (area marker / click ground) like heavy particle / lightning cannons.
+ * - Grant and override default attack to at_xt_vehicle_blaster (LOCATION + TARGET_AREA splash).
  * Must not rely on getRiderId() during OnReceivedItem (often still unset at that moment).
  */
 public class at_xt_combat extends script.base_script
@@ -14,7 +17,10 @@ public class at_xt_combat extends script.base_script
     }
 
     public static final String AT_XT_BLASTER = "at_xt_vehicle_blaster";
+    public static final String AT_XT_WEAPON_TEMPLATE = "object/weapon/ranged/vehicle/at_xt_vehicle_blaster.iff";
     public static final String VAR_DRIVER = "at_xt.driver";
+    public static final String VAR_TEMP_WEAPON = "at_xt.tempWeapon";
+    public static final String VAR_PREV_WEAPON = "at_xt.prevWeapon";
 
     public int OnAttach(obj_id self) throws InterruptedException
     {
@@ -32,9 +38,7 @@ public class at_xt_combat extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
-        // Boarding player is the driver for this single-seat vehicle. Do not wait on getRiderId().
         applyDriverCombat(self, item);
-        // Re-apply after engine finishes mount assignment (race-safe).
         dictionary d = new dictionary();
         d.put("driver", item);
         messageTo(self, "handleAtXtDriverCombat", d, 0.5f, false);
@@ -69,6 +73,40 @@ public class at_xt_combat extends script.base_script
         }
         utils.setScriptVar(driver, combat.DAMAGE_REDIRECT, vehicle);
         utils.setScriptVar(vehicle, VAR_DRIVER, driver);
+
+        // Remember current weapon so we can restore on dismount.
+        obj_id currentWep = getCurrentWeapon(driver);
+        if (isIdValid(currentWep) && !utils.hasScriptVar(driver, VAR_PREV_WEAPON))
+        {
+            utils.setScriptVar(driver, VAR_PREV_WEAPON, currentWep);
+        }
+
+        // Equip (or reuse) a ground-targeting weapon so the client shows the ground area marker.
+        obj_id tempWep = obj_id.NULL_ID;
+        if (utils.hasScriptVar(driver, VAR_TEMP_WEAPON))
+        {
+            tempWep = utils.getObjIdScriptVar(driver, VAR_TEMP_WEAPON);
+        }
+        if (!isIdValid(tempWep) || !exists(tempWep))
+        {
+            tempWep = weapons.createWeapon(AT_XT_WEAPON_TEMPLATE, driver, 1.0f);
+            if (isIdValid(tempWep))
+            {
+                setInvulnerable(tempWep, true);
+                utils.setScriptVar(driver, VAR_TEMP_WEAPON, tempWep);
+            }
+        }
+        if (isIdValid(tempWep) && exists(tempWep))
+        {
+            setObjVar(tempWep, "at_xt.temp", 1);
+            queue_id already = getCurrentWeapon(driver);
+            if (already != tempWep)
+            {
+                // queueObject returns bool in some builds; ignore failure and still grant command.
+                equip(tempWep, driver);
+            }
+        }
+
         grantCommand(driver, AT_XT_BLASTER);
         overrideDefaultAttack(driver, AT_XT_BLASTER);
     }
@@ -82,6 +120,29 @@ public class at_xt_combat extends script.base_script
         removeDefaultAttackOverride(driver);
         utils.removeScriptVar(driver, combat.DAMAGE_REDIRECT);
         revokeCommand(driver, AT_XT_BLASTER);
+
+        // Restore previous weapon and destroy the temp ground-target weapon.
+        obj_id tempWep = obj_id.NULL_ID;
+        if (utils.hasScriptVar(driver, VAR_TEMP_WEAPON))
+        {
+            tempWep = utils.getObjIdScriptVar(driver, VAR_TEMP_WEAPON);
+            utils.removeScriptVar(driver, VAR_TEMP_WEAPON);
+        }
+        obj_id prevWep = obj_id.NULL_ID;
+        if (utils.hasScriptVar(driver, VAR_PREV_WEAPON))
+        {
+            prevWep = utils.getObjIdScriptVar(driver, VAR_PREV_WEAPON);
+            utils.removeScriptVar(driver, VAR_PREV_WEAPON);
+        }
+        if (isIdValid(prevWep) && exists(prevWep))
+        {
+            equip(prevWep, driver);
+        }
+        if (isIdValid(tempWep) && exists(tempWep))
+        {
+            destroyObject(tempWep);
+        }
+
         if (isIdValid(vehicle))
         {
             utils.removeScriptVar(vehicle, VAR_DRIVER);
