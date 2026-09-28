@@ -11747,7 +11747,8 @@ public class combat_actions extends script.systems.combat.combat_base {
 
 
     public int at_xt_vehicle_blaster(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
-        // vehicle.isRidingMount does not exist — use isRidingVehicle + mount template check.
+        // Only require AT-XT mount template — isRidingVehicle can be false briefly and was
+        // clearing the default-attack override, which made the walker stop firing entirely.
         obj_id mount = getMountId(self);
         if (!isIdValid(mount)) {
             removeDefaultAttackOverride(self);
@@ -11757,11 +11758,7 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (tmpl == null || tmpl.indexOf("walker_at_xt") < 0) {
             return SCRIPT_OVERRIDE;
         }
-        if (!vehicle.isRidingVehicle(self) && !vehicle.isDriveableVehicle(mount)) {
-            removeDefaultAttackOverride(self);
-            return SCRIPT_OVERRIDE;
-        }
-        // Free-target AOE: target may be invalid (ground click). Engine uses LOCATION from combat_data.
+        // Free-target AOE: target may be invalid (ground click). LOCATION egg from combat_data.
         if (!combatStandardAction("at_xt_vehicle_blaster", self, target, params, "", "")) {
             return SCRIPT_CONTINUE;
         }
