@@ -11760,7 +11760,10 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (!isIdValid(target)) {
             return SCRIPT_CONTINUE;
         }
-        if (!combatStandardAction("at_xt_vehicle_blaster", self, target, params, "", "")) {
+        // Vehicle turret: treat as auto-aimed so hit engine does not require client Y-toggle.
+        // Client still needs a selected target; this only marks the shot as aimed for combat.
+        String aimParams = (params == null || params.equals("")) ? "a" : (params.endsWith(" a") || params.endsWith("	a") || params.equals("a") ? params : params + " a");
+        if (!combatStandardAction("at_xt_vehicle_blaster", self, target, aimParams, "", "")) {
             return SCRIPT_CONTINUE;
         }
         play2dNonLoopingSound(self, "sound/hoth_snowspeeder_blaster_fire_01.snd");
