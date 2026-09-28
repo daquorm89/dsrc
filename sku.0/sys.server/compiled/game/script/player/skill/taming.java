@@ -262,6 +262,13 @@ public class taming extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
+        // Pre-CU: block accidental left-click dismount. Radial menus set dismount.fromRadial
+        // before queueCommand(dismount). System paths call pet_lib.doDismountNow directly.
+        if (!utils.hasScriptVar(self, "dismount.fromRadial"))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        utils.removeScriptVar(self, "dismount.fromRadial");
         boolean dismountSuccess = pet_lib.doDismountNow(self);
         if (!dismountSuccess)
         {

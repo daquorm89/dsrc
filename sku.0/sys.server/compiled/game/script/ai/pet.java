@@ -1648,6 +1648,7 @@ public class pet extends script.base_script
                 if (pet_lib.isMountedOnCreatureQueried(self, player))
                 {
                     debugServerConsoleMsg(player, "+++ pet.onObjectMenuSelect +++ pet_lib.isMountedOnCreatureQueried has returned true, so we're going to enqueue a dismount command");
+                    utils.setScriptVar(player, "dismount.fromRadial", 1);
                     queueCommand(player, (117012717), self, creature_name, COMMAND_PRIORITY_FRONT);
                     debugServerConsoleMsg(player, "+++ pet.onObjectMenuSelect +++ dismount command was just enqueued");
                 }
