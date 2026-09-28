@@ -510,11 +510,22 @@ public class combat_base extends script.base_script
         location where = getLocation(attacker);
         if (eggPosition == 2)
         {
-            where = getLocation(target);
+            if (isIdValid(target))
+            {
+                where = getLocation(target);
+            }
         }
         else if (eggPosition == 3)
         {
-            where = (location)actionData.targetLoc.clone();
+            // LOCATION egg — targetLoc may be null (no client ground coords).
+            if (actionData.targetLoc != null)
+            {
+                where = (location)actionData.targetLoc.clone();
+            }
+            else if (isIdValid(target))
+            {
+                where = getLocation(target);
+            }
         }
         obj_id egg = combat.makeTrackerEgg(attacker, where, actionData);
         if (!isIdValid(egg) || !exists(egg))
