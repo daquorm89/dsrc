@@ -11747,7 +11747,8 @@ public class combat_actions extends script.systems.combat.combat_base {
 
 
     public int at_xt_vehicle_blaster(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException {
-        // AT-AT-style vehicle shot: require a valid target (manual aim works without auto-aim).
+        // AT-XT ground-target shot (hoth_scout_cannon pattern): command_table targetType=location makes the
+        // client show the ground marker and send ground coords; combat_data fires a LOCATION egg there.
         obj_id mount = getMountId(self);
         if (!isIdValid(mount)) {
             removeDefaultAttackOverride(self);
@@ -11757,17 +11758,21 @@ public class combat_actions extends script.systems.combat.combat_base {
         if (tmpl == null || tmpl.indexOf("walker_at_xt") < 0) {
             return SCRIPT_OVERRIDE;
         }
-        if (!isIdValid(target)) {
+        // Client sends "x y z cell [x y z] ..." for location commands. Without ground coords and without a
+        // target there is nothing to aim at (getCommandGroundTargetLocation would also index out of range).
+        boolean hasGroundParams = params != null && params.trim().split("\\s+").length >= 7;
+        if (!hasGroundParams && !isIdValid(target)) {
             return SCRIPT_CONTINUE;
         }
-        // Vehicle turret: treat as auto-aimed so hit engine does not require client Y-toggle.
-        // Client still needs a selected target; this only marks the shot as aimed for combat.
-        String aimParams = (params == null || params.equals("")) ? "a" : (params.endsWith(" a") || params.endsWith("	a") || params.equals("a") ? params : params + " a");
-        if (!combatStandardAction("at_xt_vehicle_blaster", self, target, aimParams, "", "")) {
+        if (!combatStandardAction("at_xt_vehicle_blaster", self, target, params, "", "")) {
+            return SCRIPT_CONTINUE;
+        }
+        location eggLoc = hasGroundParams ? combat.getCommandGroundTargetLocation(params) : getLocation(target);
+        if (eggLoc == null) {
             return SCRIPT_CONTINUE;
         }
         play2dNonLoopingSound(self, "sound/hoth_snowspeeder_blaster_fire_01.snd");
-        createClientProjectileObjectToObject(self, "object/weapon/ranged/turret/shared_turret_energy.iff", mount, "muzzle", target, "", 200.0f, 1.0f, false, 0, 0, 0, 0);
+        createClientProjectileObjectToLocation(self, "object/weapon/ranged/turret/shared_turret_energy.iff", mount, "muzzle", eggLoc, 200.0f, 1.0f, false, 0, 0, 0, 0);
         return SCRIPT_CONTINUE;
     }
 
