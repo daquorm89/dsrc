@@ -621,6 +621,10 @@ public class combat_ship extends script.base_script
             ship_ai.unitAddDamageTaken(self, objAttacker, 1.0f);
             return SCRIPT_CONTINUE;
         }
+        if (space_utils.isPlayerControlledShip(self))
+        {
+            space_wingmen.onCommanderShipHit(self, objAttacker);
+        }
         boolean bossShip = false;
         if (hasObjVar(self, "bossType"))
         {
@@ -842,6 +846,7 @@ public class combat_ship extends script.base_script
         {
             for (Object objPlayer : objPlayers) {
                 space_combat.strikeBomberCleanup(((obj_id) objPlayer));
+                space_wingmen.dismissWingmen(((obj_id) objPlayer), false);
             }
         }
         space_combat.killSpacePlayer(self);

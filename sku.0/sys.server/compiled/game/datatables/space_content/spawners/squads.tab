@@ -240,3 +240,15 @@ squad_void_wing_smuggler_tier3	CLAW	0	void_wing_yt1300_tier3	void_wing_dune_liza
 squad_void_wing_smuggler_tier4	CLAW	0	void_wing_yt1300_tier4	void_wing_dune_lizard_tier4	void_wing_bomber_tier4	void_wing_bomber_tier4	void_wing_dune_lizard_tier4	
 squad_void_wing_smuggler_tier5	CLAW	0	void_wing_yt1300_tier5	void_wing_dune_lizard_tier5	void_wing_bomber_tier5	void_wing_bomber_tier5	void_wing_dune_lizard_tier5
 squad_black_guard_tier9	CLAW	0	blackguard_patrol_heavy	blackguard_patrol_light	blackguard_patrol_light	blackguard_patrol_medium	blackguard_patrol_medium
+squad_plyr_wingmen_freelancer_1	BROAD	0	wingman_freelancer_tier1	wingman_freelancer_tier1	wingman_freelancer_tier1								space.command.player_cmd_wingman
+squad_plyr_wingmen_freelancer_2	BROAD	0	wingman_freelancer_tier2	wingman_freelancer_tier2	wingman_freelancer_tier2								space.command.player_cmd_wingman
+squad_plyr_wingmen_freelancer_3	BROAD	0	wingman_freelancer_tier3	wingman_freelancer_tier3	wingman_freelancer_tier3								space.command.player_cmd_wingman
+squad_plyr_wingmen_freelancer_4	BROAD	0	wingman_freelancer_tier4	wingman_freelancer_tier4	wingman_freelancer_tier4								space.command.player_cmd_wingman
+squad_plyr_wingmen_rebel_1	BROAD	0	wingman_rebel_tier1	wingman_rebel_tier1	wingman_rebel_tier1								space.command.player_cmd_wingman
+squad_plyr_wingmen_rebel_2	BROAD	0	wingman_rebel_tier2	wingman_rebel_tier2	wingman_rebel_tier2								space.command.player_cmd_wingman
+squad_plyr_wingmen_rebel_3	BROAD	0	wingman_rebel_tier3	wingman_rebel_tier3	wingman_rebel_tier3								space.command.player_cmd_wingman
+squad_plyr_wingmen_rebel_4	BROAD	0	wingman_rebel_tier4	wingman_rebel_tier4	wingman_rebel_tier4								space.command.player_cmd_wingman
+squad_plyr_wingmen_imperial_1	BROAD	0	wingman_imperial_tier1	wingman_imperial_tier1	wingman_imperial_tier1								space.command.player_cmd_wingman
+squad_plyr_wingmen_imperial_2	BROAD	0	wingman_imperial_tier2	wingman_imperial_tier2	wingman_imperial_tier2								space.command.player_cmd_wingman
+squad_plyr_wingmen_imperial_3	BROAD	0	wingman_imperial_tier3	wingman_imperial_tier3	wingman_imperial_tier3								space.command.player_cmd_wingman
+squad_plyr_wingmen_imperial_4	BROAD	0	wingman_imperial_tier4	wingman_imperial_tier4	wingman_imperial_tier4								space.command.player_cmd_wingman
