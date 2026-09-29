@@ -23,9 +23,17 @@ slots = [
 	appearance = "" ],
 	[
 	optional = false,
+	name = "craft_vehicle_ingredients_n" "structural_frame",
+	options = [
+		[ingredientType=IT_resourceClass, ingredients = [[name="craft_vehicle_ingredients_n" "structural_frame", ingredient="iron", count=800]], complexity = 0, skillCommand = "unskilled"]],
+	optionalSkillCommand = "",
+	complexity = 0,
+	appearance = "" ],
+	[
+	optional = false,
 	name = "craft_vehicle_ingredients_n" "stabilizor_subframe",
 	options = [
-		[ingredientType=IT_resourceClass, ingredients = [[name="craft_vehicle_ingredients_n" "stabilizor_subframe", ingredient="steel", count=1000]], complexity = 0, skillCommand = "unskilled"]],
+		[ingredientType=IT_template, ingredients = [[name="craft_vehicle_ingredients_n" "stabilizor_subframe", ingredient="object/tangible/component/droid/droid_motive_system_advanced.iff", count=2]], complexity = 0, skillCommand = "unskilled"]],
 	optionalSkillCommand = "",
 	complexity = 0,
 	appearance = "" ],
@@ -33,15 +41,7 @@ slots = [
 	optional = false,
 	name = "craft_vehicle_ingredients_n" "avionic_subassembly",
 	options = [
-		[ingredientType=IT_resourceClass, ingredients = [[name="craft_vehicle_ingredients_n" "avionic_subassembly", ingredient="metal", count=350]], complexity = 0, skillCommand = "unskilled"]],
-	optionalSkillCommand = "",
-	complexity = 0,
-	appearance = "" ],
-	[
-	optional = false,
-	name = "craft_vehicle_ingredients_n" "repulsor_assembly",
-	options = [
-		[ingredientType=IT_resourceClass, ingredients = [[name="craft_vehicle_ingredients_n" "repulsor_assembly", ingredient="ore", count=450]], complexity = 0, skillCommand = "unskilled"]],
+		[ingredientType=IT_template, ingredients = [[name="craft_vehicle_ingredients_n" "avionic_subassembly", ingredient="object/tangible/component/droid/droid_brain_advanced.iff", count=1]], complexity = 0, skillCommand = "unskilled"]],
 	optionalSkillCommand = "",
 	complexity = 0,
 	appearance = "" ],
@@ -49,15 +49,39 @@ slots = [
 	optional = false,
 	name = "craft_vehicle_ingredients_n" "cockpit_fitout",
 	options = [
-		[ingredientType=IT_resourceClass, ingredients = [[name="craft_vehicle_ingredients_n" "cockpit_fitout", ingredient="petrochem_fuel_liquid_type5", count=350]], complexity = 0, skillCommand = "unskilled"]],
+		[ingredientType=IT_template, ingredients = [[name="craft_vehicle_ingredients_n" "cockpit_fitout", ingredient="object/tangible/component/droid/sensor_package_droid.iff", count=1]], complexity = 0, skillCommand = "unskilled"]],
 	optionalSkillCommand = "",
 	complexity = 0,
 	appearance = "" ],
 	[
 	optional = false,
-	name = "craft_vehicle_ingredients_n" "structural_frame",
+	name = "craft_vehicle_ingredients_n" "power_core",
 	options = [
-		[ingredientType=IT_resourceClass, ingredients = [[name="craft_vehicle_ingredients_n" "structural_frame", ingredient="iron", count=1200]], complexity = 0, skillCommand = "unskilled"]],
+		[ingredientType=IT_template, ingredients = [[name="craft_vehicle_ingredients_n" "power_core", ingredient="object/tangible/component/structure/generator_turbine.iff", count=1]], complexity = 0, skillCommand = "unskilled"]],
+	optionalSkillCommand = "",
+	complexity = 0,
+	appearance = "" ],
+	[
+	optional = false,
+	name = "craft_vehicle_ingredients_n" "reactor_core",
+	options = [
+		[ingredientType=IT_template, ingredients = [[name="craft_vehicle_ingredients_n" "reactor_core", ingredient="object/tangible/ship/crafted/reactor/fusion_reactor_mk1.iff", count=1]], complexity = 0, skillCommand = "unskilled"]],
+	optionalSkillCommand = "",
+	complexity = 0,
+	appearance = "" ],
+	[
+	optional = false,
+	name = "craft_vehicle_ingredients_n" "heavy_weapon_mount1",
+	options = [
+		[ingredientType=IT_template, ingredients = [[name="craft_vehicle_ingredients_n" "heavy_weapon_mount1", ingredient="object/tangible/component/structure/weapon_mount_heavy_stabilization_unit.iff", count=1]], complexity = 0, skillCommand = "unskilled"]],
+	optionalSkillCommand = "",
+	complexity = 0,
+	appearance = "" ],
+	[
+	optional = false,
+	name = "craft_vehicle_ingredients_n" "weapon_mount1",
+	options = [
+		[ingredientType=IT_template, ingredients = [[name="craft_vehicle_ingredients_n" "weapon_mount1", ingredient="object/tangible/ship/crafted/weapon/wpn_medium_blaster.iff", count=2]], complexity = 0, skillCommand = "unskilled"]],
 	optionalSkillCommand = "",
 	complexity = 0,
 	appearance = "" ]]
