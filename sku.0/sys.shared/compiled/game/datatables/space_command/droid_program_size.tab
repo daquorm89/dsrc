@@ -59,3 +59,7 @@ droidcommand_weapcapequalize	1
 droidcommand_zonetokessel	1
 droidcommand_zonetoimperialdeepspace	1
 droidcommand_zonetorebeldeepspace	1
+droidcommand_wingmenone	10
+droidcommand_wingmentwo	15
+droidcommand_wingmenthree	20
+droidcommand_wingmenfour	25

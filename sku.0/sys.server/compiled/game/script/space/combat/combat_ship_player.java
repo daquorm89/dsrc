@@ -1227,6 +1227,7 @@ public class combat_ship_player extends script.base_script
     }
     public int OnHyperspaceToHomeLocation(obj_id self) throws InterruptedException
     {
+        space_wingmen.dismissWingmen(self, false);
         obj_id objShip = space_transition.getContainingShip(self);
         if (isIdValid(objShip))
         {
@@ -1245,6 +1246,7 @@ public class combat_ship_player extends script.base_script
     {
         space_transition.handleLogout(self);
         space_combat.strikeBomberCleanup(self);
+        space_wingmen.dismissWingmen(self, false);
         return SCRIPT_CONTINUE;
     }
     public int openContainer(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException
@@ -1455,6 +1457,25 @@ public class combat_ship_player extends script.base_script
             sendSystemMessage(self, strSpam);
             utils.setLocalVar(ship, "droidcmd.muteDroid", 1);
         }
+        return SCRIPT_CONTINUE;
+    }
+    public int callWingmen(obj_id self, dictionary params) throws InterruptedException
+    {
+        int tier = space_wingmen.getTierFromCommand(params.getString("strCommandName"));
+        if (tier > 0)
+        {
+            space_wingmen.callWingmen(self, tier);
+        }
+        return SCRIPT_CONTINUE;
+    }
+    public int wingmenTick(obj_id self, dictionary params) throws InterruptedException
+    {
+        space_wingmen.wingmenTick(self, params.getInt("generation"));
+        return SCRIPT_CONTINUE;
+    }
+    public int wingmanDestroyed(obj_id self, dictionary params) throws InterruptedException
+    {
+        space_wingmen.wingmanDestroyed(self, params.getObjId("deadFighterId"));
         return SCRIPT_CONTINUE;
     }
     public int zoneToKessel(obj_id self, dictionary params) throws InterruptedException
@@ -3442,6 +3463,7 @@ public class combat_ship_player extends script.base_script
     }
     public int OnSpaceEjectPlayerFromShip(obj_id self) throws InterruptedException
     {
+        space_wingmen.dismissWingmen(self, false);
         obj_id ship = space_transition.getContainingShip(self);
         if (isIdValid(ship) && getOwner(ship) == self)
         {

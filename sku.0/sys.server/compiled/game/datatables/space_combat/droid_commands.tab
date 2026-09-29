@@ -66,3 +66,7 @@ droidcommand_weapcapequalize		weapcap_equalize		0.1	CAPACITOR	1	1	0	0	0	0		0	0	0
 droidcommand_zonetokessel		zone_to_kessel		0	NONE	0	0	0	0	0	0	zoneToKessel	0	0	0	0	0	0
 droidcommand_zonetoimperialdeepspace		zone_to_imperial_deep_space		0	NONE	0	0	0	0	0	0	zoneToImperialDeepSpace	0	0	0	0	0	0
 droidcommand_zonetorebeldeepspace		zone_to_rebel_deep_space		0	NONE	0	0	0	0	0	0	zoneToRebelDeepSpace	0	0	0	0	0	0
+droidcommand_wingmenone	wingmen tier 1: spawns 3 escort fighters	wingmen_one		0.5	NONE	0	0	0	0	0	0	callWingmen	0	0	0	0	0	0
+droidcommand_wingmentwo	wingmen tier 2: spawns 3 escort fighters	wingmen_two		0.5	NONE	0	0	0	0	0	0	callWingmen	0	0	0	0	0	0
+droidcommand_wingmenthree	wingmen tier 3: spawns 3 escort fighters	wingmen_three		0.5	NONE	0	0	0	0	0	0	callWingmen	0	0	0	0	0	0
+droidcommand_wingmenfour	wingmen tier 4: spawns 3 escort fighters	wingmen_four		0.5	NONE	0	0	0	0	0	0	callWingmen	0	0	0	0	0	0
