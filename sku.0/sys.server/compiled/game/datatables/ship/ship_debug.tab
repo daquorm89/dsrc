@@ -34,3 +34,15 @@ slow_tier3	slow_tier3	1	16000	0.2	0.2	0.3	1.95	60	5	5	21	20	20	20	21	20
 slow_tier4	slow_tier4	1	16000	0.2	0.2	0.3	1.95	60	5	5	21	20	20	20	21	20					
 slow_tier5	slow_tier5	1	16000	0.2	0.2	0.3	1.95	60	5	5	21	20	20	20	21	20					
 demoer	tier1	1	16000	1	1	1	1.95	90	60	60	60	500	60	500	60	500	900	100	100	50	75
+wingman_freelancer_tier1	wingman_freelancer_tier1	0	16000	0.2	0.4	0.25	1.95	90	48	6	45	200	45	200	51	200					
+wingman_freelancer_tier2	wingman_freelancer_tier2	0	16000	0.2	0.4	0.25	1.95	97.5	36	6	45	200	40	200	51	200
+wingman_freelancer_tier3	wingman_freelancer_tier3	0	16000	0.2	0.4	0.3	1.95	105	60	10	55	200	45	200	51	200					
+wingman_freelancer_tier4	wingman_freelancer_tier4	0	16000	0.2	0.3	0.35	1.95	120	36	6	50	200	40	200	51	200
+wingman_imperial_tier1	wingman_imperial_tier1	0	16000	0.2	0.5	0.3	1.95	90	54	6	50	200	51	200	50	200					
+wingman_imperial_tier2	wingman_imperial_tier2	0	16000	0.2	0.5	0.3	1.95	97.5	72	12	55	200	56	200	55	200					
+wingman_imperial_tier3	wingman_imperial_tier3	0	16000	0.2	0.5	0.35	1.95	105	72	12	60	200	61	200	60	200					
+wingman_imperial_tier4	wingman_imperial_tier4	0	16000	0.2	0.4	0.4	1.95	120	72	12	64	200	65	200	64	200					
+wingman_rebel_tier1	wingman_rebel_tier1	0	16000	0.2	0.4	0.25	1.95	90	48	6	45	200	45	200	51	200					
+wingman_rebel_tier2	wingman_rebel_tier2	0	16000	0.2	0.4	0.25	1.95	97.5	60	10	50	200	45	200	51	200					
+wingman_rebel_tier3	wingman_rebel_tier3	0	16000	0.2	0.4	0.3	1.95	105	60	10	55	200	45	200	51	200					
+wingman_rebel_tier4	wingman_rebel_tier4	0	16000	0.2	0.4	0.4	1.95	120	72	12	64	200	65	200	64	200					

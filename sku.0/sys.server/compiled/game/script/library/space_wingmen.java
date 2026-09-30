@@ -54,7 +54,7 @@ public class space_wingmen extends script.base_script
     public static final float FOLLOW_REISSUE_DISTANCE = 200.0f;
     public static final float ENGAGE_MAX_DISTANCE = 1200.0f;
     public static final int ENGAGE_TIMEOUT_SECONDS = 20;
-    public static final float SPEED_MATCH_MARGIN = 1.1f;
+    public static final float SPEED_MATCH_MARGIN = 1.5f;
     public static int getTierFromCommand(String strCommand) throws InterruptedException
     {
         if (strCommand == null || !strCommand.startsWith(COMMAND_PREFIX))
