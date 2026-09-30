@@ -50,6 +50,8 @@ public class space_wingmen extends script.base_script
     public static final float SPAWN_BEHIND_DISTANCE = 150.0f;
     public static final float SPAWN_SPREAD = 60.0f;
     public static final float FOLLOW_DISTANCE = 60.0f;
+    public static final float LEASH_DISTANCE = 16000.0f;
+    public static final float FOLLOW_REISSUE_DISTANCE = 500.0f;
     public static int getTierFromCommand(String strCommand) throws InterruptedException
     {
         if (strCommand == null || !strCommand.startsWith(COMMAND_PREFIX))
@@ -210,6 +212,7 @@ public class space_wingmen extends script.base_script
         for (obj_id member : members)
         {
             setObjVar(member, "commanderPlayer", player);
+            ship_ai.unitSetLeashDistance(member, LEASH_DISTANCE);
         }
         utils.setLocalVar(player, LV_SQUAD_ID, squadId);
         ship_ai.squadSetAttackOrders(squadId, ship_ai.ATTACK_ORDERS_RETURN_FIRE);
@@ -304,11 +307,36 @@ public class space_wingmen extends script.base_script
             {
                 utils.removeLocalVar(player, LV_LAST_TARGET);
                 ship_ai.squadSetAttackOrders(squadId, ship_ai.ATTACK_ORDERS_RETURN_FIRE);
+                ship_ai.squadFollow(squadId, ship, new vector(0.0f, 0.0f, -1.0f), FOLLOW_DISTANCE);
             }
+        }
+        else 
+        {
+            followIfStray(ship, squadId);
         }
         dictionary params = new dictionary();
         params.put("generation", generation);
         messageTo(player, "wingmenTick", params, TICK_SECONDS, false);
+    }
+    public static void followIfStray(obj_id ship, int squadId) throws InterruptedException
+    {
+        obj_id[] units = ship_ai.squadGetUnitList(squadId);
+        if (units == null)
+        {
+            return;
+        }
+        for (obj_id unit : units)
+        {
+            if (!isIdValid(unit) || !exists(unit) || hasObjVar(unit, "intCleaningUp"))
+            {
+                continue;
+            }
+            if (getDistance(ship, unit) > FOLLOW_REISSUE_DISTANCE)
+            {
+                ship_ai.squadFollow(squadId, ship, new vector(0.0f, 0.0f, -1.0f), FOLLOW_DISTANCE);
+            }
+            return;
+        }
     }
     public static boolean isAssistableUnit(obj_id ship, obj_id target) throws InterruptedException
     {
