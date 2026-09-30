@@ -16,7 +16,7 @@ import java.util.Vector;
  *   wingmen.tickGen       generation counter, invalidates stale tick messages
  *   wingmen.callSeq       counter, identifies each call so stale countdown messages are ignored
  *   wingmen.pending       callSeq of a call whose wingmen are still inbound (absent = none)
- *   wingmen.lastTarget    last primary target given to the squad
+ *   wingmen.lastTarget    attacker the squad is currently engaging (set only when the pilot is hit)
  *   wingmen.lastAssign    game time of the last target assignment
  */
 public class space_wingmen extends script.base_script
@@ -51,7 +51,9 @@ public class space_wingmen extends script.base_script
     public static final float SPAWN_SPREAD = 60.0f;
     public static final float FOLLOW_DISTANCE = 60.0f;
     public static final float LEASH_DISTANCE = 16000.0f;
-    public static final float FOLLOW_REISSUE_DISTANCE = 500.0f;
+    public static final float FOLLOW_REISSUE_DISTANCE = 200.0f;
+    public static final float ENGAGE_MAX_DISTANCE = 1200.0f;
+    public static final int ENGAGE_TIMEOUT_SECONDS = 20;
     public static final float SPEED_MATCH_MARGIN = 1.1f;
     public static int getTierFromCommand(String strCommand) throws InterruptedException
     {
@@ -298,15 +300,19 @@ public class space_wingmen extends script.base_script
             return;
         }
         syncSpeed(ship, squadId);
-        obj_id target = getLookAtTarget(player);
-        if (isValidAssistTarget(ship, target))
-        {
-            assignTarget(player, squadId, target, false);
-        }
-        else if (utils.hasLocalVar(player, LV_LAST_TARGET))
+        if (utils.hasLocalVar(player, LV_LAST_TARGET))
         {
             obj_id lastTarget = utils.getObjIdLocalVar(player, LV_LAST_TARGET);
-            if (!isIdValid(lastTarget) || !exists(lastTarget) || ship_ai.isShipDead(lastTarget))
+            boolean drop = !isIdValid(lastTarget) || !exists(lastTarget) || ship_ai.isShipDead(lastTarget);
+            if (!drop && getDistance(ship, lastTarget) > ENGAGE_MAX_DISTANCE)
+            {
+                drop = true;
+            }
+            if (!drop && getGameTime() > utils.getIntLocalVar(player, LV_LAST_ASSIGN) + ENGAGE_TIMEOUT_SECONDS)
+            {
+                drop = true;
+            }
+            if (drop)
             {
                 utils.removeLocalVar(player, LV_LAST_TARGET);
                 ship_ai.squadSetAttackOrders(squadId, ship_ai.ATTACK_ORDERS_RETURN_FIRE);
@@ -323,6 +329,7 @@ public class space_wingmen extends script.base_script
     }
     public static void syncSpeed(obj_id ship, int squadId) throws InterruptedException
     {
+        float accel = getShipEngineAccelerationRate(ship);
         float target = getShipEngineSpeedMaximum(ship);
         if (isShipBoosterActive(ship))
         {
@@ -351,6 +358,10 @@ public class space_wingmen extends script.base_script
             if (target > getShipEngineSpeedMaximum(unit))
             {
                 setShipEngineSpeedMaximum(unit, target);
+            }
+            if (accel > getShipEngineAccelerationRate(unit))
+            {
+                setShipEngineAccelerationRate(unit, accel);
             }
         }
     }
@@ -390,19 +401,12 @@ public class space_wingmen extends script.base_script
         }
         return true;
     }
-    public static boolean isValidAssistTarget(obj_id ship, obj_id target) throws InterruptedException
-    {
-        if (!isAssistableUnit(ship, target))
-        {
-            return false;
-        }
-        return ship_ai.isShipAggro(target) || ship_ai.isShipAggroToward(target, ship);
-    }
     public static void assignTarget(obj_id player, int squadId, obj_id target, boolean throttle) throws InterruptedException
     {
         int now = getGameTime();
         if (utils.hasLocalVar(player, LV_LAST_TARGET) && utils.getObjIdLocalVar(player, LV_LAST_TARGET) == target)
         {
+            utils.setLocalVar(player, LV_LAST_ASSIGN, now);
             return;
         }
         if (throttle && utils.hasLocalVar(player, LV_LAST_ASSIGN) && now < utils.getIntLocalVar(player, LV_LAST_ASSIGN) + RETARGET_ON_HIT_SECONDS)
