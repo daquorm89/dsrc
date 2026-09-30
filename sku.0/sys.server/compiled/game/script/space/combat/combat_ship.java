@@ -846,7 +846,7 @@ public class combat_ship extends script.base_script
         {
             for (Object objPlayer : objPlayers) {
                 space_combat.strikeBomberCleanup(((obj_id) objPlayer));
-                space_wingmen.dismissWingmen(((obj_id) objPlayer), false);
+                space_wingmen.endWingmen(((obj_id) objPlayer));
             }
         }
         space_combat.killSpacePlayer(self);

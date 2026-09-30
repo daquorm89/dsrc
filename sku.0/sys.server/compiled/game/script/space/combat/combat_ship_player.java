@@ -1227,7 +1227,7 @@ public class combat_ship_player extends script.base_script
     }
     public int OnHyperspaceToHomeLocation(obj_id self) throws InterruptedException
     {
-        space_wingmen.dismissWingmen(self, false);
+        space_wingmen.endWingmen(self);
         obj_id objShip = space_transition.getContainingShip(self);
         if (isIdValid(objShip))
         {
@@ -1246,7 +1246,7 @@ public class combat_ship_player extends script.base_script
     {
         space_transition.handleLogout(self);
         space_combat.strikeBomberCleanup(self);
-        space_wingmen.dismissWingmen(self, false);
+        space_wingmen.endWingmen(self);
         return SCRIPT_CONTINUE;
     }
     public int openContainer(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException
@@ -1466,6 +1466,11 @@ public class combat_ship_player extends script.base_script
         {
             space_wingmen.callWingmen(self, tier);
         }
+        return SCRIPT_CONTINUE;
+    }
+    public int wingmenCountdown(obj_id self, dictionary params) throws InterruptedException
+    {
+        space_wingmen.wingmenCountdown(self, params.getInt("seq"), params.getInt("tier"), params.getInt("remaining"));
         return SCRIPT_CONTINUE;
     }
     public int wingmenTick(obj_id self, dictionary params) throws InterruptedException
@@ -3463,7 +3468,7 @@ public class combat_ship_player extends script.base_script
     }
     public int OnSpaceEjectPlayerFromShip(obj_id self) throws InterruptedException
     {
-        space_wingmen.dismissWingmen(self, false);
+        space_wingmen.endWingmen(self);
         obj_id ship = space_transition.getContainingShip(self);
         if (isIdValid(ship) && getOwner(ship) == self)
         {

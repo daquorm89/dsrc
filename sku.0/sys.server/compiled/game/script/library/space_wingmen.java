@@ -14,7 +14,8 @@ import java.util.Vector;
  * State lives on the pilot as local vars:
  *   wingmen.squadId       squad id of the current wingmen
  *   wingmen.tickGen       generation counter, invalidates stale tick messages
- *   wingmen.nextCallTime  game time when the program may be run again
+ *   wingmen.callSeq       counter, identifies each call so stale countdown messages are ignored
+ *   wingmen.pending       callSeq of a call whose wingmen are still inbound (absent = none)
  *   wingmen.lastTarget    last primary target given to the squad
  *   wingmen.lastAssign    game time of the last target assignment
  */
@@ -34,11 +35,17 @@ public class space_wingmen extends script.base_script
     public static final String SQUAD_PREFIX = "squad_plyr_wingmen_";
     public static final String LV_SQUAD_ID = "wingmen.squadId";
     public static final String LV_TICK_GEN = "wingmen.tickGen";
-    public static final String LV_NEXT_CALL = "wingmen.nextCallTime";
+    public static final String LV_CALL_SEQ = "wingmen.callSeq";
+    public static final String LV_PENDING = "wingmen.pending";
     public static final String LV_LAST_TARGET = "wingmen.lastTarget";
     public static final String LV_LAST_ASSIGN = "wingmen.lastAssign";
     public static final float TICK_SECONDS = 3.0f;
-    public static final int CALL_COOLDOWN_SECONDS = 20;
+    public static final int ARRIVAL_DELAY_SECONDS = 60;
+    public static final int[] COUNTDOWN_ANNOUNCE_AT = 
+    {
+        30,
+        10
+    };
     public static final int RETARGET_ON_HIT_SECONDS = 5;
     public static final float SPAWN_BEHIND_DISTANCE = 150.0f;
     public static final float SPAWN_SPREAD = 60.0f;
@@ -116,12 +123,65 @@ public class space_wingmen extends script.base_script
         {
             return false;
         }
-        int now = getGameTime();
-        if (utils.hasLocalVar(player, LV_NEXT_CALL) && now < utils.getIntLocalVar(player, LV_NEXT_CALL))
+        if (utils.hasLocalVar(player, LV_PENDING))
         {
-            sendSystemMessage(player, "Your wingmen are still regrouping.", null);
+            sendSystemMessage(player, "Wingmen are already inbound from hyperspace.", null);
             return false;
         }
+        int seq = utils.getIntLocalVar(player, LV_CALL_SEQ) + 1;
+        utils.setLocalVar(player, LV_CALL_SEQ, seq);
+        utils.setLocalVar(player, LV_PENDING, seq);
+        sendSystemMessage(player, "Wingmen inbound from hyperspace. Arrival in " + ARRIVAL_DELAY_SECONDS + " seconds.", null);
+        scheduleCountdown(player, seq, tier, ARRIVAL_DELAY_SECONDS);
+        return true;
+    }
+    public static void scheduleCountdown(obj_id player, int seq, int tier, int remaining) throws InterruptedException
+    {
+        int next = 0;
+        for (int mark : COUNTDOWN_ANNOUNCE_AT)
+        {
+            if (mark < remaining && mark > next)
+            {
+                next = mark;
+            }
+        }
+        dictionary params = new dictionary();
+        params.put("seq", seq);
+        params.put("tier", tier);
+        params.put("remaining", next);
+        messageTo(player, "wingmenCountdown", params, (float)(remaining - next), false);
+    }
+    public static void wingmenCountdown(obj_id player, int seq, int tier, int remaining) throws InterruptedException
+    {
+        if (!isIdValid(player) || !exists(player) || !utils.hasLocalVar(player, LV_PENDING))
+        {
+            return;
+        }
+        if (utils.getIntLocalVar(player, LV_PENDING) != seq)
+        {
+            return;
+        }
+        obj_id ship = space_transition.getContainingShip(player);
+        if (!isIdValid(ship) || !exists(ship))
+        {
+            cancelPending(player);
+            return;
+        }
+        if (remaining > 0)
+        {
+            sendSystemMessage(player, "Wingmen arriving in " + remaining + " seconds.", null);
+            scheduleCountdown(player, seq, tier, remaining);
+            return;
+        }
+        utils.removeLocalVar(player, LV_PENDING);
+        spawnWingmen(player, ship, tier);
+    }
+    public static void cancelPending(obj_id player) throws InterruptedException
+    {
+        utils.removeLocalVar(player, LV_PENDING);
+    }
+    public static boolean spawnWingmen(obj_id player, obj_id ship, int tier) throws InterruptedException
+    {
         dismissWingmen(player, true);
         String squadName = getSquadName(getTrack(player), tier);
         transform loc = getTransform_o2w(ship);
@@ -152,11 +212,10 @@ public class space_wingmen extends script.base_script
             setObjVar(member, "commanderPlayer", player);
         }
         utils.setLocalVar(player, LV_SQUAD_ID, squadId);
-        utils.setLocalVar(player, LV_NEXT_CALL, now + CALL_COOLDOWN_SECONDS);
         ship_ai.squadSetAttackOrders(squadId, ship_ai.ATTACK_ORDERS_RETURN_FIRE);
         ship_ai.squadFollow(squadId, ship, new vector(0.0f, 0.0f, -1.0f), FOLLOW_DISTANCE);
         startTick(player);
-        sendSystemMessage(player, "Wingmen deployed.", null);
+        sendSystemMessage(player, "Wingmen have arrived.", null);
         return true;
     }
     public static void dismissWingmen(obj_id player, boolean graceful) throws InterruptedException
@@ -196,6 +255,11 @@ public class space_wingmen extends script.base_script
                 destroyObject(unit);
             }
         }
+    }
+    public static void endWingmen(obj_id player) throws InterruptedException
+    {
+        cancelPending(player);
+        dismissWingmen(player, false);
     }
     public static void startTick(obj_id player) throws InterruptedException
     {
