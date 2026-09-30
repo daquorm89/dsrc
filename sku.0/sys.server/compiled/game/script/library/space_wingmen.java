@@ -52,6 +52,7 @@ public class space_wingmen extends script.base_script
     public static final float FOLLOW_DISTANCE = 60.0f;
     public static final float LEASH_DISTANCE = 16000.0f;
     public static final float FOLLOW_REISSUE_DISTANCE = 500.0f;
+    public static final float SPEED_MATCH_MARGIN = 1.1f;
     public static int getTierFromCommand(String strCommand) throws InterruptedException
     {
         if (strCommand == null || !strCommand.startsWith(COMMAND_PREFIX))
@@ -215,6 +216,7 @@ public class space_wingmen extends script.base_script
             ship_ai.unitSetLeashDistance(member, LEASH_DISTANCE);
         }
         utils.setLocalVar(player, LV_SQUAD_ID, squadId);
+        syncSpeed(ship, squadId);
         ship_ai.squadSetAttackOrders(squadId, ship_ai.ATTACK_ORDERS_RETURN_FIRE);
         ship_ai.squadFollow(squadId, ship, new vector(0.0f, 0.0f, -1.0f), FOLLOW_DISTANCE);
         startTick(player);
@@ -295,6 +297,7 @@ public class space_wingmen extends script.base_script
             sendSystemMessage(player, "Your wingmen have been lost.", null);
             return;
         }
+        syncSpeed(ship, squadId);
         obj_id target = getLookAtTarget(player);
         if (isValidAssistTarget(ship, target))
         {
@@ -317,6 +320,39 @@ public class space_wingmen extends script.base_script
         dictionary params = new dictionary();
         params.put("generation", generation);
         messageTo(player, "wingmenTick", params, TICK_SECONDS, false);
+    }
+    public static void syncSpeed(obj_id ship, int squadId) throws InterruptedException
+    {
+        float target = getShipEngineSpeedMaximum(ship);
+        if (isShipBoosterActive(ship))
+        {
+            float boosterMax = getShipBoosterSpeedMaximum(ship);
+            if (boosterMax > target)
+            {
+                target = boosterMax;
+            }
+        }
+        target *= SPEED_MATCH_MARGIN;
+        if (target <= 0.0f)
+        {
+            return;
+        }
+        obj_id[] units = ship_ai.squadGetUnitList(squadId);
+        if (units == null)
+        {
+            return;
+        }
+        for (obj_id unit : units)
+        {
+            if (!isIdValid(unit) || !exists(unit) || hasObjVar(unit, "intCleaningUp"))
+            {
+                continue;
+            }
+            if (target > getShipEngineSpeedMaximum(unit))
+            {
+                setShipEngineSpeedMaximum(unit, target);
+            }
+        }
     }
     public static void followIfStray(obj_id ship, int squadId) throws InterruptedException
     {
