@@ -300,6 +300,7 @@ public class space_wingmen extends script.base_script
             return;
         }
         syncSpeed(ship, squadId);
+        scrubCommanderHostility(ship, squadId);
         if (utils.hasLocalVar(player, LV_LAST_TARGET))
         {
             obj_id lastTarget = utils.getObjIdLocalVar(player, LV_LAST_TARGET);
@@ -435,6 +436,85 @@ public class space_wingmen extends script.base_script
             return;
         }
         assignTarget(pilot, squadId, attacker, true);
+    }
+    /**
+     * True when a hit on a wingman should be ignored: the shooter is the
+     * commander's own ship, a ship flown by a member of the commander's group,
+     * or another wingman of the same commander. Ignored hits deal no damage and
+     * never reach the AI's attack target list, so the wingmen cannot turn
+     * hostile after friendly fire.
+     */
+    public static boolean isFriendlyAttacker(obj_id wingman, obj_id attacker) throws InterruptedException
+    {
+        if (!isIdValid(wingman) || !isIdValid(attacker))
+        {
+            return false;
+        }
+        obj_id commander = getObjIdObjVar(wingman, "commanderPlayer");
+        if (!isIdValid(commander))
+        {
+            return false;
+        }
+        if (hasObjVar(attacker, "commanderPlayer") && getObjIdObjVar(attacker, "commanderPlayer") == commander)
+        {
+            return true;
+        }
+        if (!space_utils.isPlayerControlledShip(attacker))
+        {
+            return false;
+        }
+        if (space_transition.getContainingShip(commander) == attacker)
+        {
+            return true;
+        }
+        obj_id group = getGroupObject(commander);
+        if (isIdValid(group))
+        {
+            obj_id[] members = space_utils.getSpaceGroupMemberIds(group);
+            if (members != null)
+            {
+                for (obj_id member : members)
+                {
+                    if (isIdValid(member) && space_transition.getContainingShip(member) == attacker)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+    /**
+     * Safety net: take the commander's ship (and group ships) off every wingman's
+     * attack target list. Hostility can still leak in through paths that do not
+     * go through OnShipWasHit (splash, turrets), so the tick scrubs it.
+     */
+    public static void scrubCommanderHostility(obj_id commanderShip, int squadId) throws InterruptedException
+    {
+        obj_id[] units = ship_ai.squadGetUnitList(squadId);
+        if (units == null)
+        {
+            return;
+        }
+        for (obj_id unit : units)
+        {
+            if (!isIdValid(unit) || !exists(unit) || hasObjVar(unit, "intCleaningUp"))
+            {
+                continue;
+            }
+            obj_id[] targets = ship_ai.unitGetAttackTargetList(unit);
+            if (targets == null)
+            {
+                continue;
+            }
+            for (obj_id target : targets)
+            {
+                if (isIdValid(target) && isFriendlyAttacker(unit, target))
+                {
+                    ship_ai.unitRemoveAttackTarget(unit, target);
+                }
+            }
+        }
     }
     public static void wingmanDestroyed(obj_id player, obj_id deadWingman) throws InterruptedException
     {

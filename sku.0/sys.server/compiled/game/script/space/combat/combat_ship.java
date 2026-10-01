@@ -616,6 +616,10 @@ public class combat_ship extends script.base_script
             }
         }
         int intWeaponSlot = intWeaponIndex + ship_chassis_slot_type.SCST_weapon_0;
+        if (hasScript(self, "space.command.player_cmd_wingman") && space_wingmen.isFriendlyAttacker(self, objAttacker))
+        {
+            return SCRIPT_CONTINUE;
+        }
         if (hasObjVar(self, "intInvincible"))
         {
             ship_ai.unitAddDamageTaken(self, objAttacker, 1.0f);
