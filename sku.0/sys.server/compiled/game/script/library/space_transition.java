@@ -1457,6 +1457,7 @@ public class space_transition extends script.base_script
             utils.removeScriptVar(player, "atmos.boardShipId");
             LOG("space_transition", "boardShipAsPilotOnGround: POB pilot OK, no client refresh ship=" + ship
                 + " pilotId=" + getPilotId(ship));
+            startAtmosAltitudeWatch(player);
             return true;
         }
 
@@ -1470,6 +1471,16 @@ public class space_transition extends script.base_script
      * After enter→refresh warp: re-seat if warp cleared pilot, else leave piloting.
      */
     public static boolean completeBoardShipAfterClientRefresh(obj_id player) throws InterruptedException
+    {
+        boolean ok = completeBoardShipAfterClientRefreshImpl(player);
+        if (ok)
+        {
+            startAtmosAltitudeWatch(player);
+        }
+        return ok;
+    }
+
+    public static boolean completeBoardShipAfterClientRefreshImpl(obj_id player) throws InterruptedException
     {
         if (!isIdValid(player) || isSpaceScene())
         {
@@ -1550,6 +1561,307 @@ public class space_transition extends script.base_script
 
         LOG("space_transition", "completeBoardShipAfterClientRefresh: FAIL ship=" + ship);
         return false;
+    }
+
+    // ------------------------------------------------------------------
+    // Atmospheric flight: fly up out of the atmosphere into space.
+    //
+    // A repeating check (1 s) runs on the pilot while seated in a ground-scene
+    // ship. It compares the ship height with the terrain height, warns at 80%
+    // of spaceTransitionAltitude (atmospheric_flight_planets.tab) and triggers
+    // the exit at 100%. The exit packs the ship into its control device and
+    // reuses the normal starport launch (launch()), so arrival in space is the
+    // existing handlePotentialSceneChange / unpackShipForPlayer path.
+    // ------------------------------------------------------------------
+    public static final String ATMOS_ALT_GEN_VAR = "atmos.altWatchGen";
+    public static final String ATMOS_ALT_MISS_VAR = "atmos.altWatchMiss";
+    public static final String ATMOS_ALT_WARNED_VAR = "atmos.altWarned";
+    public static final String ATMOS_ALT_BLOCKED_UNTIL_VAR = "atmos.altBlockedUntil";
+    public static final float ATMOS_ALT_WARN_FRACTION = 0.8f;
+    public static final float ATMOS_ALT_CHECK_SECONDS = 1.0f;
+    public static final int ATMOS_ALT_MAX_MISSES = 5;
+    public static final int ATMOS_ALT_RETRY_BLOCK_SECONDS = 30;
+
+    public static void startAtmosAltitudeWatch(obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(player) || !exists(player) || isSpaceScene())
+        {
+            return;
+        }
+        if (!space_utils.isAtmosphericFlightAllowedHere())
+        {
+            return;
+        }
+        if (space_utils.getAtmosphericSpaceTransitionAltitude(getCurrentSceneName()) <= 0.0f)
+        {
+            return;
+        }
+        int gen = 1;
+        if (utils.hasScriptVar(player, ATMOS_ALT_GEN_VAR))
+        {
+            gen = utils.getIntScriptVar(player, ATMOS_ALT_GEN_VAR) + 1;
+        }
+        utils.setScriptVar(player, ATMOS_ALT_GEN_VAR, gen);
+        utils.removeScriptVar(player, ATMOS_ALT_MISS_VAR);
+        utils.removeScriptVar(player, ATMOS_ALT_WARNED_VAR);
+        dictionary d = new dictionary();
+        d.put("gen", gen);
+        messageTo(player, "handleAtmosAltitudeCheck", d, ATMOS_ALT_CHECK_SECONDS, false);
+        LOG("space_transition", "startAtmosAltitudeWatch: player=" + player + " gen=" + gen);
+    }
+
+    public static void stopAtmosAltitudeWatch(obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(player))
+        {
+            return;
+        }
+        utils.removeScriptVar(player, ATMOS_ALT_GEN_VAR);
+        utils.removeScriptVar(player, ATMOS_ALT_MISS_VAR);
+        utils.removeScriptVar(player, ATMOS_ALT_WARNED_VAR);
+    }
+
+    public static void handleAtmosAltitudeCheck(obj_id player, int gen) throws InterruptedException
+    {
+        if (!isIdValid(player) || !exists(player))
+        {
+            return;
+        }
+        // Stale loop (a newer watch was started, or this one was stopped).
+        if (!utils.hasScriptVar(player, ATMOS_ALT_GEN_VAR) || utils.getIntScriptVar(player, ATMOS_ALT_GEN_VAR) != gen)
+        {
+            return;
+        }
+        if (isSpaceScene())
+        {
+            stopAtmosAltitudeWatch(player);
+            return;
+        }
+        obj_id ship = getContainingShip(player);
+        if (!isIdValid(ship) || !exists(ship) || getPilotId(ship) != player)
+        {
+            // The client world refresh after boarding can briefly clear the seat;
+            // tolerate a few misses before giving up.
+            int misses = utils.hasScriptVar(player, ATMOS_ALT_MISS_VAR) ? utils.getIntScriptVar(player, ATMOS_ALT_MISS_VAR) : 0;
+            ++misses;
+            if (misses >= ATMOS_ALT_MAX_MISSES)
+            {
+                stopAtmosAltitudeWatch(player);
+                return;
+            }
+            utils.setScriptVar(player, ATMOS_ALT_MISS_VAR, misses);
+            rescheduleAtmosAltitudeCheck(player, gen);
+            return;
+        }
+        utils.removeScriptVar(player, ATMOS_ALT_MISS_VAR);
+
+        float limit = space_utils.getAtmosphericSpaceTransitionAltitude(getCurrentSceneName());
+        if (limit <= 0.0f)
+        {
+            stopAtmosAltitudeWatch(player);
+            return;
+        }
+        location shipLoc = getLocation(ship);
+        if (shipLoc == null || isIdValid(shipLoc.cell))
+        {
+            rescheduleAtmosAltitudeCheck(player, gen);
+            return;
+        }
+        float terrainY = getHeightAtLocation(shipLoc.x, shipLoc.z);
+        if (terrainY != terrainY)
+        {
+            rescheduleAtmosAltitudeCheck(player, gen);
+            return;
+        }
+        float altitude = shipLoc.y - terrainY;
+
+        if (altitude >= limit)
+        {
+            int now = getGameTime();
+            if (utils.hasScriptVar(player, ATMOS_ALT_BLOCKED_UNTIL_VAR) && now < utils.getIntScriptVar(player, ATMOS_ALT_BLOCKED_UNTIL_VAR))
+            {
+                rescheduleAtmosAltitudeCheck(player, gen);
+                return;
+            }
+            if (exitAtmosphereToSpace(player, ship))
+            {
+                stopAtmosAltitudeWatch(player);
+                return;
+            }
+            // Failed (message already sent): do not retry every second.
+            utils.setScriptVar(player, ATMOS_ALT_BLOCKED_UNTIL_VAR, now + ATMOS_ALT_RETRY_BLOCK_SECONDS);
+        }
+        else if (altitude >= limit * ATMOS_ALT_WARN_FRACTION)
+        {
+            if (!utils.hasScriptVar(player, ATMOS_ALT_WARNED_VAR))
+            {
+                utils.setScriptVar(player, ATMOS_ALT_WARNED_VAR, 1);
+                sendSystemMessageTestingOnly(player, "You are approaching the upper atmosphere. Keep climbing to leave for space, or descend to stay.");
+            }
+        }
+        else
+        {
+            utils.removeScriptVar(player, ATMOS_ALT_WARNED_VAR);
+        }
+        rescheduleAtmosAltitudeCheck(player, gen);
+    }
+
+    private static void rescheduleAtmosAltitudeCheck(obj_id player, int gen) throws InterruptedException
+    {
+        dictionary d = new dictionary();
+        d.put("gen", gen);
+        messageTo(player, "handleAtmosAltitudeCheck", d, ATMOS_ALT_CHECK_SECONDS, false);
+    }
+
+    /**
+     * Pack the piloted ground ship into its control device and launch the pilot
+     * (and any gunners aboard) into the planet's space scene. Everything that can
+     * fail is checked BEFORE the ship is touched; if packing still fails the pilot
+     * is re-seated so they are never left falling from altitude.
+     * Returns true only if the launch was started.
+     */
+    public static boolean exitAtmosphereToSpace(obj_id player, obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(player) || !isIdValid(ship) || !exists(ship) || isSpaceScene())
+        {
+            return false;
+        }
+        if (getPilotId(ship) != player || getContainingShip(player) != ship)
+        {
+            return false;
+        }
+        if (space_utils.isShipWithInterior(ship))
+        {
+            sendSystemMessageTestingOnly(player, "Ships with an interior cannot leave the atmosphere yet. Descend and land, then launch from a starport.");
+            return false;
+        }
+        if (getOwner(ship) != player)
+        {
+            sendSystemMessageTestingOnly(player, "Only the owner of this ship can take it into space.");
+            return false;
+        }
+        String planet = getCurrentSceneName();
+        dictionary row = space_utils.getAtmosphericLaunchRow(planet);
+        if (row == null)
+        {
+            LOG("space_transition", "exitAtmosphereToSpace: no launch row for planet=" + planet);
+            sendSystemMessageTestingOnly(player, "There is no space exit for this planet.");
+            return false;
+        }
+        String spaceScene = row.getString("spaceScene");
+        if (spaceScene == null || spaceScene.length() == 0)
+        {
+            return false;
+        }
+        obj_id scd = obj_id.NULL_ID;
+        if (hasObjVar(ship, "shipControlDevice"))
+        {
+            scd = getObjIdObjVar(ship, "shipControlDevice");
+        }
+        if (!isIdValid(scd) || !exists(scd))
+        {
+            obj_id[] scds = findShipControlDevicesForPlayer(player);
+            if (scds != null)
+            {
+                for (obj_id candidate : scds)
+                {
+                    if (isIdValid(candidate) && getShipFromShipControlDevice(candidate) == ship)
+                    {
+                        scd = candidate;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!isIdValid(scd) || !exists(scd))
+        {
+            LOG("space_transition", "exitAtmosphereToSpace: no control device for ship=" + ship);
+            sendSystemMessageTestingOnly(player, "Cannot find this ship's control device, so it cannot leave the atmosphere.");
+            return false;
+        }
+        if (isAreaTooFullForTravel(spaceScene, 0, 0))
+        {
+            string_id tooFull = new string_id("shared_hyperspace", "zone_too_full_use_travel");
+            sendSystemMessage(player, tooFull);
+            return false;
+        }
+
+        // Gunners / passengers aboard (not the pilot).
+        Vector inside = getContainedPlayers(ship, null);
+        Vector passengerList = new Vector();
+        if (inside != null)
+        {
+            for (Object o : inside)
+            {
+                obj_id p = (obj_id) o;
+                if (isIdValid(p) && p != player)
+                {
+                    passengerList.add(p);
+                }
+            }
+        }
+        obj_id[] passengers = new obj_id[passengerList.size()];
+        for (int i = 0; i < passengers.length; ++i)
+        {
+            passengers[i] = (obj_id) passengerList.get(i);
+        }
+
+        // Where the pilot returns to when they land again: below where they left.
+        location shipLoc = getLocation(ship);
+        location groundLoc = new location(shipLoc.x, shipLoc.y, shipLoc.z, planet);
+        float terrainY = getHeightAtLocation(shipLoc.x, shipLoc.z);
+        if (terrainY == terrainY)
+        {
+            groundLoc.y = terrainY + 1.0f;
+        }
+
+        location spaceLoc = new location(row.getFloat("spaceX"), row.getFloat("spaceY"), row.getFloat("spaceZ"), spaceScene);
+        location warpLoc = space_utils.getRandomLocationInSphere(spaceLoc, 150, 300);
+
+        // Same clean-up the starport launch does for the pilot and gunners.
+        prepareAtmosExitPlayer(player);
+        for (obj_id passenger : passengers)
+        {
+            prepareAtmosExitPlayer(passenger);
+        }
+        clearOvertStatus(ship);
+        utils.setScriptVar(player, "strLaunchPointName", "w" + row.getInt("spaceLocationIndex"));
+
+        // Pack the chassis (this unpilots and ejects everyone beside it on the ground).
+        if (!restoreShipToControlDevice(ship, scd))
+        {
+            LOG("space_transition", "exitAtmosphereToSpace: pack FAILED ship=" + ship + " scd=" + scd + ", re-seating pilot");
+            sendSystemMessageTestingOnly(player, "The ship could not leave the atmosphere. Descending.");
+            if (exists(ship) && getContainingShip(player) != ship)
+            {
+                boardShipAsPilotOnGround(player, ship);
+            }
+            return false;
+        }
+
+        LOG("space_transition", "exitAtmosphereToSpace: player=" + player + " ship=" + ship + " planet=" + planet
+            + " -> " + warpLoc.area + " passengers=" + passengers.length);
+        launch(player, ship, passengers, warpLoc, groundLoc);
+        return true;
+    }
+
+    private static void prepareAtmosExitPlayer(obj_id who) throws InterruptedException
+    {
+        if (!isIdValid(who) || !exists(who))
+        {
+            return;
+        }
+        if (callable.hasAnyCallable(who))
+        {
+            callable.storeCallables(who);
+        }
+        stealth.checkForAndMakeVisible(who);
+        int shapechange = buff.getBuffOnTargetFromGroup(who, "shapechange");
+        if (shapechange != 0)
+        {
+            buff.removeBuff(who, shapechange);
+            sendSystemMessage(who, event_perk.SHAPECHANGE_SPACE);
+        }
     }
 
     public static int placeShipInWorldForPlayerWithCode(obj_id player, obj_id ship) throws InterruptedException

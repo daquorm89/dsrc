@@ -387,6 +387,17 @@ public class combat_ship_player extends script.base_script
         return SCRIPT_CONTINUE;
     }
 
+    /**
+     * Repeating altitude check while piloting a ship in the atmosphere of a ground
+     * planet. Triggers the exit to space at spaceTransitionAltitude.
+     */
+    public int handleAtmosAltitudeCheck(obj_id self, dictionary params) throws InterruptedException
+    {
+        int gen = (params == null) ? 0 : params.getInt("gen");
+        space_transition.handleAtmosAltitudeCheck(self, gen);
+        return SCRIPT_CONTINUE;
+    }
+
     public int OnLogin(obj_id self) throws InterruptedException
     {
         utils.removeScriptVar(self, "atmos.postLaunchEjectPending");
