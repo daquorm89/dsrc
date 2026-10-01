@@ -1100,6 +1100,41 @@ public class space_utils extends script.base_script
         }
         return dataTableGetFloat(ATMOSPHERIC_FLIGHT_PLANETS_TABLE, planetName, "spaceTransitionAltitude");
     }
+
+    public static final String LAUNCH_LOCATIONS_TABLE = "datatables/space_zones/launch_locations.iff";
+
+    // Launch-point row (launch_locations.tab) used when a pilot flies up out of
+    // the atmosphere of planetName. The optional launchPoint column of
+    // atmospheric_flight_planets.tab names the row (needed when the planet has
+    // no space scene of its own, e.g. mustafar -> nova_orion_station). With no
+    // launchPoint, the first launch_locations row whose groundScene matches the
+    // planet is used. Returns null if no row can be found.
+    public static dictionary getAtmosphericLaunchRow(String planetName) throws InterruptedException
+    {
+        if (planetName == null || planetName.length() == 0)
+        {
+            return null;
+        }
+        String point = dataTableGetString(ATMOSPHERIC_FLIGHT_PLANETS_TABLE, planetName, "launchPoint");
+        if (point != null && point.length() > 0)
+        {
+            dictionary row = dataTableGetRow(LAUNCH_LOCATIONS_TABLE, point);
+            if (row != null)
+            {
+                return row;
+            }
+        }
+        int numRows = dataTableGetNumRows(LAUNCH_LOCATIONS_TABLE);
+        for (int i = 0; i < numRows; ++i)
+        {
+            String ground = dataTableGetString(LAUNCH_LOCATIONS_TABLE, i, "groundScene");
+            if (planetName.equals(ground))
+            {
+                return dataTableGetRow(LAUNCH_LOCATIONS_TABLE, i);
+            }
+        }
+        return null;
+    }
     public static boolean isNestedWithinPobShip(obj_id item) throws InterruptedException {
         if (!isIdValid(item)) {
             return false;
