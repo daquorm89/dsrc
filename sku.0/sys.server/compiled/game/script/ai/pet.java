@@ -551,7 +551,7 @@ public class pet extends script.base_script
                     {
                         names[idx] = "pet_stats.droid_command_module";
                         int cmd = getIntObjVar(petControlDevice, "module_data.droid_command");
-                        attribs[idx] = " " + cmd + " (+slots)";
+                        attribs[idx] = " " + cmd + " (+" + pet_lib.getDroidCommandExtraSlots(petControlDevice) + " droid slots)";
                         idx++;
                         if (idx >= names.length)
                         {
