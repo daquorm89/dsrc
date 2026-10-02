@@ -1952,13 +1952,61 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
             doConfusedEmote(pet);
         }
     }
+    /**
+     * Formation slot for an out droid. Droids are ordered by their index in the master's
+     * active droid list (first out = first slot). Slot 1 is kept free when a creature pet
+     * is out and slot 2 when a familiar is out, because those use fixed slots 1 and 2 in
+     * doPetFormation. With no pet or familiar out, a lone droid gets slot 1 as before.
+     * Returns 0 (legacy behaviour, treated as slot 1) if the droid is not in the active list.
+     */
+    public static int getDroidFormationPosition(obj_id droid, obj_id master) throws InterruptedException
+    {
+        if (!isIdValid(droid) || !isIdValid(master))
+        {
+            return 0;
+        }
+        Vector active = getActiveDroidVector(master);
+        int index = -1;
+        for (int i = 0; i < active.size(); i++)
+        {
+            if (droid == (obj_id)active.get(i))
+            {
+                index = i;
+                break;
+            }
+        }
+        if (index < 0)
+        {
+            return 0;
+        }
+        boolean slot1Taken = callable.hasCallable(master, callable.CALLABLE_TYPE_COMBAT_PET);
+        boolean slot2Taken = callable.hasCallable(master, callable.CALLABLE_TYPE_FAMILIAR);
+        int slot = 1;
+        int found = 0;
+        for (int guard = 0; guard < 64; guard++)
+        {
+            boolean reserved = (slot == 1 && slot1Taken) || (slot == 2 && slot2Taken);
+            if (!reserved)
+            {
+                if (found == index)
+                {
+                    return slot;
+                }
+                found++;
+            }
+            slot++;
+        }
+        return slot;
+    }
     public static void doPetFormation(obj_id pet, obj_id master, int formationType) throws InterruptedException
     {
         int position = 0;
         switch (callable.getCallableType(pet))
         {
             case callable.CALLABLE_TYPE_COMBAT_OTHER:
-            position = 0;
+            // Multi-droid: every droid is COMBAT_OTHER, so a fixed slot stacked them all
+            // on the same spot. Give each out droid its own slot.
+            position = getDroidFormationPosition(pet, master);
             break;
             case callable.CALLABLE_TYPE_COMBAT_PET:
             position = 1;
