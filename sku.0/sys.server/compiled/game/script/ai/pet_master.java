@@ -57,6 +57,30 @@ public class pet_master extends script.base_script
                 result.addElement(pet);
             }
         }
+        // Multi-droid: getCallable returns only ONE COMBAT_OTHER droid (the primary), so every
+        // other out droid never joined guard assist. Add all active droids (deduped).
+        Vector activeDroids = pet_lib.getActiveDroidVector(master);
+        for (int i = 0; i < activeDroids.size(); i++)
+        {
+            obj_id droid = (obj_id)activeDroids.get(i);
+            if (!isIdValid(droid) || !exists(droid))
+            {
+                continue;
+            }
+            boolean already = false;
+            for (int j = 0; j < result.size(); j++)
+            {
+                if (droid == (obj_id)result.get(j))
+                {
+                    already = true;
+                    break;
+                }
+            }
+            if (!already)
+            {
+                result.addElement(droid);
+            }
+        }
         if (result.size() < 1)
         {
             return null;

@@ -47,8 +47,10 @@ public class pet_lib extends script.base_script
     // Pre-CU multi-droid: base 1 out + extras from module_data.droid_command on OUT droids.
     public static final String SCRIPTVAR_ACTIVE_DROIDS = "callable.active_droids";
     public static final String MODULE_DROID_COMMAND = "module_data.droid_command";
-    // Hard cap on extras from one commanding droid (total out = 1 + extras). Module quality 0-5 → +0..5 slots.
-    public static final int MAX_EXTRA_DROID_COMMAND_SLOTS = 5;
+    // Hard cap on extras from one commanding droid (total out = 1 + extras).
+    // module_data.droid_command is the stacked total of all installed command modules
+    // (6 modules x up to +4 = 24) and maps 1:1 to extra droid slots.
+    public static final int MAX_EXTRA_DROID_COMMAND_SLOTS = 24;
     public static final int MAX_FAMILIAR_PETS = 1;
     public static final int MAX_MOUNT_PETS = 1;
     public static final int MAX_UNTRAINED_PETS = 1;
@@ -561,8 +563,9 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
 
     /**
      * Extra droid slots from one PCD/deed command module.
-     * Module quality is 0-5 (experiment range); rating maps 1:1 to extra slots (capped).
-     * Legacy high ratings (6+) from older crafts still map ~20 quality points → +1 slot.
+     * module_data.droid_command is the stacked total of installed command modules and maps
+     * 1:1 to extra droid slots, capped at MAX_EXTRA_DROID_COMMAND_SLOTS.
+     * (The old "6+ = legacy, /20" conversion turned a stacked total of 24 into only +2.)
      */
     public static int getDroidCommandExtraSlots(obj_id pcdOrDeed) throws InterruptedException
     {
@@ -579,21 +582,7 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
         {
             return 0;
         }
-        int extra;
-        if (rating <= MAX_EXTRA_DROID_COMMAND_SLOTS)
-        {
-            // 1-5: direct extras from new 0-5 quality range
-            extra = rating;
-        }
-        else
-        {
-            // Legacy 6-100+ crafts: map quality to 1-5
-            extra = (rating + 19) / 20;
-        }
-        if (extra < 1)
-        {
-            extra = 1;
-        }
+        int extra = rating;
         if (extra > MAX_EXTRA_DROID_COMMAND_SLOTS)
         {
             extra = MAX_EXTRA_DROID_COMMAND_SLOTS;
@@ -1030,6 +1019,33 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
     }
     public static boolean doCommandNum(obj_id master, int commandNum) throws InterruptedException
     {
+        // Pre-CU multi-droid: droids are CALLABLE_TYPE_COMBAT_OTHER (not COMBAT_PET), and several
+        // can be out at once. Send the slash command (droid_guard, droid_follow, ...) to every
+        // active droid. Release/transfer stay on the first droid so one command cannot dump the
+        // whole fleet or transfer them all.
+        Vector droids = getActiveDroidVector(master);
+        if (droids != null && droids.size() > 0)
+        {
+            boolean singleTarget = (commandNum == COMMAND_RELEASE || commandNum == COMMAND_TRANSFER);
+            boolean any = false;
+            for (int i = 0; i < droids.size(); i++)
+            {
+                obj_id droid = (obj_id)droids.get(i);
+                if (!isIdValid(droid) || !exists(droid) || !isDroidPet(droid) || getMaster(droid) != master)
+                {
+                    continue;
+                }
+                if (doPetCommand(droid, commandNum, master))
+                {
+                    any = true;
+                }
+                if (singleTarget && any)
+                {
+                    break;
+                }
+            }
+            return any;
+        }
         obj_id pet = callable.getCallable(master, callable.CALLABLE_TYPE_COMBAT_PET);
         if (!isIdValid(pet) || !exists(pet) || !pet_lib.isDroidPet(pet))
         {
