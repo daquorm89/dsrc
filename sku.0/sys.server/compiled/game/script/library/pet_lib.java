@@ -1008,12 +1008,53 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
         }
         return commandNum;
     }
+    public static boolean isArmyWideSpokenCommand(int commandNum) throws InterruptedException
+    {
+        // Commands that must reach every out droid even if only one was in speech range.
+        return commandNum == COMMAND_FOLLOW
+            || commandNum == COMMAND_STAY
+            || commandNum == COMMAND_GUARD
+            || commandNum == COMMAND_ATTACK
+            || commandNum == COMMAND_ASSUME_FORMATION_1
+            || commandNum == COMMAND_ASSUME_FORMATION_2
+            || commandNum == COMMAND_PATROL
+            || commandNum == COMMAND_RELEASE;
+    }
+
     public static void doCommand(obj_id pet, String text, obj_id master) throws InterruptedException
     {
         int commandNum = getCommandNum(pet, text);
         if (commandNum == -1)
         {
             return;
+        }
+        // Multi-droid: OnHearSpeech only fires for pets near the master. A second
+        // "wedge formation" then only hit the close ones (looked like a toggle) while
+        // distant slots stayed put or drifted. Fan army-wide orders to every active
+        // droid once per second so re-ordering reforms the whole pack.
+        if (isIdValid(master) && isDroidPet(pet) && isArmyWideSpokenCommand(commandNum))
+        {
+            String debounceKey = "ai.pet.armyCmd." + commandNum;
+            int now = getGameTime();
+            if (utils.hasScriptVar(master, debounceKey) && (now - utils.getIntScriptVar(master, debounceKey)) < 2)
+            {
+                return;
+            }
+            utils.setScriptVar(master, debounceKey, now);
+            Vector active = getActiveDroidVector(master);
+            if (active != null && active.size() > 0)
+            {
+                for (int i = 0; i < active.size(); i++)
+                {
+                    obj_id droid = (obj_id)active.get(i);
+                    if (!isIdValid(droid) || !exists(droid) || getMaster(droid) != master)
+                    {
+                        continue;
+                    }
+                    doPetCommand(droid, commandNum, master);
+                }
+                return;
+            }
         }
         doCommandNum(pet, commandNum, master);
     }
@@ -2048,9 +2089,12 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
             default:
             return;
         }
+        // Re-assert is intentional (not a toggle). Clear stay / combat-ignore so a
+        // second spoken formation reforms everyone, including stragglers.
+        utils.removeScriptVar(pet, "ai.pet.staying");
+        utils.removeScriptVar(pet, "petIgnoreAttacks");
         setMovementRun(pet);
         ai_lib.followInFormation(pet, master, formationType, position);
-        utils.removeScriptVar(pet, "ai.pet.staying");
     }
     public static void doPetRelease(obj_id pet) throws InterruptedException
     {

@@ -785,7 +785,9 @@ public class ai_lib extends script.base_script
         setObjVar(npc, "ai.formationPosition", position);
         if (!isInCombat(npc))
         {
-            stop(npc);
+            // Do not stop() first: on re-order, stop() cancelled the prior follow and
+            // left some droids idle (looked like formation "toggled off"). Re-issue
+            // the offset follow directly so a second spoken order reforms the pack.
             resumeFormationFollowing(npc);
         }
     }
