@@ -1765,7 +1765,12 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
         setWantSawAttackTriggers(pet, true);
         // Stay near the guarded master so OnSawAttack can fire.
         // Combat droids that were not already following were left idle and never reacted.
-        if (ai_lib.isFollowing(pet))
+        // Preserve formation: doFollowCommand clears ai.inFormation and stacks droids.
+        if (hasObjVar(pet, "ai.inFormation"))
+        {
+            ai_lib.resumeFormationFollowing(pet);
+        }
+        else if (ai_lib.isFollowing(pet))
         {
             ai_lib.resumeFollow(pet);
         }

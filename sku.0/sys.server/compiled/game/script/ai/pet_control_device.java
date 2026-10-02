@@ -7,6 +7,11 @@ import java.util.Vector;
 
 public class pet_control_device extends script.base_script
 {
+    public static final String[] PET_NAME_IGNORE_RULES = new String[]
+    {
+        "name_declined_number"
+    };
+
     public pet_control_device()
     {
     }
@@ -425,7 +430,7 @@ public class pet_control_device extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
-        if (mountName.equals("") || isNameReserved(mountName))
+        if (mountName.equals("") || isNameReserved(mountName, PET_NAME_IGNORE_RULES))
         {
             sendSystemMessage(player, new string_id("player_structure", "obscene"));
             sui.inputbox(self, player, "@pet/pet_menu:name_d", sui.OK_CANCEL, "@pet/pet_menu:name_t", sui.INPUT_NORMAL, null, "handleSetMountName", null);

@@ -727,7 +727,7 @@ public class beast extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
-        if (beastName.equals("") || isNameReserved(beastName))
+        if (beastName.equals("") || isNameReserved(beastName, new String[] { "name_declined_number" }))
         {
             sendSystemMessage(player, new string_id("player_structure", "obscene"));
             sui.inputbox(self, player, "@beast:name_d", sui.OK_CANCEL, "@beast:name_t", sui.INPUT_NORMAL, null, "handleSetBeastName", null);
