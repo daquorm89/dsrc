@@ -1629,10 +1629,20 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
             stopCombat(pet);
         }
         ai_lib.clearPatrolPath(pet);
+        utils.removeScriptVar(pet, "ai.pet.staying");
+        // Sticky formation: wedge/column survive Follow, Guard and combat until Stay,
+        // Release, Patrol or a new formation order. Re-issue formation instead of
+        // clearing the slot (clearing made the army pile on the master).
+        if (hasObjVar(pet, "ai.formationType") && hasObjVar(pet, "ai.formationPosition"))
+        {
+            setObjVar(pet, "ai.inFormation", master);
+            setMovementRun(pet);
+            ai_lib.resumeFormationFollowing(pet);
+            return;
+        }
         removeObjVar(pet, "ai.inFormation");
         removeObjVar(pet, "ai.formationType");
         removeObjVar(pet, "ai.formationPosition");
-        utils.removeScriptVar(pet, "ai.pet.staying");
         if (hasObjVar(pet, "ai.wounded"))
         {
             removeObjVar(pet, "ai.wounded");
