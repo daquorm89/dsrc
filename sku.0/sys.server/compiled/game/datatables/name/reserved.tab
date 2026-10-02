@@ -4,7 +4,7 @@ s	s	b
 --	name_declined_syntax	
 "(d|pr)[il]+[ck]{1,3}"	name_declined_profane	1
 "(f|ff|ph|pf)[uv]+[ck]{1,3}"	name_declined_profane	1
-[^a-z1-9 '-]	name_declined_syntax	1
+[^a-z0-9 '-]	name_declined_syntax	1
 [^a-z '-]	name_declined_number	1
 [ck][uv]+n+[iy]	name_declined_profane	1
 [ck]ock	name_declined_profane	1

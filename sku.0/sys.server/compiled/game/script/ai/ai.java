@@ -166,6 +166,21 @@ public class ai extends script.base_script
         removeObjVar(npc, "ai.threat");
         ai_lib.setMood(npc, ai_lib.MOOD_CALM);
         messageTo(npc, "redoYaw", null, 30, false);
+        // Formation is sticky and must win over loose follow after combat/guard.
+        if (hasObjVar(npc, "ai.formationType"))
+        {
+            obj_id master = getMaster(npc);
+            if (isIdValid(master) && exists(master) && isInWorld(master))
+            {
+                setObjVar(npc, "ai.inFormation", master);
+                if (getPosture(npc) != POSTURE_UPRIGHT)
+                {
+                    posture.stand(npc);
+                }
+                ai_lib.resumeFormationFollowing(npc);
+                return;
+            }
+        }
         if (ai_lib.isFollowing(npc))
         {
             obj_id target = ai_lib.getFollowTarget(npc);

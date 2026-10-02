@@ -827,14 +827,15 @@ public class ai_lib extends script.base_script
         }
         position = Math.max(1, position);
         location offset = new location();
-        final float spacing = getObjectCollisionRadius(leader) * 2.25f;
-        // Double wedge: slots 1-12 lead V; further slots second V further back.
+        // Tighter spacing so large wedges stay in follow range of the master.
+        final float spacing = Math.max(1.25f, getObjectCollisionRadius(leader) * 1.5f);
+        // Double wedge: slots 1-12 lead V; further slots second V slightly further back.
         final int perWedge = 12;
         final int wedgeRank = (position - 1) / perWedge;
         final int local = ((position - 1) % perWedge) + 1;
         final float x = (spacing * (float)Math.ceil(local / 2.0f));
         offset.x = (local % 2 == 0) ? -x : x;
-        offset.z = -x - (wedgeRank * spacing * 6.0f);
+        offset.z = -x - (wedgeRank * spacing * 3.0f);
         follow(npc, leader, offset);
     }
     public static void followInBoxFormation(obj_id npc, obj_id leader, int position) throws InterruptedException
@@ -897,9 +898,9 @@ public class ai_lib extends script.base_script
         }
         position = Math.max(1, position);
         location offset = new location();
-        final float spacing = getObjectCollisionRadius(leader) * 2.25f;
-        // Stable 3-file column so every droid shares the same geometry.
-        final int files = 3;
+        final float spacing = Math.max(1.25f, getObjectCollisionRadius(leader) * 1.5f);
+        // 5-file column: 25 droids form a 5x5 block behind the master.
+        final int files = 5;
         final int idx = position - 1;
         final int file = idx % files;
         final int rank = idx / files;
