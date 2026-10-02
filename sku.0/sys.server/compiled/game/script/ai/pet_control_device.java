@@ -9,7 +9,10 @@ public class pet_control_device extends script.base_script
 {
     public static final String[] PET_NAME_IGNORE_RULES = new String[]
     {
-        "name_declined_number"
+        "name_declined_number",
+        // Old reserved.iff treated digit 0 as syntax (class was 1-9 only). Ignore
+        // syntax for pet/mount rename so B-1-10 works even before reserved.iff rebuild.
+        "name_declined_syntax"
     };
 
     public pet_control_device()
