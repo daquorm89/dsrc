@@ -442,6 +442,10 @@ public class combat_ship_player extends script.base_script
                 setLocation(self, here);
             }
         }
+        else if (getPilotId(ship) == self)
+        {
+            space_transition.startAtmosAltitudeWatch(self);
+        }
         return SCRIPT_CONTINUE;
     }
     public int OnInitialize(obj_id self) throws InterruptedException

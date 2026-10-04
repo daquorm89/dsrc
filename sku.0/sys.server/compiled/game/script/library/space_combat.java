@@ -1643,20 +1643,19 @@ public class space_combat extends script.base_script
     public static obj_id getClosestSpaceStation(obj_id objShip) throws InterruptedException
     {
         obj_id objQuestManager;
-        if (!utils.checkConfigFlag("ScriptFlags", "liveSpaceServer"))
+        // The quest manager only exists in space scenes. Ground scenes (atmospheric flight)
+        // have none, and getNamedObject throws there when liveSpaceServer is set.
+        if (!isSpaceScene())
         {
-            try
-            {
-                objQuestManager = getNamedObject(space_quest.QUEST_MANAGER);
-            }
-            catch(Throwable err)
-            {
-                return null;
-            }
+            return null;
         }
-        else 
+        try
         {
             objQuestManager = getNamedObject(space_quest.QUEST_MANAGER);
+        }
+        catch(Throwable err)
+        {
+            return null;
         }
         if (!isIdValid(objQuestManager))
         {
