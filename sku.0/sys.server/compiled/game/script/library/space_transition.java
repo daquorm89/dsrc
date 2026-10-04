@@ -1717,6 +1717,145 @@ public class space_transition extends script.base_script
         messageTo(player, "handleAtmosAltitudeCheck", d, ATMOS_ALT_CHECK_SECONDS, false);
     }
 
+    // ------------------------------------------------------------------
+    // Ship Travel: pick a starport on this planet from the ship radial and fly there.
+    // Reuses the client ticket-purchase window in instant-travel mode (same UI the
+    // Privateer / Royal ship use). The purchase callback (player_travel) calls
+    // completeAtmosShipTravel instead of warping the player alone.
+    // ------------------------------------------------------------------
+    public static final String ATMOS_SHIP_TRAVEL_VAR = "atmos.shipTravelShip";
+    public static final float ATMOS_TRAVEL_ARRIVAL_MIN = 25.0f;
+    public static final float ATMOS_TRAVEL_ARRIVAL_MAX = 40.0f;
+
+    public static boolean openAtmosShipTravel(obj_id player, obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(player) || !isIdValid(ship) || !exists(ship) || isSpaceScene())
+        {
+            return false;
+        }
+        if (getPilotId(ship) != player || getContainingShip(player) != ship)
+        {
+            sendSystemMessageTestingOnly(player, "You must be piloting the ship to use Ship Travel.");
+            return false;
+        }
+        String config = getConfigSetting("GameServer", "disableTravelSystem");
+        if (config != null && config.equals("on"))
+        {
+            return false;
+        }
+        if (travel.isTravelBlocked(player, false))
+        {
+            return false;
+        }
+        if (callable.hasAnyCallable(player))
+        {
+            sendSystemMessage(player, new string_id("beast", "beast_cant_travel"));
+            return false;
+        }
+        String planet = getCurrentSceneName();
+        String travelPoint = "Starfighter";
+        int cityId = getCityAtLocation(getLocation(player), 1000);
+        if (cityId != 0)
+        {
+            travelPoint = cityGetName(cityId);
+        }
+        utils.removeScriptVar(player, travel.SCRIPT_VAR_TERMINAL);
+        utils.setScriptVar(player, "instantTravel", true);
+        utils.setScriptVar(player, ATMOS_SHIP_TRAVEL_VAR, ship);
+        boolean ok = enterClientTicketPurchaseMode(player, planet, travelPoint, true);
+        if (!ok)
+        {
+            utils.removeScriptVar(player, "instantTravel");
+            utils.removeScriptVar(player, ATMOS_SHIP_TRAVEL_VAR);
+            LOG("space_transition", "openAtmosShipTravel: enterClientTicketPurchaseMode FAILED player=" + player);
+        }
+        return ok;
+    }
+
+    /**
+     * Called from player_travel.OnPurchaseTicketInstantTravel when the purchase was started
+     * by openAtmosShipTravel. Moves the SHIP (with the pilot and gunners aboard) to the
+     * chosen starport on the same planet, hovering at GROUND_SHIP_ABOVE_PLAYER_Y.
+     */
+    public static boolean completeAtmosShipTravel(obj_id player, String arrivePlanet, String arrivePoint) throws InterruptedException
+    {
+        obj_id ship = obj_id.NULL_ID;
+        if (utils.hasScriptVar(player, ATMOS_SHIP_TRAVEL_VAR))
+        {
+            ship = utils.getObjIdScriptVar(player, ATMOS_SHIP_TRAVEL_VAR);
+            utils.removeScriptVar(player, ATMOS_SHIP_TRAVEL_VAR);
+        }
+        if (!isIdValid(player) || !isIdValid(ship) || !exists(ship) || isSpaceScene())
+        {
+            return false;
+        }
+        if (getPilotId(ship) != player || getContainingShip(player) != ship)
+        {
+            sendSystemMessageTestingOnly(player, "Ship Travel cancelled: you are no longer piloting the ship.");
+            return false;
+        }
+        String planet = getCurrentSceneName();
+        if (arrivePlanet == null || !arrivePlanet.equals(planet))
+        {
+            sendSystemMessageTestingOnly(player, "Ship Travel only reaches starports on this planet. To leave the planet, fly up into space.");
+            return false;
+        }
+        if (arrivePoint == null || arrivePoint.length() == 0 || travel.isTravelBlocked(player, false))
+        {
+            return false;
+        }
+        int cityId = findCityByName(arrivePoint);
+        if (cityId != 0 && city.isCityBanned(player, cityId))
+        {
+            sendSystemMessage(player, new string_id("travel", "banned_travel"));
+            return false;
+        }
+        location pointLoc = getPlanetTravelPointLocation(planet, arrivePoint);
+        if (pointLoc == null)
+        {
+            sendSystemMessageTestingOnly(player, "Ship Travel: that destination could not be found.");
+            return false;
+        }
+        location arrival = utils.getRandomAwayLocation(pointLoc, ATMOS_TRAVEL_ARRIVAL_MIN, ATMOS_TRAVEL_ARRIVAL_MAX);
+        if (arrival == null)
+        {
+            return false;
+        }
+        float terrainY = getHeightAtLocation(arrival.x, arrival.z);
+        float y = (terrainY == terrainY) ? terrainY + GROUND_SHIP_ABOVE_PLAYER_Y : arrival.y + GROUND_SHIP_ABOVE_PLAYER_Y;
+        location dest = new location(arrival.x, y, arrival.z, planet, null);
+        LOG("space_transition", "completeAtmosShipTravel: player=" + player + " ship=" + ship + " -> " + arrivePoint
+            + " (" + dest.x + "," + dest.y + "," + dest.z + ")");
+        setShipLanded(ship, false);
+        setLocation(ship, dest);
+        if (space_utils.isShipWithInterior(ship))
+        {
+            // POB: a client world reload tears the pilot out of the seat, so skip it.
+            startAtmosAltitudeWatch(player);
+        }
+        else
+        {
+            // Fighters: same refresh + re-seat path as boarding.
+            utils.setScriptVar(player, "atmos.boardShipId", ship);
+            refreshClientWorldAtPlayer(player, "handleAtmosBoardAfterWorldRefresh");
+        }
+        sendSystemMessageTestingOnly(player, "Ship Travel: arriving at " + arrivePoint + ".");
+        return true;
+    }
+
+    /**
+     * Park a ship that was just exited: hover at terrain + GROUND_SHIP_ABOVE_PLAYER_Y (5 m)
+     * at its current XZ. Not marked landed (landed sinks fighter/POB meshes).
+     */
+    public static void parkShipHover(obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !exists(ship) || isSpaceScene())
+        {
+            return;
+        }
+        raiseShipAbovePlayer(ship, obj_id.NULL_ID);
+    }
+
     /**
      * Pack the piloted ground ship into its control device and launch the pilot
      * (and any gunners aboard) into the planet's space scene. Everything that can
