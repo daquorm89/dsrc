@@ -1674,6 +1674,10 @@ public class space_transition extends script.base_script
             return;
         }
         float altitude = shipLoc.y - terrainY;
+        if (debugSpaceTransition && (getGameTime() % 10) == 0)
+        {
+            LOG("space_transition", "atmosAlt: player=" + player + " alt=" + altitude + " limit=" + limit + " shipY=" + shipLoc.y + " terrainY=" + terrainY);
+        }
 
         if (altitude >= limit)
         {
@@ -2140,12 +2144,21 @@ public class space_transition extends script.base_script
                 {
                     space_utils.openCommChannelAfterLoad(ship, ship);
                 }
-                if (utils.hasScriptVar(player, "strLaunchPointName"))
+                if (!isSpaceScene())
+                {
+                    // Stale launch marker from an earlier space launch; meaningless on the ground.
+                    utils.removeScriptVar(player, "strLaunchPointName");
+                    startAtmosAltitudeWatch(player);
+                }
+                else if (utils.hasScriptVar(player, "strLaunchPointName"))
                 {
                     obj_id objStation = space_combat.getClosestSpaceStation(ship);
-                    String strLaunchName = getStringObjVar(objStation, "strName");
-                    location locTest = getLocation(objStation);
-                    space_transition.updateLaunchWaypoint(player, locTest, strLaunchName);
+                    if (isIdValid(objStation))
+                    {
+                        String strLaunchName = getStringObjVar(objStation, "strName");
+                        location locTest = getLocation(objStation);
+                        space_transition.updateLaunchWaypoint(player, locTest, strLaunchName);
+                    }
                     utils.setScriptVar(player, "intNewbieZoneLaunch", 1);
                 }
                 if (isSpaceBattlefieldZone())
@@ -2189,6 +2202,7 @@ public class space_transition extends script.base_script
                         {
                             attachScript(ship, "space.combat.combat_ship");
                         }
+                        startAtmosAltitudeWatch(player);
                         return true;
                     }
                     // Ship may already be in the world from setLocation even if pilot failed
