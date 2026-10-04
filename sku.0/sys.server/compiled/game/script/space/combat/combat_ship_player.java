@@ -41,6 +41,8 @@ public class combat_ship_player extends script.base_script
     // P9 atmospheric flight: radial "Exit Ship" while piloting on the ground
     // (L/leaveStation may not be bound on the ground client command set).
     public static final string_id SID_EXIT_SHIP = new string_id("sui", "exit");
+    // Ship Travel radial: reuse the existing "Travel Locations" string.
+    public static final string_id SID_SHIP_TRAVEL = new string_id("tcg", "travel_locations");
 
     /**
      * Record the ship hull's current world position on the player before unpilotShip.
@@ -115,6 +117,8 @@ public class combat_ship_player extends script.base_script
         if (isIdValid(ship) && exists(ship))
         {
             space_transition.forceEjectPlayerFromShipOnGround(player, ship);
+            // Park the hull hovering 5 m above the terrain (not left at flight altitude).
+            space_transition.parkShipHover(ship);
         }
 
         // Hard place beside the captured hull position so native unpilot board-loc
@@ -278,10 +282,23 @@ public class combat_ship_player extends script.base_script
             return SCRIPT_CONTINUE;
         }
         mi.addRootMenu(menu_info_types.SERVER_MENU9, SID_EXIT_SHIP);
+        if (isPilot)
+        {
+            mi.addRootMenu(menu_info_types.SERVER_MENU10, SID_SHIP_TRAVEL);
+        }
         return SCRIPT_CONTINUE;
     }
     public int OnObjectMenuSelect(obj_id self, obj_id player, int item) throws InterruptedException
     {
+        if (player == self && item == menu_info_types.SERVER_MENU10 && !isSpaceScene())
+        {
+            obj_id travelShip = space_transition.getContainingShip(self);
+            if (isIdValid(travelShip))
+            {
+                space_transition.openAtmosShipTravel(self, travelShip);
+            }
+            return SCRIPT_CONTINUE;
+        }
         if (player != self || item != menu_info_types.SERVER_MENU9)
         {
             return SCRIPT_CONTINUE;

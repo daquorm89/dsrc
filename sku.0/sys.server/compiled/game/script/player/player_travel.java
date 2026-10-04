@@ -117,6 +117,12 @@ public class player_travel extends script.base_script
         {
             utils.removeScriptVar(player, "instantTravel");
         }
+        if (utils.hasScriptVar(player, space_transition.ATMOS_SHIP_TRAVEL_VAR))
+        {
+            // Started from the ship radial in atmospheric flight: move the ship, not just the player.
+            space_transition.completeAtmosShipTravel(player, arrivePlanetName, arriveTravelPointName);
+            return SCRIPT_CONTINUE;
+        }
         obj_id terminal = utils.getObjIdScriptVar(player, travel.SCRIPT_VAR_TERMINAL);
         if (isIdValid(terminal))
         {
