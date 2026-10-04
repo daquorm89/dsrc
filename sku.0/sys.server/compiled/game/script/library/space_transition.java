@@ -1727,15 +1727,42 @@ public class space_transition extends script.base_script
     public static final float ATMOS_TRAVEL_ARRIVAL_MIN = 25.0f;
     public static final float ATMOS_TRAVEL_ARRIVAL_MAX = 40.0f;
 
+    public static final float ATMOS_TRAVEL_RANGE = 32.0f;
+
+    // True when the player is allowed to start/finish Ship Travel for this ship:
+    // piloting it, walking inside it, or standing beside it (owner, within range).
+    private static boolean atmosTravelPlayerCanUse(obj_id player, obj_id ship) throws InterruptedException
+    {
+        obj_id pilot = getPilotId(ship);
+        if (isIdValid(pilot) && pilot != player)
+        {
+            return false; // someone else is flying it
+        }
+        if (getContainingShip(player) == ship)
+        {
+            return true;
+        }
+        location pl = getLocation(player);
+        location sl = getLocation(ship);
+        if (pl == null || sl == null || pl.area == null || !pl.area.equals(sl.area) || isIdValid(pl.cell))
+        {
+            return false;
+        }
+        float dx = pl.x - sl.x;
+        float dy = pl.y - sl.y;
+        float dz = pl.z - sl.z;
+        return (dx * dx + dy * dy + dz * dz) <= (ATMOS_TRAVEL_RANGE * ATMOS_TRAVEL_RANGE);
+    }
+
     public static boolean openAtmosShipTravel(obj_id player, obj_id ship) throws InterruptedException
     {
         if (!isIdValid(player) || !isIdValid(ship) || !exists(ship) || isSpaceScene())
         {
             return false;
         }
-        if (getPilotId(ship) != player || getContainingShip(player) != ship)
+        if (!atmosTravelPlayerCanUse(player, ship))
         {
-            sendSystemMessageTestingOnly(player, "You must be piloting the ship to use Ship Travel.");
+            sendSystemMessageTestingOnly(player, "Ship Travel: stay beside your ship (within 32 m) and make sure nobody else is piloting it.");
             return false;
         }
         String config = getConfigSetting("GameServer", "disableTravelSystem");
@@ -1750,6 +1777,11 @@ public class space_transition extends script.base_script
         if (callable.hasAnyCallable(player))
         {
             sendSystemMessage(player, new string_id("beast", "beast_cant_travel"));
+            return false;
+        }
+        if (isIdValid(getMountId(player)))
+        {
+            sendSystemMessage(player, new string_id("travel/travel", "on_pet_or_vehicle_instant_go"));
             return false;
         }
         String planet = getCurrentSceneName();
@@ -1774,8 +1806,9 @@ public class space_transition extends script.base_script
 
     /**
      * Called from player_travel.OnPurchaseTicketInstantTravel when the purchase was started
-     * by openAtmosShipTravel. Moves the SHIP (with the pilot and gunners aboard) to the
-     * chosen starport on the same planet, hovering at GROUND_SHIP_ABOVE_PLAYER_Y.
+     * by openAtmosShipTravel. Moves the SHIP to the chosen starport on the same planet,
+     * hovering at GROUND_SHIP_ABOVE_PLAYER_Y. A seated pilot or walking POB passenger rides
+     * along; a player standing beside the ship is placed beside it at the destination.
      */
     public static boolean completeAtmosShipTravel(obj_id player, String arrivePlanet, String arrivePoint) throws InterruptedException
     {
@@ -1789,9 +1822,9 @@ public class space_transition extends script.base_script
         {
             return false;
         }
-        if (getPilotId(ship) != player || getContainingShip(player) != ship)
+        if (!atmosTravelPlayerCanUse(player, ship))
         {
-            sendSystemMessageTestingOnly(player, "Ship Travel cancelled: you are no longer piloting the ship.");
+            sendSystemMessageTestingOnly(player, "Ship Travel cancelled: you are too far from the ship (or someone else is piloting it).");
             return false;
         }
         String planet = getCurrentSceneName();
@@ -1824,20 +1857,35 @@ public class space_transition extends script.base_script
         float terrainY = getHeightAtLocation(arrival.x, arrival.z);
         float y = (terrainY == terrainY) ? terrainY + GROUND_SHIP_ABOVE_PLAYER_Y : arrival.y + GROUND_SHIP_ABOVE_PLAYER_Y;
         location dest = new location(arrival.x, y, arrival.z, planet, null);
-        LOG("space_transition", "completeAtmosShipTravel: player=" + player + " ship=" + ship + " -> " + arrivePoint
-            + " (" + dest.x + "," + dest.y + "," + dest.z + ")");
+        boolean seated = (getPilotId(ship) == player) && (getContainingShip(player) == ship);
+        boolean aboard = (getContainingShip(player) == ship);
+        LOG("space_transition", "completeAtmosShipTravel: player=" + player + " ship=" + ship + " seated=" + seated
+            + " aboard=" + aboard + " -> " + arrivePoint + " (" + dest.x + "," + dest.y + "," + dest.z + ")");
         setShipLanded(ship, false);
         setLocation(ship, dest);
-        if (space_utils.isShipWithInterior(ship))
+        if (seated)
         {
-            // POB: a client world reload tears the pilot out of the seat, so skip it.
-            startAtmosAltitudeWatch(player);
+            if (space_utils.isShipWithInterior(ship))
+            {
+                // POB: a client world reload tears the pilot out of the seat, so skip it.
+                startAtmosAltitudeWatch(player);
+            }
+            else
+            {
+                // Fighters: same refresh + re-seat path as boarding.
+                utils.setScriptVar(player, "atmos.boardShipId", ship);
+                refreshClientWorldAtPlayer(player, "handleAtmosBoardAfterWorldRefresh");
+            }
         }
-        else
+        else if (!aboard)
         {
-            // Fighters: same refresh + re-seat path as boarding.
-            utils.setScriptVar(player, "atmos.boardShipId", ship);
-            refreshClientWorldAtPlayer(player, "handleAtmosBoardAfterWorldRefresh");
+            // Standing beside the ship: put the player next to it at the destination.
+            float py = getHeightAtLocation(dest.x + 6.0f, dest.z + 6.0f);
+            if (py != py)
+            {
+                py = dest.y - GROUND_SHIP_ABOVE_PLAYER_Y;
+            }
+            warpPlayer(player, planet, dest.x + 6.0f, py + 0.35f, dest.z + 6.0f, null, 0.0f, 0.0f, 0.0f, "msgTravelComplete");
         }
         sendSystemMessageTestingOnly(player, "Ship Travel: arriving at " + arrivePoint + ".");
         return true;
