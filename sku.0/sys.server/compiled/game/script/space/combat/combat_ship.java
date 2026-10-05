@@ -23,6 +23,8 @@ public class combat_ship extends script.base_script
     public static final string_id SID_ENTER_SHIP = new string_id("sui", "enter");
     public static final string_id SID_STORE_SHIP = new string_id("pet/pet_menu", "menu_store");
     public static final string_id SID_EXIT_SHIP_EXTERIOR = new string_id("space/space_interaction", "ejecting");
+    // Ship Travel: reuse the existing "Travel Locations" string.
+    public static final string_id SID_SHIP_TRAVEL = new string_id("tcg", "travel_locations");
     public static final string_id SID_NO_SHIP_CERT = new string_id("space/space_interaction", "no_ship_certification");
     public static final float BOARD_RANGE = 32.0f;
 
@@ -114,6 +116,8 @@ public class combat_ship extends script.base_script
         obj_id pilot = getPilotId(self);
         // Store is always available to owner when close (even while piloting)
         mi.addRootMenu(menu_info_types.SERVER_MENU2, SID_STORE_SHIP);
+        // Ship Travel: pick a starport on this planet and fly there
+        mi.addRootMenu(menu_info_types.SERVER_MENU4, SID_SHIP_TRAVEL);
 
         // Player already inside this POB (walking or stuck): offer exit to exterior
         if (insideThisShip)
@@ -148,7 +152,8 @@ public class combat_ship extends script.base_script
             return SCRIPT_CONTINUE;
         }
         if (item != menu_info_types.ITEM_USE && item != menu_info_types.SERVER_MENU1
-            && item != menu_info_types.SERVER_MENU2 && item != menu_info_types.SERVER_MENU3)
+            && item != menu_info_types.SERVER_MENU2 && item != menu_info_types.SERVER_MENU3
+            && item != menu_info_types.SERVER_MENU4)
         {
             return SCRIPT_CONTINUE;
         }
@@ -227,6 +232,13 @@ public class combat_ship extends script.base_script
         {
             sendSystemMessage(player, SID_NO_SHIP_CERT);
             sui.msgbox(player, player, "Cannot board: missing ship certification.");
+            return SCRIPT_CONTINUE;
+        }
+
+        // ---------- Ship Travel (starport picker) ----------
+        if (item == menu_info_types.SERVER_MENU4)
+        {
+            space_transition.openAtmosShipTravel(player, self);
             return SCRIPT_CONTINUE;
         }
 
