@@ -282,23 +282,10 @@ public class combat_ship_player extends script.base_script
             return SCRIPT_CONTINUE;
         }
         mi.addRootMenu(menu_info_types.SERVER_MENU9, SID_EXIT_SHIP);
-        if (isPilot)
-        {
-            mi.addRootMenu(menu_info_types.SERVER_MENU10, SID_SHIP_TRAVEL);
-        }
         return SCRIPT_CONTINUE;
     }
     public int OnObjectMenuSelect(obj_id self, obj_id player, int item) throws InterruptedException
     {
-        if (player == self && item == menu_info_types.SERVER_MENU10 && !isSpaceScene())
-        {
-            obj_id travelShip = space_transition.getContainingShip(self);
-            if (isIdValid(travelShip))
-            {
-                space_transition.openAtmosShipTravel(self, travelShip);
-            }
-            return SCRIPT_CONTINUE;
-        }
         if (player != self || item != menu_info_types.SERVER_MENU9)
         {
             return SCRIPT_CONTINUE;
