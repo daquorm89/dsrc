@@ -57,6 +57,12 @@ public class player_travel extends script.base_script
     public int OnPurchaseTicket(obj_id self, obj_id player, String departPlanetName, String departTravelPointName, String arrivePlanetName, String arriveTravelPointName, boolean roundTrip) throws InterruptedException
     {
         LOG("LOG_CHANNEL", "player_travel::OnPurchaseTicket");
+        if (space_transition.hasPendingAtmosShipTravel(player))
+        {
+            // Window opened from the ship radial in atmospheric flight: fly the ship instead of issuing a ticket.
+            space_transition.handleAtmosShipTicket(player, departPlanetName, departTravelPointName, arrivePlanetName, arriveTravelPointName);
+            return SCRIPT_CONTINUE;
+        }
         obj_id terminal = utils.getObjIdScriptVar(player, travel.SCRIPT_VAR_TERMINAL);
         if (isIdValid(terminal))
         {
@@ -116,12 +122,6 @@ public class player_travel extends script.base_script
         else
         {
             utils.removeScriptVar(player, "instantTravel");
-        }
-        if (utils.hasScriptVar(player, space_transition.ATMOS_SHIP_TRAVEL_VAR))
-        {
-            // Started from the ship radial in atmospheric flight: move the ship, not just the player.
-            space_transition.completeAtmosShipTravel(player, arrivePlanetName, arriveTravelPointName);
-            return SCRIPT_CONTINUE;
         }
         obj_id terminal = utils.getObjIdScriptVar(player, travel.SCRIPT_VAR_TERMINAL);
         if (isIdValid(terminal))
@@ -238,6 +238,25 @@ public class player_travel extends script.base_script
                 sendSystemMessage(self, new string_id("new_player", "travel_coupon_cancelled"));
             }
             break;
+        }
+        return SCRIPT_CONTINUE;
+    }
+    public int msgAtmosShipTravelPaid(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (params == null || params.getInt(money.DICT_CODE) == money.RET_FAIL)
+        {
+            space_transition.clearAtmosShipTravel(self);
+            sendSystemMessage(self, new string_id(STF_FILE, "short_funds"));
+            return SCRIPT_CONTINUE;
+        }
+        space_transition.completeAtmosShipTravel(self, params.getString("planet2"), params.getString("point2"));
+        return SCRIPT_CONTINUE;
+    }
+    public int msgAtmosShipTravelWarp(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (params != null)
+        {
+            travel.movePlayerToDestination(self, params.getString("planet"), params.getString("point"));
         }
         return SCRIPT_CONTINUE;
     }

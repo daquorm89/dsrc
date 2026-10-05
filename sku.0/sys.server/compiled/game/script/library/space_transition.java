@@ -1754,6 +1754,47 @@ public class space_transition extends script.base_script
         return (dx * dx + dy * dy + dz * dz) <= (ATMOS_TRAVEL_RANGE * ATMOS_TRAVEL_RANGE);
     }
 
+    public static final String ATMOS_SHIP_TRAVEL_TIME_VAR = "atmos.shipTravelTime";
+    public static final int ATMOS_SHIP_TRAVEL_WINDOW_SECONDS = 600;
+
+    // Nearest travel point on this planet (interplanetary starports preferred) so the
+    // client's starship ticket window has a valid departure point.
+    private static String getNearestTravelPoint(String planet, location here) throws InterruptedException
+    {
+        String[] points = getPlanetTravelPoints(planet);
+        if (points == null || here == null)
+        {
+            return null;
+        }
+        String bestInter = null;
+        String bestAny = null;
+        float bestInterDist = Float.MAX_VALUE;
+        float bestAnyDist = Float.MAX_VALUE;
+        for (String name : points)
+        {
+            location l = getPlanetTravelPointLocation(planet, name);
+            if (l == null)
+            {
+                continue;
+            }
+            float dx = l.x - here.x;
+            float dz = l.z - here.z;
+            float d = dx * dx + dz * dz;
+            if (d < bestAnyDist)
+            {
+                bestAnyDist = d;
+                bestAny = name;
+            }
+            if (d < bestInterDist && getPlanetTravelPointInterplanetary(planet, name))
+            {
+                bestInterDist = d;
+                bestInter = name;
+            }
+        }
+        return (bestInter != null) ? bestInter : bestAny;
+    }
+
+    // Opens the regular starship ticket window (all planets / starports).
     public static boolean openAtmosShipTravel(obj_id player, obj_id ship) throws InterruptedException
     {
         if (!isIdValid(player) || !isIdValid(ship) || !exists(ship) || isSpaceScene())
@@ -1785,30 +1826,144 @@ public class space_transition extends script.base_script
             return false;
         }
         String planet = getCurrentSceneName();
-        String travelPoint = "Starfighter";
-        int cityId = getCityAtLocation(getLocation(player), 1000);
-        if (cityId != 0)
+        String departPoint = getNearestTravelPoint(planet, getLocation(player));
+        if (departPoint == null)
         {
-            travelPoint = cityGetName(cityId);
+            sendSystemMessageTestingOnly(player, "Ship Travel: no starport found on this planet.");
+            return false;
         }
         utils.removeScriptVar(player, travel.SCRIPT_VAR_TERMINAL);
-        utils.setScriptVar(player, "instantTravel", true);
+        utils.removeScriptVar(player, "instantTravel");
         utils.setScriptVar(player, ATMOS_SHIP_TRAVEL_VAR, ship);
-        boolean ok = enterClientTicketPurchaseMode(player, planet, travelPoint, true);
+        utils.setScriptVar(player, ATMOS_SHIP_TRAVEL_TIME_VAR, getGameTime());
+        boolean ok = enterClientTicketPurchaseMode(player, planet, departPoint, false);
         if (!ok)
         {
-            utils.removeScriptVar(player, "instantTravel");
             utils.removeScriptVar(player, ATMOS_SHIP_TRAVEL_VAR);
+            utils.removeScriptVar(player, ATMOS_SHIP_TRAVEL_TIME_VAR);
             LOG("space_transition", "openAtmosShipTravel: enterClientTicketPurchaseMode FAILED player=" + player);
         }
         return ok;
     }
 
+    /** True when the player has a fresh ship-travel request pending (set by openAtmosShipTravel). */
+    public static boolean hasPendingAtmosShipTravel(obj_id player) throws InterruptedException
+    {
+        if (!utils.hasScriptVar(player, ATMOS_SHIP_TRAVEL_VAR))
+        {
+            return false;
+        }
+        int started = utils.hasScriptVar(player, ATMOS_SHIP_TRAVEL_TIME_VAR) ? utils.getIntScriptVar(player, ATMOS_SHIP_TRAVEL_TIME_VAR) : 0;
+        if (getGameTime() - started > ATMOS_SHIP_TRAVEL_WINDOW_SECONDS)
+        {
+            clearAtmosShipTravel(player);
+            return false;
+        }
+        return true;
+    }
+
+    public static void clearAtmosShipTravel(obj_id player) throws InterruptedException
+    {
+        utils.removeScriptVar(player, ATMOS_SHIP_TRAVEL_VAR);
+        utils.removeScriptVar(player, ATMOS_SHIP_TRAVEL_TIME_VAR);
+    }
+
     /**
-     * Called from player_travel.OnPurchaseTicketInstantTravel when the purchase was started
-     * by openAtmosShipTravel. Moves the SHIP to the chosen starport on the same planet,
-     * hovering at GROUND_SHIP_ABOVE_PLAYER_Y. A seated pilot or walking POB passenger rides
-     * along; a player standing beside the ship is placed beside it at the destination.
+     * Called from player_travel.OnPurchaseTicket when the ticket window was opened by
+     * openAtmosShipTravel. Validates the trip, charges the normal fare (one way, no ticket
+     * is created) and, once paid, completeAtmosShipTravel moves the ship.
+     */
+    public static boolean handleAtmosShipTicket(obj_id player, String departPlanet, String departPoint, String arrivePlanet, String arrivePoint) throws InterruptedException
+    {
+        obj_id ship = utils.getObjIdScriptVar(player, ATMOS_SHIP_TRAVEL_VAR);
+        if (!isIdValid(ship) || !exists(ship) || isSpaceScene())
+        {
+            clearAtmosShipTravel(player);
+            return false;
+        }
+        if (!atmosTravelPlayerCanUse(player, ship))
+        {
+            sendSystemMessageTestingOnly(player, "Ship Travel cancelled: you are too far from the ship (or someone else is piloting it).");
+            clearAtmosShipTravel(player);
+            return false;
+        }
+        if (arrivePlanet == null || arrivePoint == null || arrivePoint.length() == 0 || travel.isTravelBlocked(player, false))
+        {
+            return false;
+        }
+        if (arrivePlanet.equals("mustafar") && !features.hasMustafarExpansionRetail(player))
+        {
+            sendSystemMessage(player, travel.SID_MUSTAFAR_UNAUTHORIZED);
+            return false;
+        }
+        if (arrivePlanet.equals("kashyyyk_main") && !features.hasEpisode3Expansion(player))
+        {
+            sendSystemMessage(player, travel.SID_KASHYYYK_UNAUTHORIZED);
+            return false;
+        }
+        if (arrivePoint.contains("gcwstaticbase"))
+        {
+            sendSystemMessageTestingOnly(player, "Ship Travel cannot reach that destination.");
+            return false;
+        }
+        int cityId = findCityByName(arrivePoint);
+        if (cityId != 0 && city.isCityBanned(player, cityId))
+        {
+            sendSystemMessage(player, new string_id("city/city", "banned_buy_ticket"));
+            return false;
+        }
+        boolean interplanetary = !departPlanet.equals(arrivePlanet);
+        if (interplanetary)
+        {
+            if (!getPlanetTravelPointInterplanetary(departPlanet, departPoint))
+            {
+                sui.msgbox(player, new string_id("travel", "shuttle_interplanet_fail"));
+                return false;
+            }
+            String departAvail = travel.getGcwTravelRestrictionsAvailableStarport(player, departPlanet);
+            if (departAvail != null && departAvail.length() > 0 && !departAvail.equals(departPoint))
+            {
+                sendSystemMessageTestingOnly(player, "Only " + departAvail + " is available for interplanetary travel on this planet.");
+                return false;
+            }
+            String arriveAvail = travel.getGcwTravelRestrictionsAvailableStarport(player, arrivePlanet);
+            if (arriveAvail != null && arriveAvail.length() > 0 && !arriveAvail.equals(arrivePoint))
+            {
+                sendSystemMessageTestingOnly(player, "Only " + arriveAvail + " is available for interplanetary travel on the destination planet.");
+                return false;
+            }
+        }
+        int planetCost = getPlanetTravelCost(departPlanet, arrivePlanet);
+        int cost1 = getPlanetTravelPointCost(departPlanet, departPoint);
+        int cost2 = getPlanetTravelPointCost(arrivePlanet, arrivePoint);
+        if (planetCost == 0 || cost1 == 0 || cost2 == 0)
+        {
+            sui.msgbox(player, new string_id("travel", "route_invalid"));
+            return false;
+        }
+        int total = planetCost + cost1 + cost2;
+        if (getTotalMoney(player) < total)
+        {
+            sui.msgbox(player, new string_id("travel", "no_cash"));
+            return false;
+        }
+        dictionary params = new dictionary();
+        params.put("planet2", arrivePlanet);
+        params.put("point2", arrivePoint);
+        LOG("space_transition", "handleAtmosShipTicket: player=" + player + " " + departPlanet + "/" + departPoint + " -> " + arrivePlanet + "/" + arrivePoint + " cost=" + total);
+        if (!money.pay(player, money.ACCT_TRAVEL, total, "msgAtmosShipTravelPaid", params, true))
+        {
+            sendSystemMessage(player, new string_id("travel", "short_funds"));
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Runs after the fare is paid. Same planet: the SHIP flies to the chosen starport (hovering
+     * at GROUND_SHIP_ABOVE_PLAYER_Y); a seated pilot or POB passenger rides along, a player
+     * standing beside it is placed next to it. Other planet: the ship is stored in the
+     * datapad control device and the player is taken to that starport (call the ship there).
      */
     public static boolean completeAtmosShipTravel(obj_id player, String arrivePlanet, String arrivePoint) throws InterruptedException
     {
@@ -1816,8 +1971,8 @@ public class space_transition extends script.base_script
         if (utils.hasScriptVar(player, ATMOS_SHIP_TRAVEL_VAR))
         {
             ship = utils.getObjIdScriptVar(player, ATMOS_SHIP_TRAVEL_VAR);
-            utils.removeScriptVar(player, ATMOS_SHIP_TRAVEL_VAR);
         }
+        clearAtmosShipTravel(player);
         if (!isIdValid(player) || !isIdValid(ship) || !exists(ship) || isSpaceScene())
         {
             return false;
@@ -1828,19 +1983,46 @@ public class space_transition extends script.base_script
             return false;
         }
         String planet = getCurrentSceneName();
-        if (arrivePlanet == null || !arrivePlanet.equals(planet))
-        {
-            sendSystemMessageTestingOnly(player, "Ship Travel only reaches starports on this planet. To leave the planet, fly up into space.");
-            return false;
-        }
-        if (arrivePoint == null || arrivePoint.length() == 0 || travel.isTravelBlocked(player, false))
+        if (arrivePlanet == null || arrivePoint == null || arrivePoint.length() == 0)
         {
             return false;
         }
-        int cityId = findCityByName(arrivePoint);
-        if (cityId != 0 && city.isCityBanned(player, cityId))
+        if (!arrivePlanet.equals(planet))
         {
-            sendSystemMessage(player, new string_id("travel", "banned_travel"));
+            // ---- Other planet: store the ship, then take the player to the starport ----
+            obj_id scd = null;
+            if (hasObjVar(ship, "shipControlDevice"))
+            {
+                scd = getObjIdObjVar(ship, "shipControlDevice");
+            }
+            if (!isIdValid(scd) || !exists(scd))
+            {
+                obj_id[] scds = findShipControlDevicesForPlayer(player);
+                if (scds != null && scds.length > 0)
+                {
+                    scd = scds[0];
+                }
+            }
+            if (!isIdValid(scd))
+            {
+                sendSystemMessageTestingOnly(player, "Ship Travel failed: no ship control device found in your datapad. You were not moved.");
+                return false;
+            }
+            boolean stored = storeShipInControlDeviceSafe(ship, scd, player);
+            if (!stored)
+            {
+                sendSystemMessageTestingOnly(player, "Ship Travel failed: could not store the ship. You were not moved.");
+                return false;
+            }
+            sendSystemMessageTestingOnly(player, "Your ship was stored in your datapad. Traveling to " + arrivePoint + " on " + arrivePlanet + "; call your ship there.");
+            dictionary wp = new dictionary();
+            wp.put("planet", arrivePlanet);
+            wp.put("point", arrivePoint);
+            messageTo(player, "msgAtmosShipTravelWarp", wp, 3.0f, false);
+            return true;
+        }
+        if (travel.isTravelBlocked(player, false))
+        {
             return false;
         }
         location pointLoc = getPlanetTravelPointLocation(planet, arrivePoint);
