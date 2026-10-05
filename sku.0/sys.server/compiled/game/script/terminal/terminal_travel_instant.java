@@ -99,7 +99,6 @@ public class terminal_travel_instant extends script.base_script
                 }
             }
             utils.setScriptVar(player, travel.SCRIPT_VAR_TERMINAL, self);
-            utils.removeScriptVar(player, space_transition.ATMOS_SHIP_TRAVEL_VAR);
             utils.setScriptVar(player, "instantTravel", true);
             boolean success = enterClientTicketPurchaseMode(player, planet, travel_point, true);
             if (success) {
