@@ -356,6 +356,21 @@ public class skillteacher extends script.base_script
                 case "opt1_1":
                     msg = new string_id(convo, "msg2_1");
                     skills = skill.getQualifiedTeachableSkills(speaker, self);
+                    // Only list skills the player has NOT learned yet, so the last skills of a
+                    // tree are not pushed off the end of the conversation list.
+                    if (skills != null)
+                    {
+                        Vector notLearned = new Vector();
+                        for (String candidate : skills)
+                        {
+                            if (!hasSkill(speaker, candidate))
+                            {
+                                notLearned.add(candidate);
+                            }
+                        }
+                        skills = new String[notLearned.size()];
+                        notLearned.toArray(skills);
+                    }
                     utils.setScriptVar(speaker, self.toString(), STATUS_LEARN);
                     break;
                 case "opt1_2":
