@@ -58,6 +58,7 @@ public class terminal_travel extends script.base_script
                 }
             }
             utils.setScriptVar(player, travel.SCRIPT_VAR_TERMINAL, self);
+            script.library.space_transition.clearAtmosShipTravel(player);
             enterClientTicketPurchaseMode(player, planet, travel_point, false);
         }
         return SCRIPT_CONTINUE;
