@@ -72,29 +72,37 @@ public class combat_ship extends script.base_script
         return SCRIPT_CONTINUE;
     }
 
+    private void radialDbg(String why) throws InterruptedException
+    {
+        if (space_transition.debugSpaceTransition)
+        {
+            LOG("space_transition", "shipRadial: " + why);
+        }
+    }
+
     public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
     {
         if (!isIdValid(player) || isSpaceScene())
         {
-            return SCRIPT_CONTINUE;
+            radialDbg("spaceScene_or_badPlayer"); return SCRIPT_CONTINUE;
         }
         if (!space_utils.isAtmosphericFlightAllowedHere())
         {
-            return SCRIPT_CONTINUE;
+            radialDbg("atmosFlightNotAllowedHere"); return SCRIPT_CONTINUE;
         }
         if (!isInWorld(self) || !isInWorldCell(self))
         {
-            return SCRIPT_CONTINUE;
+            radialDbg("shipNotInWorld"); return SCRIPT_CONTINUE;
         }
         if (!isAtmosBoardAllowedOwner(self, player))
         {
-            return SCRIPT_CONTINUE;
+            radialDbg("notOwner"); return SCRIPT_CONTINUE;
         }
         location playerLoc = getLocation(player);
         location shipLoc = getLocation(self);
         if (playerLoc == null || shipLoc == null || playerLoc.area == null || !playerLoc.area.equals(shipLoc.area))
         {
-            return SCRIPT_CONTINUE;
+            radialDbg("areaMismatch"); return SCRIPT_CONTINUE;
         }
         // Inside this ship: cell-local coords break world distance — still show Exit/Store.
         boolean insideThisShip = space_utils.isShipWithInterior(self)
@@ -109,13 +117,14 @@ public class combat_ship extends script.base_script
             float distSq = dx * dx + dy * dy + dz * dz;
             if (distSq > (BOARD_RANGE * BOARD_RANGE))
             {
-                return SCRIPT_CONTINUE;
+                radialDbg("outOfRange"); return SCRIPT_CONTINUE;
             }
         }
 
         obj_id pilot = getPilotId(self);
         // Store is always available to owner when close (even while piloting)
         mi.addRootMenu(menu_info_types.SERVER_MENU2, SID_STORE_SHIP);
+        radialDbg("menuBuilt (Travel added)");
         // Ship Travel: pick a starport on this planet and fly there
         mi.addRootMenu(menu_info_types.SERVER_MENU4, SID_SHIP_TRAVEL);
 
