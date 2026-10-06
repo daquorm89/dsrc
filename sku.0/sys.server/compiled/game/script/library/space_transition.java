@@ -1781,7 +1781,7 @@ public class space_transition extends script.base_script
         return best;
     }
 
-    // Spawns a temporary starship terminal 2 m from the player (see space.terminal.terminal_space_temp).
+    // Spawns a temporary, buried (invisible) starship terminal under the player (see space.terminal.terminal_space_temp).
     private static obj_id createTempStarshipTerminal(obj_id player) throws InterruptedException
     {
         location loc = getLocation(player);
@@ -1789,8 +1789,9 @@ public class space_transition extends script.base_script
         {
             return obj_id.NULL_ID;
         }
-        loc.x += 2.0f;
-        loc.y = getHeightAtLocation(loc.x, loc.z);
+        // Bury it 4 m below the ground right under the player: the client only needs the object within 16 m
+        // (it never has to be seen or clicked), so nobody sees or can click it.
+        loc.y = Math.min(loc.y, getHeightAtLocation(loc.x, loc.z)) - 4.0f;
         obj_id terminal = createObject("object/tangible/terminal/terminal_space.iff", loc);
         if (!isIdValid(terminal))
         {
