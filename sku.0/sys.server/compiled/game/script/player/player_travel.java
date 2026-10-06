@@ -237,7 +237,7 @@ public class player_travel extends script.base_script
     }
     public int msgAtmosOpenShipChoose(obj_id self, dictionary params) throws InterruptedException
     {
-        space_transition.showStarshipTerminalUi(self);
+        space_transition.continueStarshipTerminalUi(self, params);
         return SCRIPT_CONTINUE;
     }
     public int msgTicketPaymentComplete(obj_id self, dictionary params) throws InterruptedException
