@@ -1791,7 +1791,9 @@ public class space_transition extends script.base_script
         }
         // Bury it 4 m below the ground right under the player: the client only needs the object within 16 m
         // (it never has to be seen or clicked), so nobody sees or can click it.
-        loc.y = Math.min(loc.y, getHeightAtLocation(loc.x, loc.z)) - 4.0f;
+        float terrainY = getHeightAtLocation(loc.x, loc.z);
+        float baseY = (terrainY == terrainY) ? Math.min(loc.y, terrainY) : loc.y; // NaN-safe
+        loc.y = baseY - 4.0f;
         obj_id terminal = createObject("object/tangible/terminal/terminal_space.iff", loc);
         if (!isIdValid(terminal))
         {
@@ -1800,8 +1802,11 @@ public class space_transition extends script.base_script
         // Swap the template's script right away so the "BUSTED TERMINAL" (not in a city) setup never runs.
         detachScript(terminal, "space.terminal.terminal_space");
         setObjVar(terminal, "atmosTempTerminal.owner", player);
+        // The server's terminal request looks for travel.point_name on the terminal's topmost container
+        // (itself when standing in the world); without it the client gets an "(unlocalized) not registered" warning.
+        setObjVar(terminal, "travel.point_name", "atmos_ship_travel");
         attachScript(terminal, "space.terminal.terminal_space_temp");
-        LOG("space_transition", "createTempStarshipTerminal: terminal=" + terminal + " player=" + player);
+        LOG("space_transition", "createTempStarshipTerminal: terminal=" + terminal + " player=" + player + " point_name=" + getStringObjVar(terminal, "travel.point_name") + " loc=" + getLocation(terminal));
         return terminal;
     }
 
@@ -1864,8 +1869,48 @@ public class space_transition extends script.base_script
         LOG("space_transition", "openAtmosShipTravel: stored ship=" + ship + " terminal=" + terminal + " player=" + player + " pob=" + pob);
         sendSystemMessageTestingOnly(player, "Your ship was stored. Opening the starship terminal window...");
         // POB ships are packed after a 6 s delay (storeShipInControlDeviceSafe); fighters at once.
-        messageTo(player, "msgAtmosOpenShipChoose", null, pob ? 8.0f : 2.0f, false);
+        // Wait until the ship really is in its control device before opening the window.
+        dictionary wait = new dictionary();
+        wait.put("ship", ship);
+        wait.put("scd", scd);
+        wait.put("tries", 0);
+        wait.put("stored", 0);
+        messageTo(player, "msgAtmosOpenShipChoose", wait, 1.0f, false);
         return true;
+    }
+
+    // Polls (1 s steps, max 15) until the ship is stored in its control device, gives the client 1.5 s
+    // to receive the datapad update, then opens the ship chooser.
+    public static void continueStarshipTerminalUi(obj_id player, dictionary params) throws InterruptedException
+    {
+        if (!isIdValid(player) || !exists(player) || params == null)
+        {
+            return;
+        }
+        obj_id ship = params.getObjId("ship");
+        obj_id scd = params.getObjId("scd");
+        int tries = params.getInt("tries");
+        int stored = params.getInt("stored");
+        boolean inScd = isIdValid(ship) && isIdValid(scd) && exists(ship) && exists(scd) && getContainedBy(ship) == scd;
+        if (inScd && stored == 1)
+        {
+            showStarshipTerminalUi(player);
+            return;
+        }
+        if (inScd)
+        {
+            params.put("stored", 1);
+            messageTo(player, "msgAtmosOpenShipChoose", params, 1.5f, false);
+            return;
+        }
+        if (tries >= 15)
+        {
+            LOG("space_transition", "continueStarshipTerminalUi: ship never reached its control device ship=" + ship + " scd=" + scd);
+            sendSystemMessageTestingOnly(player, "Ship Travel failed: your ship could not be stored. Try again outside the ship.");
+            return;
+        }
+        params.put("tries", tries + 1);
+        messageTo(player, "msgAtmosOpenShipChoose", params, 1.0f, false);
     }
 
     // Tell the client to open the starship terminal's ship chooser (nearest terminal within 16 m).
