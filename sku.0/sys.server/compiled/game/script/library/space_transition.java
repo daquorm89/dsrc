@@ -1806,7 +1806,7 @@ public class space_transition extends script.base_script
         // (itself when standing in the world); without it the client gets an "(unlocalized) not registered" warning.
         setObjVar(terminal, "travel.point_name", "atmos_ship_travel");
         attachScript(terminal, "space.terminal.terminal_space_temp");
-        LOG("space_transition", "createTempStarshipTerminal: terminal=" + terminal + " player=" + player);
+        LOG("space_transition", "createTempStarshipTerminal: terminal=" + terminal + " player=" + player + " point_name=" + getStringObjVar(terminal, "travel.point_name") + " loc=" + getLocation(terminal));
         return terminal;
     }
 
