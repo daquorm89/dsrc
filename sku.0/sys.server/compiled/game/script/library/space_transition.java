@@ -1781,6 +1781,29 @@ public class space_transition extends script.base_script
         return best;
     }
 
+    // Spawns a temporary starship terminal 2 m from the player (see space.terminal.terminal_space_temp).
+    private static obj_id createTempStarshipTerminal(obj_id player) throws InterruptedException
+    {
+        location loc = getLocation(player);
+        if (loc == null)
+        {
+            return obj_id.NULL_ID;
+        }
+        loc.x += 2.0f;
+        loc.y = getHeightAtLocation(loc.x, loc.z);
+        obj_id terminal = createObject("object/tangible/terminal/terminal_space.iff", loc);
+        if (!isIdValid(terminal))
+        {
+            return obj_id.NULL_ID;
+        }
+        // Swap the template's script right away so the "BUSTED TERMINAL" (not in a city) setup never runs.
+        detachScript(terminal, "space.terminal.terminal_space");
+        setObjVar(terminal, "atmosTempTerminal.owner", player);
+        attachScript(terminal, "space.terminal.terminal_space_temp");
+        LOG("space_transition", "createTempStarshipTerminal: terminal=" + terminal + " player=" + player);
+        return terminal;
+    }
+
     public static boolean openAtmosShipTravel(obj_id player, obj_id ship) throws InterruptedException
     {
         if (!isIdValid(player) || !isIdValid(ship) || !exists(ship) || isSpaceScene())
@@ -1805,8 +1828,13 @@ public class space_transition extends script.base_script
         obj_id terminal = findNearbyStarshipTerminal(player);
         if (!isIdValid(terminal))
         {
-            sendSystemMessageTestingOnly(player, "Ship Travel uses the starship terminal: stand next to the starship terminal at a starport (with your ship beside you) and try again.");
-            return false;
+            // No real starship terminal nearby: spawn a temporary one so the client window can open anywhere.
+            terminal = createTempStarshipTerminal(player);
+            if (!isIdValid(terminal))
+            {
+                sendSystemMessageTestingOnly(player, "Ship Travel failed: could not create a starship terminal here.");
+                return false;
+            }
         }
         obj_id scd = obj_id.NULL_ID;
         if (hasObjVar(ship, "shipControlDevice"))
@@ -1833,7 +1861,7 @@ public class space_transition extends script.base_script
             return false;
         }
         LOG("space_transition", "openAtmosShipTravel: stored ship=" + ship + " terminal=" + terminal + " player=" + player + " pob=" + pob);
-        sendSystemMessageTestingOnly(player, "Your ship was stored. Opening the starship terminal...");
+        sendSystemMessageTestingOnly(player, "Your ship was stored. Opening the starship terminal window...");
         // POB ships are packed after a 6 s delay (storeShipInControlDeviceSafe); fighters at once.
         messageTo(player, "msgAtmosOpenShipChoose", null, pob ? 8.0f : 2.0f, false);
         return true;
