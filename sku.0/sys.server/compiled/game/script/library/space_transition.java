@@ -1781,13 +1781,22 @@ public class space_transition extends script.base_script
         return best;
     }
 
-    // Spawns a temporary, invisible starship terminal at the player (see space.terminal.terminal_space_temp) (see space.terminal.terminal_space_temp).
+    // Spawns a temporary starship terminal 2 m in front of the player (see space.terminal.terminal_space_temp) (see space.terminal.terminal_space_temp).
     private static obj_id createTempStarshipTerminal(obj_id player, obj_id ship) throws InterruptedException
     {
         location loc = getLocation(player);
         if (loc == null)
         {
             return obj_id.NULL_ID;
+        }
+        // 2 m in front of the player, on the ground; normal size and appearance.
+        float yaw = (float)Math.toRadians(getYaw(player));
+        loc.x += (float)Math.sin(yaw) * 2.0f;
+        loc.z += (float)Math.cos(yaw) * 2.0f;
+        float groundY = getHeightAtLocation(loc.x, loc.z);
+        if (groundY == groundY)
+        {
+            loc.y = groundY;
         }
         obj_id terminal = createObject("object/tangible/terminal/terminal_space.iff", loc);
         if (!isIdValid(terminal))
@@ -1798,9 +1807,6 @@ public class space_transition extends script.base_script
         detachScript(terminal, "space.terminal.terminal_space");
         setObjVar(terminal, "atmosTempTerminal.owner", player);
         setObjVar(terminal, "atmosTempTerminal.ship", ship);
-        // The client still treats it as a starship terminal (shared template), but draws nothing.
-        setObjectAppearance(terminal, "object/tangible/theme_park/shared_invisible_object.iff");
-        setScale(terminal, 0.05f);
         setInvulnerable(terminal, true);
         // The server's terminal request looks for travel.point_name on the terminal's topmost container
         // (itself when standing in the world); without it the client gets an "(unlocalized) not registered" warning.

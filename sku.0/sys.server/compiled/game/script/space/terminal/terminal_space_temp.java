@@ -16,7 +16,7 @@ public class terminal_space_temp extends script.space.terminal.terminal_space
     }
     public static final String VAR_OWNER = "atmosTempTerminal.owner";
     public static final String VAR_EXPIRE = "atmosTempTerminal.expire";
-    public static final int LIFETIME_SECONDS = 180;
+    public static final int LIFETIME_SECONDS = 120;
     public static final String VAR_SHIP = "atmosTempTerminal.ship";
     public static final String MSG_EXPIRE = "msgAtmosTempTerminalExpire";
     public static final String MSG_LAUNCH = "msgAtmosTempTerminalLaunch";
