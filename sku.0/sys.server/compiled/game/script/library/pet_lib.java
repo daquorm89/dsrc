@@ -3428,8 +3428,20 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
         int tameLevelSkillMod = getMaxTameLevel(player);
         return getChanceToTame(level, tamingSkillMod, tameLevelSkillMod);
     }
+    public static final int MAX_TAME_LEVEL_CAP = 70;
+    /**
+     * Creatures above MAX_TAME_LEVEL_CAP (the tame_level a full Creature Handler line grants)
+     * are treated as exactly that level for taming/calling, so NGE-era high-level babies
+     * (e.g. Mustafar, table levels 72-89) need the full line instead of being untameable.
+     * Idempotent: safe to apply more than once to the same level.
+     */
+    public static int getEffectiveTameLevel(int level)
+    {
+        return level > MAX_TAME_LEVEL_CAP ? MAX_TAME_LEVEL_CAP : level;
+    }
     public static int getChanceToTame(int level, int skillMod, int tameLevelSkillMod) throws InterruptedException
     {
+        level = getEffectiveTameLevel(level);
         if (level > tameLevelSkillMod)
         {
             return 0;
@@ -4474,7 +4486,7 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
             return false;
         }
         int numOutNow = getCurrentPetLevels(player);
-        if ((numOutNow + petLevel) > tameLevelSkillMod)
+        if ((numOutNow + getEffectiveTameLevel(petLevel)) > tameLevelSkillMod)
         {
             if (numOutNow == 0)
             {
