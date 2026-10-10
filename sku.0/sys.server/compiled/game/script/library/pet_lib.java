@@ -3428,8 +3428,26 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
         int tameLevelSkillMod = getMaxTameLevel(player);
         return getChanceToTame(level, tamingSkillMod, tameLevelSkillMod);
     }
+    public static final int TAME_LEVEL_SCALE_START = 30;
+    public static final int TAME_LEVEL_SCALE_DIVISOR = 15;
+    /**
+     * Compresses creature levels above TAME_LEVEL_SCALE_START for taming/control math.
+     * The Pre-CU Creature Handler line only grants tame_level ~34, but NGE-era content
+     * (e.g. Mustafar, levels 72-89) is far above that, so those babies could never be
+     * tamed or called. 72 -> 32, 89 -> 33, 30 and below unchanged.
+     * Apply exactly once per level (getChanceToTame(int,int,int) and the pet-level sum).
+     */
+    public static int getEffectiveTameLevel(int level)
+    {
+        if (level <= TAME_LEVEL_SCALE_START)
+        {
+            return level;
+        }
+        return TAME_LEVEL_SCALE_START + ((level - TAME_LEVEL_SCALE_START) / TAME_LEVEL_SCALE_DIVISOR);
+    }
     public static int getChanceToTame(int level, int skillMod, int tameLevelSkillMod) throws InterruptedException
     {
+        level = getEffectiveTameLevel(level);
         if (level > tameLevelSkillMod)
         {
             return 0;
@@ -4473,8 +4491,8 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
             sendSystemMessage(player, new string_id("pet/pet_menu", "sys_lack_skill"));
             return false;
         }
-        int numOutNow = getCurrentPetLevels(player);
-        if ((numOutNow + petLevel) > tameLevelSkillMod)
+        int numOutNow = getEffectiveTameLevel(getCurrentPetLevels(player));
+        if ((numOutNow + getEffectiveTameLevel(petLevel)) > tameLevelSkillMod)
         {
             if (numOutNow == 0)
             {
