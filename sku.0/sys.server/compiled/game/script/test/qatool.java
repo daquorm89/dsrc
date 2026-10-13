@@ -942,6 +942,73 @@ public class qatool extends script.base_script
         }
         return SCRIPT_CONTINUE;
     }
+    public void qaCompleteSpaceQuests(obj_id self, StringTokenizer st) throws InterruptedException
+    {
+        obj_id datapad = utils.getPlayerDatapad(self);
+        if (!isIdValid(datapad))
+        {
+            sendSystemMessageTestingOnly(self, "qatool: could not find your datapad.");
+            return;
+        }
+        String filter = "";
+        if (st.hasMoreTokens())
+        {
+            filter = toLower(st.nextToken());
+        }
+        obj_id[] datapadObjects = getContents(datapad);
+        int found = 0;
+        int completed = 0;
+        for (obj_id questObj : datapadObjects)
+        {
+            if (!hasObjVar(questObj, space_quest.QUEST_NAME))
+            {
+                continue;
+            }
+            found++;
+            String questName = getStringObjVar(questObj, space_quest.QUEST_NAME);
+            String questType = getStringObjVar(questObj, space_quest.QUEST_TYPE);
+            if (filter.equals(""))
+            {
+                sendSystemMessageTestingOnly(self, "qatool: active space quest: " + questType + "/" + questName);
+                continue;
+            }
+            if (!toLower(questName).contains(filter))
+            {
+                continue;
+            }
+            int questId = questGetQuestId("spacequest/" + questType + "/" + questName);
+            if ((questId != 0) && questIsTaskActive(questId, 1, self))
+            {
+                questCompleteTask(questId, 1, self);
+            }
+            obj_id[] waypoints = getObjIdArrayObjVar(questObj, "target_waypoints");
+            if (waypoints != null)
+            {
+                for (obj_id waypoint : waypoints)
+                {
+                    if (isIdValid(waypoint))
+                    {
+                        destroyWaypointInDatapad(waypoint, self);
+                    }
+                }
+            }
+            space_quest.setQuestWon(self, questObj);
+            completed++;
+            sendSystemMessageTestingOnly(self, "qatool: completed space quest " + questType + "/" + questName);
+        }
+        if (found == 0)
+        {
+            sendSystemMessageTestingOnly(self, "qatool: no active space quests in your datapad.");
+        }
+        else if (filter.equals(""))
+        {
+            sendSystemMessageTestingOnly(self, "Usage: /qatool completespacequest <part of quest name> completes matching quests.");
+        }
+        else if (completed == 0)
+        {
+            sendSystemMessageTestingOnly(self, "qatool: no active space quest name contains '" + filter + "'.");
+        }
+    }
     public int cmdQaTool(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException
     {
         if (!isGod(self) || getGodLevel(self) < 10){
@@ -978,6 +1045,11 @@ public class qatool extends script.base_script
                 sendSystemMessageTestingOnly(self, "Object: " + target + " has added " + count + " to it's item count.");
                 return SCRIPT_CONTINUE;
             }
+        }
+        else if ((toLower(command)).equals("completespacequest"))
+        {
+            qaCompleteSpaceQuests(self, st);
+            return SCRIPT_CONTINUE;
         }
         else if ((toLower(command)).equals("collectionclickbypass"))
         {
