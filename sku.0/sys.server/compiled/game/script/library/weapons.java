@@ -697,7 +697,7 @@ public class weapons extends script.base_script
     }
     public static obj_id createLimitedUseSchematic(String name, int VIA_what, int numUses, obj_id container, String schematicNameKey) throws InterruptedException
     {
-        return createLimitedUseSchematic(name, VIA_what, numUses, container, schematicNameKey, "class_munitions_phase4_master");
+        return createLimitedUseSchematic(name, VIA_what, numUses, container, schematicNameKey, "crafting_weaponsmith_master");
     }
     public static obj_id createLimitedUseSchematic(String name, int VIA_what, int numUses, obj_id container, String schematicNameKey, String skillRequired) throws InterruptedException
     {

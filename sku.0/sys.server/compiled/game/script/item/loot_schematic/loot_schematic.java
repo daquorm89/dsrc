@@ -275,7 +275,9 @@ public class loot_schematic extends script.base_script
             if (hasObjVar(self, VAR_SKILL_REQ))
             {
                 String skill_req = getStringObjVar(self, VAR_SKILL_REQ);
+                String rawSkillReq = skill_req;
                 skill_req = remapSkillReqToPrecu(skill_req);
+                LOG("loot_schematic", "use: player=" + player + " item=" + self + " skill_req raw=" + rawSkillReq + " remapped=" + skill_req + " build=remap-v2");
                 // Persist remap on the item so examine / next use show Pre-CU skill
                 if (hasObjVar(self, VAR_SKILL_REQ) && !skill_req.equals(getStringObjVar(self, VAR_SKILL_REQ)))
                 {
