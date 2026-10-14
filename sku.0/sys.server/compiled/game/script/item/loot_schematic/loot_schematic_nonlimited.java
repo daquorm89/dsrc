@@ -117,7 +117,9 @@ public class loot_schematic_nonlimited extends script.base_script
             if (hasObjVar(self, VAR_SKILL_REQ))
             {
                 String skill_req = getStringObjVar(self, VAR_SKILL_REQ);
+                String rawSkillReq = skill_req;
                 skill_req = loot_schematic.remapSkillReqToPrecu(skill_req);
+                LOG("loot_schematic", "use(nonlimited): player=" + player + " item=" + self + " skill_req raw=" + rawSkillReq + " remapped=" + skill_req + " build=remap-v2");
                 setObjVar(self, VAR_SKILL_REQ, skill_req);
                 if (!loot_schematic.playerMeetsLootSchematicSkillReq(player, skill_req))
                 {
