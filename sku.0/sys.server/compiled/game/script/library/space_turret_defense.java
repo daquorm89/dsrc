@@ -101,9 +101,10 @@ public class space_turret_defense extends script.base_script
 
     public static void fireAllTurretsAt(obj_id ship, obj_id target) throws InterruptedException
     {
-        // Weapon slots: SCST_weapon_0 .. SCST_weapon_last. Pilot guns are often 0;
-        // POB gunner turrets are typically higher indices and isTurret on the C++ side.
-        for (int w = 0; w < 16; w++)
+        // The native (ScriptMethodsShip::fireShipTurretServer) ignores anything that is not an
+        // installed turret, out of range, or outside the turret's firing arc, so every installed
+        // weapon index can be offered here. Component -1 = aim at the pilot's look-at component.
+        for (int w = 0; w < 32; w++)
         {
             int slot = ship_chassis_slot_type.SCST_weapon_first + w;
             if (!isShipSlotInstalled(ship, slot))
@@ -114,15 +115,7 @@ public class space_turret_defense extends script.base_script
             {
                 continue;
             }
-            try
-            {
-                // weaponIndex for fireShipTurretServer is the weapon index (0-based), not chassis slot
-                fireShipTurretServer(ship, w, target, 0, true);
-            }
-            catch (Exception e)
-            {
-                // Non-turret weapons are ignored by C++ (DEBUG_FATAL only in debug builds)
-            }
+            fireShipTurretServer(ship, w, target, -1, true);
         }
     }
 }
