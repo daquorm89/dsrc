@@ -660,6 +660,12 @@ public class ship_control_device extends script.base_script
         }
         return null;
     }
+    /**
+     * Ensure POB (player-owned, interior) ships use the full house item limit
+     * (maxHouseItemLimit = 500) instead of the lot-derived base of ~100.
+     * Placed objects and container contents both count toward this single max.
+     * Also preserves the legacy gunship storageIncrease adjustment.
+     */
     public void gunshipCheck(obj_id objShip) throws InterruptedException
     {
         if (!isIdValid(objShip))
@@ -667,25 +673,40 @@ public class ship_control_device extends script.base_script
             return;
         }
         String type = getShipChassisType(objShip);
-        if (type.startsWith("player_gunship") && (!hasObjVar(objShip, "structure.capacity_override")))
+        if (type == null || !type.startsWith("player_"))
         {
-            int newCapacity;
-            if (hasObjVar(objShip, "structureChange.storageIncrease"))
+            return;
+        }
+        // POB chassis (lots_consumed > 0 in shiptype.tab): decimator, gunships,
+        // sorosuub yacht, y8, ykl37r, yt1300, yt2400, etc.
+        final int POB_ITEM_LIMIT = 500; // ConfigServerGame maxHouseItemLimit
+        if (!hasObjVar(objShip, "structure.capacity_override"))
+        {
+            // Legacy gunship path: fold excess storageIncrease into base once
+            if (type.startsWith("player_gunship") && hasObjVar(objShip, "structureChange.storageIncrease"))
             {
-                newCapacity = getIntObjVar(objShip, "structureChange.storageIncrease");
+                int newCapacity = getIntObjVar(objShip, "structureChange.storageIncrease");
                 newCapacity = newCapacity - 50;
                 if (newCapacity <= 0)
                 {
                     removeObjVar(objShip, "structureChange.storageIncrease");
                 }
-                else if (newCapacity > 0)
+                else
                 {
                     setObjVar(objShip, "structureChange.storageIncrease", newCapacity);
                 }
-                setObjVar(objShip, "structure.capacity_override", 150);
+            }
+            setObjVar(objShip, "structure.capacity_override", POB_ITEM_LIMIT);
+        }
+        else
+        {
+            // Already has override but may be the old gunship 150 — raise to max
+            int current = getIntObjVar(objShip, "structure.capacity_override");
+            if (current < POB_ITEM_LIMIT)
+            {
+                setObjVar(objShip, "structure.capacity_override", POB_ITEM_LIMIT);
             }
         }
-        return;
     }
     public boolean blog(String category, String msg) throws InterruptedException
     {
