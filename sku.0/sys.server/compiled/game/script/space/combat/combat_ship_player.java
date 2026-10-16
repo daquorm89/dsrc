@@ -716,6 +716,11 @@ public class combat_ship_player extends script.base_script
         }
         return SCRIPT_CONTINUE;
     }
+    public int droidcommand_turretdefense(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException
+    {
+        space_combat.performDroidCommands(self, "droidcommand_turretdefense");
+        return SCRIPT_CONTINUE;
+    }
     public int droid(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException
     {
         if (params == null)
