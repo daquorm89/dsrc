@@ -1586,6 +1586,14 @@ public class pet extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
+        // Combat QoL: left-click (default action) must not mount, store, command,
+        // or open droid menus while the player is in combat. Dismount remains
+        // allowed so the rider can get off under fire. All other interactions
+        // go through the radial menu deliberately.
+        if (ai_lib.isInCombat(player) && item != menu_info_types.SERVER_PET_DISMOUNT)
+        {
+            return SCRIPT_CONTINUE;
+        }
         obj_id petControlDevice = callable.getCallableCD(self);
         if (item == menu_info_types.PET_STORE)
         {
