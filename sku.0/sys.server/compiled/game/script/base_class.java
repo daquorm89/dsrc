@@ -24636,6 +24636,12 @@ public class base_class
     {
         return _isShipSlotInstalled(getLongWithNull(shipId), chassisSlot);
     }
+    /** Fire a ship turret at a target (server-side auto-turret path). weaponIndex is 0-based weapon slot index. */
+    private static native void _fireShipTurretServer(long shipId, int weaponIndex, long targetId, int targetedComponent, boolean goodShot);
+    public static void fireShipTurretServer(obj_id shipId, int weaponIndex, obj_id targetId, int targetedComponent, boolean goodShot)
+    {
+        _fireShipTurretServer(getLongWithNull(shipId), weaponIndex, getLongWithNull(targetId), targetedComponent, goodShot);
+    }
     private static native boolean   _isShipComponentDisabled(long shipId, int chassisSlot);
     public static boolean   isShipComponentDisabled                       (obj_id shipId, int chassisSlot)
     {

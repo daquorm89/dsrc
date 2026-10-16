@@ -70,3 +70,4 @@ droidcommand_wingmenone	wingmen tier 1: spawns 3 escort fighters	wingmen_one		0.
 droidcommand_wingmentwo	wingmen tier 2: spawns 3 escort fighters	wingmen_two		0.5	NONE	0	0	0	0	0	0	callWingmen	0	0	0	0	0	0
 droidcommand_wingmenthree	wingmen tier 3: spawns 3 escort fighters	wingmen_three		0.5	NONE	0	0	0	0	0	0	callWingmen	0	0	0	0	0	0
 droidcommand_wingmenfour	wingmen tier 4: spawns 3 escort fighters	wingmen_four		0.5	NONE	0	0	0	0	0	0	callWingmen	0	0	0	0	0	0
+droidcommand_turretdefense	POB AI turrets engage hostiles for 45s	turret_defense		1.0	NONE	0	0	0	0	0	0	startTurretDefense	0	0	0	0	0	0
