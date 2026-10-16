@@ -660,6 +660,13 @@ public class ship_control_device extends script.base_script
         }
         return null;
     }
+    /**
+     * Raise item limit on true POB (interior) player ships. Lot-derived base is
+     * only ~100; houses are capped at maxHouseItemLimit (500). Ships skip that
+     * house cap in C++ (getPobBaseItemLimit) when structure.capacity_override
+     * is set. Target: YT-1300, Decimator, YT-2400, YKL-37R, Y8, SoroSuub yacht,
+     * gunships, etc. — not pure fighters without an interior.
+     */
     public void gunshipCheck(obj_id objShip) throws InterruptedException
     {
         if (!isIdValid(objShip))
@@ -667,25 +674,61 @@ public class ship_control_device extends script.base_script
             return;
         }
         String type = getShipChassisType(objShip);
-        if (type.startsWith("player_gunship") && (!hasObjVar(objShip, "structure.capacity_override")))
+        if (type == null)
         {
-            int newCapacity;
-            if (hasObjVar(objShip, "structureChange.storageIncrease"))
+            return;
+        }
+        // POB chassis only (lots_consumed > 0 / interior ships)
+        final String[] POB_PREFIXES = {
+            "player_yt1300",
+            "player_yt2400",
+            "player_decimator",
+            "player_ykl37r",
+            "player_y8",
+            "player_sorosuub",
+            "player_gunship"
+        };
+        boolean isPob = false;
+        for (String prefix : POB_PREFIXES)
+        {
+            if (type.startsWith(prefix))
             {
-                newCapacity = getIntObjVar(objShip, "structureChange.storageIncrease");
+                isPob = true;
+                break;
+            }
+        }
+        if (!isPob)
+        {
+            return;
+        }
+        // High shared limit for placed furniture + container contents
+        final int POB_ITEM_LIMIT = 5000;
+        if (!hasObjVar(objShip, "structure.capacity_override"))
+        {
+            // Legacy gunship path: fold excess storageIncrease into base once
+            if (type.startsWith("player_gunship") && hasObjVar(objShip, "structureChange.storageIncrease"))
+            {
+                int newCapacity = getIntObjVar(objShip, "structureChange.storageIncrease");
                 newCapacity = newCapacity - 50;
                 if (newCapacity <= 0)
                 {
                     removeObjVar(objShip, "structureChange.storageIncrease");
                 }
-                else if (newCapacity > 0)
+                else
                 {
                     setObjVar(objShip, "structureChange.storageIncrease", newCapacity);
                 }
-                setObjVar(objShip, "structure.capacity_override", 150);
+            }
+            setObjVar(objShip, "structure.capacity_override", POB_ITEM_LIMIT);
+        }
+        else
+        {
+            int current = getIntObjVar(objShip, "structure.capacity_override");
+            if (current < POB_ITEM_LIMIT)
+            {
+                setObjVar(objShip, "structure.capacity_override", POB_ITEM_LIMIT);
             }
         }
-        return;
     }
     public boolean blog(String category, String msg) throws InterruptedException
     {
