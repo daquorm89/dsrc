@@ -1478,6 +1478,21 @@ public class combat_ship_player extends script.base_script
         }
         return SCRIPT_CONTINUE;
     }
+    public int startTurretDefense(obj_id self, dictionary params) throws InterruptedException
+    {
+        obj_id ship = space_transition.getContainingShip(self);
+        if (!isIdValid(ship))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        space_turret_defense.start(self, ship);
+        return SCRIPT_CONTINUE;
+    }
+    public int turretDefenseTick(obj_id self, dictionary params) throws InterruptedException
+    {
+        space_turret_defense.tick(self, params.getObjId("ship"), params.getInt("gen"));
+        return SCRIPT_CONTINUE;
+    }
     public int callWingmen(obj_id self, dictionary params) throws InterruptedException
     {
         int tier = space_wingmen.getTierFromCommand(params.getString("strCommandName"));
