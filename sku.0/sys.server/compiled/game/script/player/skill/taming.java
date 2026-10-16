@@ -93,21 +93,6 @@ public class taming extends script.base_script
         messageTo(target, "handleBeingTamed", d, 1.0f, false);
         return SCRIPT_CONTINUE;
     }
-    public int mountDiagCheck(obj_id self, dictionary params) throws InterruptedException
-    {
-        obj_id mount = params.getObjId("mount");
-        String d = "later-check posture=" + getPosture(self) + " ridingState=" + getState(self, STATE_RIDING_MOUNT) + " mountId=" + getMountId(self) + " containedBy=" + getContainedBy(self);
-        if (isIdValid(mount) && exists(mount))
-        {
-            d += " mountExists=true mountTemplate=" + getTemplateName(mount) + " dist=" + getDistance(self, mount) + " mountScript.ai.pet=" + hasScript(mount, "ai.pet") + " mount.ai.mount_combat=" + hasScript(mount, "ai.mount_combat") + " mountState=" + getState(mount, STATE_MOUNTED_CREATURE);
-        }
-        else
-        {
-            d += " mountExists=false";
-        }
-        mountDiag(self, d);
-        return SCRIPT_CONTINUE;
-    }
     // TEMPORARY DIAGNOSTIC (P15.8): remove once the creature-mount radial bug is fixed.
     private static void mountDiag(obj_id self, String msg) throws InterruptedException
     {
