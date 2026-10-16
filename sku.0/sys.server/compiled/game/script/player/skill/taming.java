@@ -93,9 +93,16 @@ public class taming extends script.base_script
         messageTo(target, "handleBeingTamed", d, 1.0f, false);
         return SCRIPT_CONTINUE;
     }
+    // TEMPORARY DIAGNOSTIC (P15.8): remove once the creature-mount radial bug is fixed.
+    private static void mountDiag(obj_id self, String msg) throws InterruptedException
+    {
+        sendSystemMessageTestingOnly(self, "MOUNTDIAG: " + msg);
+        LOG("mount", "MOUNTDIAG: " + msg);
+    }
     public int mount(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException
     {
         LOG("mount", "mount(): enter self: " + self + " target: " + target);
+        mountDiag(self, "enter target=" + target + " posture=" + getPosture(self) + " ridingState=" + getState(self, STATE_RIDING_MOUNT) + " mountId=" + getMountId(self));
         debugServerConsoleMsg(self, "+++ PLAYER.skill.taming +++ commandHandler mount() +++ just entered commandHandler mount()");
         location here = getLocation(self);
         location term = getLocation(target);
@@ -104,18 +111,22 @@ public class taming extends script.base_script
         {
             debugServerConsoleMsg(self, "+++ PLAYER.skill.taming +++ commandHandler mount() +++ either isIdValid(self) or isIdValid(target) failed");
             LOG("mount", "mount(): player or mount id is not valid");
+            mountDiag(self, "EXIT invalid self/target");
             return SCRIPT_CONTINUE;
         }
         if (buff.hasBuff(self, "instance_exiting"))
         {
+            mountDiag(self, "EXIT instance_exiting buff");
             return SCRIPT_CONTINUE;
         }
         if (!pet_lib.isPet(target))
         {
+            mountDiag(self, "EXIT target is not a pet");
             return SCRIPT_CONTINUE;
         }
         if (isDead(self) || isIncapacitated(self) || dist > 5.0)
         {
+            mountDiag(self, "EXIT dead/incap/dist=" + dist);
             return SCRIPT_CONTINUE;
         }
         int shapechange = buff.getBuffOnTargetFromGroup(self, "shapechange");
@@ -139,26 +150,31 @@ public class taming extends script.base_script
         }
         if (isIdValid(playerCurrentMount))
         {
+            mountDiag(self, "EXIT already has mount " + playerCurrentMount);
             return SCRIPT_CONTINUE;
         }
         if (!isMob(target))
         {
+            mountDiag(self, "EXIT target not a mob");
             return SCRIPT_CONTINUE;
         }
         if (self != getMaster(target))
         {
             if (!doesMountHaveRoom(target))
             {
+                mountDiag(self, "EXIT mount has no room");
                 return SCRIPT_CONTINUE;
             }
             else if (!vehicle.mountPermissionCheck(target, self, true))
             {
+                mountDiag(self, "EXIT mountPermissionCheck failed");
                 return SCRIPT_CONTINUE;
             }
         }
         if (pet_lib.isInRestrictedScene(self))
         {
             sendSystemMessage(self, pet_lib.SID_SYS_MOUNT_RESTRICTED_SCENE);
+            mountDiag(self, "EXIT restricted scene");
             return SCRIPT_CONTINUE;
         }
         if (!hasObjVar(target, "vehicularTestBed"))
@@ -166,6 +182,7 @@ public class taming extends script.base_script
             if (!hasScript(target, "ai.pet"))
             {
                 debugServerConsoleMsg(self, "+++ PLAYER.skill.taming +++ commandHandler mount() +++ ai.pet isn't present on the target pet");
+                mountDiag(self, "EXIT target has no ai.pet script");
                 sendSystemMessage(self, pet_lib.SID_SYS_CANT_MOUNT);
                 return SCRIPT_CONTINUE;
             }
@@ -183,11 +200,14 @@ public class taming extends script.base_script
             if (!mountCreature(self, target))
             {
                 debugServerConsoleMsg(self, "+++ PLAYER.skill.taming +++ commandHandler mount() +++ mountCreature (self,target) returned FALSE");
+                mountDiag(self, "mountCreature() returned FALSE");
                 sendSystemMessage(self, pet_lib.SID_SYS_CANT_MOUNT);
             }
             else 
             {
+                mountDiag(self, "mountCreature() TRUE posture=" + getPosture(self) + " ridingState=" + getState(self, STATE_RIDING_MOUNT) + " mountId=" + getMountId(self));
                 pet_lib.setMountedMovementRate(self, target);
+                mountDiag(self, "after setMountedMovementRate posture=" + getPosture(self) + " ridingState=" + getState(self, STATE_RIDING_MOUNT) + " mountId=" + getMountId(self));
                 debugServerConsoleMsg(self, "+++ PLAYER.skill.taming +++ commandHandler mount() +++ mountCreature (self,target) returned TRUE");
                 messageTo(self, "applyMountBuff", null, 1, false);
                 if (!hasObjVar(target, "vehicularTestBed"))
@@ -203,6 +223,7 @@ public class taming extends script.base_script
         else 
         {
             debugServerConsoleMsg(self, "+++ PLAYER.skill.taming +++ commandHandler mount() +++ pet_lib.canMount(target, self) returned FALSE");
+            mountDiag(self, "EXIT getMountsEnabled=" + getMountsEnabled() + " or pet_lib.canMount=false");
         }
         return SCRIPT_CONTINUE;
     }
