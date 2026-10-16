@@ -22852,6 +22852,21 @@ public class base_class
     private static native void _dismountCreature(long riderId);
     public static void dismountCreature(obj_id riderId)
     {
+        // TEMPORARY DIAGNOSTIC (P15.9): report the Java caller of every script-initiated dismount.
+        try
+        {
+            StackTraceElement[] st = new Throwable().getStackTrace();
+            StringBuilder sb = new StringBuilder("dismountCreature called by:");
+            for (int i = 1; i < st.length && i < 7; ++i)
+            {
+                sb.append(" <- ").append(st[i].getClassName()).append(".").append(st[i].getMethodName()).append(":").append(st[i].getLineNumber());
+            }
+            sendSystemMessageTestingOnly(riderId, "MOUNTDIAG: " + sb.toString());
+            LOG("mount", "MOUNTDIAG: " + sb.toString());
+        }
+        catch (Throwable t)
+        {
+        }
         _dismountCreature(getLongWithNull(riderId));
     }
 
