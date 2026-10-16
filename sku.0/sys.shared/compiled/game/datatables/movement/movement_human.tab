@@ -11,7 +11,7 @@ Sitting	Sitting			0	0	0	0.5
 LyingDown	LyingDown			0.15	0.15	0.12	0.25
 SkillAnimating	SkillAnimating	SkillAnimating	SkillAnimating	1	1	1	1
 DrivingVehicle	DrivingVehicle			0	0	0	1
-RidingCreature	RidingCreature			0	0	0	1
+RidingCreature	RidingCreature	RidingCreature	RidingCreature	0	0	0	1
 KnockedDown	KnockedDown			0	0	0	0.25
 Incapacitated	Incapacitated			0	0	0	0.25
 Dead	Dead			0	0	0	0.25
