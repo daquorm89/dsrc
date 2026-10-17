@@ -510,6 +510,12 @@ public class combat_ship_player extends script.base_script
                     }
                 }
                 boolean result = pilotShip(self, pilotSlotObject);
+                if (result)
+                {
+                    // POB pilot seat: grant the programmed droid commands (see
+                    // space_transition.grantPobPilotDroidCommands).
+                    space_transition.grantPobPilotDroidCommands(self, ship);
+                }
                 if ((isGod(self)) || (utils.checkConfigFlag("ScriptFlags", "e3Demo")))
                 {
                     if ((result) && (isGod(self)))
@@ -614,6 +620,7 @@ public class combat_ship_player extends script.base_script
                         return SCRIPT_CONTINUE;
                     }
                 }
+                space_transition.revokeDroidCommands(self);
                 unpilotShip(self);
                 if (!isSpaceScene() && isIdValid(piloted) && space_utils.isShipWithInterior(piloted))
                 {
