@@ -177,6 +177,10 @@ public class combat_base extends script.base_script
         {
             isDelayedAttack = (hitType == combat.DELAY_ATTACK);
         }
+        if (isPlayer(self) && (hitType == combat.DELAY_ATTACK || actionData.attackType == combat.CONE || actionData.attackType == combat.AREA || actionData.attackType == combat.TARGET_AREA))
+        {
+            heavyDiag(self, "start action=" + actionName + " mounted=" + isIdValid(getMountId(self)) + " egg=" + isTangibleAttacking + " target=" + target + " params=[" + params + "] targetLoc=" + targetLoc + " selfLoc=" + getLocation(self) + " selfWorld=" + getWorldLocation(self) + " weapon=" + objWeapon);
+        }
         weapon_data weaponData = getOverloadedWeaponData(self, objWeapon, actionData);
         if (weaponData == null)
         {
@@ -256,6 +260,10 @@ public class combat_base extends script.base_script
         if (!isDelayedAttack)
         {
             obj_id[] defenders = getCombatDefenders(self, combatTarget, weaponData, actionData, isSpecialAttack);
+            if (isPlayer(self) && (hitType == combat.DELAY_ATTACK || actionData.attackType == combat.CONE || actionData.attackType == combat.AREA || actionData.attackType == combat.TARGET_AREA))
+            {
+                heavyDiag(self, "defenders=" + (defenders == null ? -1 : defenders.length) + " action=" + actionName + " mounted=" + isIdValid(getMountId(self)) + " egg=" + isTangibleAttacking + " combatTarget=" + combatTarget);
+            }
             if (defenders == null || defenders.length == 0)
             {
                 combat.combatLog(self, target, "combatStandardAction", "Attack Failed - No valid targets");
@@ -504,6 +512,15 @@ public class combat_base extends script.base_script
         }
         return true;
     }
+    // TEMPORARY DIAGNOSTIC (P15.10): remove once the mounted heavy-weapon bug is fixed.
+    public static void heavyDiag(obj_id who, String msg) throws InterruptedException
+    {
+        if (isIdValid(who) && isPlayer(who))
+        {
+            sendSystemMessageTestingOnly(who, "HEAVYDIAG: " + msg);
+        }
+        LOG("combat_base", "HEAVYDIAG: " + msg);
+    }
     public void startDelayedAttack(obj_id attacker, obj_id target, obj_id objWeapon, String attackName, combat_data actionData, boolean instantHit, boolean isAutoAimed) throws InterruptedException
     {
         int eggPosition = actionData.delayAttackEggPosition;
@@ -528,6 +545,7 @@ public class combat_base extends script.base_script
             }
         }
         obj_id egg = combat.makeTrackerEgg(attacker, where, actionData);
+        heavyDiag(attacker, "egg created where=" + where + " eggPos=" + eggPosition + " egg=" + egg + " exists=" + (isIdValid(egg) && exists(egg)) + " template=" + actionData.delayAttackEggTemplate);
         if (!isIdValid(egg) || !exists(egg))
         {
             return;

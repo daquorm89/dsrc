@@ -44,6 +44,7 @@ public class combat_delayed_tracker extends script.systems.combat.combat_base
         {
             playClientEffectLoc(objOwner, strEffect, getLocation(self), 0);
         }
+        heavyDiag(objOwner, "egg fired action=" + actionData.actionName + " target=" + objTarget + " eggLoc=" + getLocation(self) + " ownerMounted=" + isIdValid(getMountId(objOwner)));
         combatStandardAction(actionData.actionName, objOwner, objTarget, self, "", actionData, true);
         if (utils.hasScriptVar(self, "intLoopsLeft"))
         {
