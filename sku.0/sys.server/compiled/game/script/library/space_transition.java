@@ -705,6 +705,32 @@ public class space_transition extends script.base_script
     }
 
     /**
+     * Level a ground-placed ship: keep its heading (yaw), zero pitch and roll.
+     * Setting a location alone keeps the hull's old orientation, so a ship that was
+     * stored or exited while banked or nose-up reappeared at an awkward angle.
+     * The heading comes from the forward vector (getYaw), so it is right even when
+     * the hull is pitched or rolled. Position is unchanged (setQuaternion keeps it).
+     */
+    public static void levelShipKeepYaw(obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !exists(ship) || isSpaceScene())
+        {
+            return;
+        }
+        location loc = getLocation(ship);
+        if (loc == null || isIdValid(loc.cell))
+        {
+            return;
+        }
+        float yaw = getYaw(ship);
+        setQuaternion(ship, 1.0f, 0.0f, 0.0f, 0.0f);
+        if (yaw == yaw)
+        {
+            setYaw(ship, yaw);
+        }
+    }
+
+    /**
      * Atmospheric ground placement: terrain + clearance, leave NOT landed.
      * setShipLanded(true) + terrain+1.25 sinks fighter/POB meshes.
      */
@@ -720,6 +746,7 @@ public class space_transition extends script.base_script
             setShipLanded(ship, false);
             return;
         }
+        levelShipKeepYaw(ship);
         float terrainY = getHeightAtLocation(loc.x, loc.z);
         if (terrainY == terrainY)
         {
@@ -760,6 +787,8 @@ public class space_transition extends script.base_script
         }
         location raised = new location(refX, y, refZ, area, null);
         setShipLanded(ship, false);
+        // Level pitch/roll (keep yaw) before the move so the teleport carries the level pose.
+        levelShipKeepYaw(ship);
         setLocation(ship, raised);
         setLocation(ship, raised);
         location verify = getLocation(ship);
