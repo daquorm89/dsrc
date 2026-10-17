@@ -1426,6 +1426,10 @@ public class space_transition extends script.base_script
             entered = pilotShip(player, pilotSlotObject) && getPilotId(ship) == player;
             LOG("space_transition", "boardShipAsPilotOnGround: pilotSlot=" + pilotSlotObject
                 + " entered=" + entered + " pilotId=" + getPilotId(ship));
+            if (entered)
+            {
+                grantPobPilotDroidCommands(player, ship);
+            }
         }
         else
         {
@@ -1533,6 +1537,7 @@ public class space_transition extends script.base_script
         {
             setShipLanded(ship, false);
             raiseShipAbovePlayer(ship, player);
+            grantPobPilotDroidCommands(player, ship);
             LOG("space_transition", "completeBoardShipAfterClientRefresh: still piloting OK");
             return true;
         }
@@ -1554,6 +1559,7 @@ public class space_transition extends script.base_script
                 doAIImmunityCheck(ship);
                 setShipLanded(ship, false);
                 raiseShipAbovePlayer(ship, player);
+                grantPobPilotDroidCommands(player, ship);
                 LOG("space_transition", "completeBoardShipAfterClientRefresh: re-seat OK");
                 return true;
             }
@@ -1584,6 +1590,7 @@ public class space_transition extends script.base_script
                 {
                     attachScript(ship, "space.combat.combat_ship");
                 }
+                grantPobPilotDroidCommands(player, ship);
                 LOG("space_transition", "completeBoardShipAfterClientRefresh: pack+unpack re-seat OK");
                 return true;
             }
@@ -2675,6 +2682,26 @@ public class space_transition extends script.base_script
                 revokeCommand(objPlayer, "droid+" + strDroidCommand);
             }
         }
+    }
+
+    /**
+     * POB ships: the programmed droid commands are only granted to the player who sits in
+     * the operations seat (shipoperations_falcon), and unpackShipForPlayer skips POB ships,
+     * so a POB pilot never got them and the Astromech tab of the commands window stayed
+     * empty. Call this once the player is seated as pilot of a POB ship. Safe to call twice.
+     * Paired with revokeDroidCommands when the pilot leaves the seat or the ship is packed.
+     */
+    public static void grantPobPilotDroidCommands(obj_id player, obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(player) || !isIdValid(ship) || !exists(ship) || !space_utils.isShipWithInterior(ship))
+        {
+            return;
+        }
+        String[] programs = space_combat.getProgrammedDroidCommands(player);
+        LOG("space_transition", "grantPobPilotDroidCommands: ship=" + ship + " player=" + player
+            + " droidPcd=" + getDroidControlDeviceForShip(ship)
+            + " programs=" + (programs == null ? -1 : programs.length));
+        grantDroidCommands(player);
     }
     public static void teleportPlayerToLaunchLoc(obj_id player) throws InterruptedException
     {
