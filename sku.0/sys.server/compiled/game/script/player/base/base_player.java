@@ -12165,23 +12165,6 @@ public class base_player extends script.base_script
         }
         return SCRIPT_CONTINUE;
     }
-    // TEMPORARY DIAGNOSTIC (P15.9): remove with taming.mountDiag
-    public int mountDiagCheck(obj_id self, dictionary params) throws InterruptedException
-    {
-        obj_id mount = params.getObjId("mount");
-        String d = "later-check posture=" + getPosture(self) + " ridingState=" + getState(self, STATE_RIDING_MOUNT) + " mountId=" + getMountId(self) + " containedBy=" + getContainedBy(self);
-        if (isIdValid(mount) && exists(mount))
-        {
-            d += " mountExists=true mountTemplate=" + getTemplateName(mount) + " dist=" + getDistance(self, mount) + " mountScript.ai.pet=" + hasScript(mount, "ai.pet") + " mount.ai.mount_combat=" + hasScript(mount, "ai.mount_combat") + " mountState=" + getState(mount, STATE_MOUNTED_CREATURE);
-        }
-        else
-        {
-            d += " mountExists=false";
-        }
-        sendSystemMessageTestingOnly(self, "MOUNTDIAG: " + d);
-        LOG("mount", "MOUNTDIAG: " + d);
-        return SCRIPT_CONTINUE;
-    }
     public int applyMountBuff(obj_id self, dictionary params) throws InterruptedException
     {
         obj_id playerCurrentMount = getMountId(self);
