@@ -6,6 +6,9 @@ import script.library.space_utils;
 import script.library.utils;
 import script.obj_id;
 import script.string_id;
+import script.location;
+import script.transform;
+import script.vector;
 
 /**
  * POB droid program: AI-controlled turrets engage hostiles for a limited time.
@@ -19,7 +22,7 @@ public class space_turret_defense extends script.base_script
 
     public static final String LV_GEN = "turretDef.gen";
     public static final String LV_UNTIL = "turretDef.until";
-    public static final float DURATION_SEC = 45.0f;
+    public static final float DURATION_SEC = 120.0f;
     public static final float TICK_SEC = 1.5f;
     public static final float MAX_RANGE = 500.0f;
 
@@ -66,10 +69,10 @@ public class space_turret_defense extends script.base_script
             sendSystemMessageTestingOnly(player, "Turret Defense cancelled (left ship).");
             return;
         }
-        obj_id target = pickHostileTarget(ship, player);
-        if (isIdValid(target))
+        obj_id[] targets = pickHostileTargets(ship, player);
+        if (targets != null && targets.length > 0)
         {
-            fireAllTurretsAt(ship, target);
+            fireAllTurretsAt(ship, targets);
         }
         dictionary params = new dictionary();
         params.put("gen", gen);
@@ -77,12 +80,13 @@ public class space_turret_defense extends script.base_script
         messageTo(player, "turretDefenseTick", params, TICK_SEC, false);
     }
 
-    public static obj_id pickHostileTarget(obj_id ship, obj_id player) throws InterruptedException
+    public static obj_id[] pickHostileTargets(obj_id ship, obj_id player) throws InterruptedException
     {
+        java.util.ArrayList<obj_id> list = new java.util.ArrayList<obj_id>();
         obj_id lookAt = getLookAtTarget(player);
-        if (isIdValid(lookAt) && lookAt != ship && pvpCanAttack(player, lookAt))
+        if (isIdValid(lookAt) && exists(lookAt) && lookAt != ship && pvpCanAttack(player, lookAt))
         {
-            return lookAt;
+            list.add(lookAt);
         }
         // Who is targeting us
         obj_id[] attackers = ship_ai.unitGetWhoIsTargetingMe(ship);
@@ -90,16 +94,43 @@ public class space_turret_defense extends script.base_script
         {
             for (obj_id a : attackers)
             {
-                if (isIdValid(a) && exists(a) && a != ship)
+                if (isIdValid(a) && exists(a) && a != ship && !list.contains(a))
                 {
-                    return a;
+                    list.add(a);
                 }
             }
         }
-        return null;
+        return list.toArray(new obj_id[0]);
     }
 
-    public static void fireAllTurretsAt(obj_id ship, obj_id target) throws InterruptedException
+    /**
+     * Each POB turret covers a 180 degree hemisphere of the ship: weapon 0 is the upper
+     * turret (targets above the hull plane, ship-local y &gt;= 0), weapon 1 is the lower
+     * turret (targets below, ship-local y &lt; 0). This stops turrets firing through the hull.
+     * Other weapon indices are not limited.
+     */
+    public static boolean isTargetInTurretArc(obj_id ship, int weaponIndex, obj_id target) throws InterruptedException
+    {
+        if (weaponIndex != 0 && weaponIndex != 1)
+        {
+            return true;
+        }
+        location shipLoc = getWorldLocation(ship);
+        location targetLoc = getWorldLocation(target);
+        if (shipLoc == null || targetLoc == null)
+        {
+            return true;
+        }
+        transform t = getTransform_o2w(ship);
+        if (t == null)
+        {
+            return true;
+        }
+        vector local = t.rotate_p2l(new vector(targetLoc.x - shipLoc.x, targetLoc.y - shipLoc.y, targetLoc.z - shipLoc.z));
+        return weaponIndex == 0 ? local.y >= 0.0f : local.y < 0.0f;
+    }
+
+    public static void fireAllTurretsAt(obj_id ship, obj_id[] targets) throws InterruptedException
     {
         // Weapon slots: SCST_weapon_0 .. SCST_weapon_last. Pilot guns are often 0;
         // POB gunner turrets are typically higher indices and isTurret on the C++ side.
@@ -114,10 +145,26 @@ public class space_turret_defense extends script.base_script
             {
                 continue;
             }
+            obj_id target = null;
+            for (obj_id candidate : targets)
+            {
+                if (isTargetInTurretArc(ship, w, candidate))
+                {
+                    target = candidate;
+                    break;
+                }
+            }
+            if (!isIdValid(target))
+            {
+                continue;
+            }
             try
             {
-                // weaponIndex for fireShipTurretServer is the weapon index (0-based), not chassis slot
-                fireShipTurretServer(ship, w, target, 0, true);
+                // weaponIndex for fireShipTurretServer is the weapon index (0-based), not chassis slot.
+                // targetedComponent = SHIP lets the normal weighted component roll run and lets damage
+                // pass through to the hull. Component 0 is the reactor: it was disabled but the
+                // target never died.
+                fireShipTurretServer(ship, w, target, space_combat.SHIP, true);
             }
             catch (Exception e)
             {
