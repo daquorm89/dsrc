@@ -11,7 +11,7 @@ inspect		normal	cmdInspect																																																						
 dock		normal	cmdDock																																																									1							required		3		ship				ship											
 pumpreactor		normal	cmdReactorPumpPulse					pumpreactor																																																				1	0	1					optional		2		ship				ship											
 iffscramble		normal	cmdIffScramble					iffscramble																																																				1	0	1					optional		2		ship				ship											
-droid		front	droid																																																										0	1							2		astromech				astromech											
+droid		front	droid																																																										1	1							2		astromech				astromech											
 lootAll		immediate	lootAll																																																																optional																			
 serverAsteroidDataListen		normal			serverAsteroidDataListen																																																														none							5												
 serverAsteroidDataStopListening		normal			serverAsteroidDataStopListening																																																														none							5												
@@ -55,4 +55,4 @@ spacerebelhelper		normal	cmdSpaceRebelHelper					spacerebelhelper															
 spaceimperialhelper		normal	cmdSpaceImperialHelper					spaceimperialhelper																																																				1	1	0	0	0			optional		2		ship				ship											
 spacefaction		normal	cmdSpaceFaction					spacefaction																																																				1	1	1	1	1			optional		2		ship				ship											
 spacebattlestatus		normal	cmdBattleStatus					spacebattlestatus																				0	0																							0								1	1	1	1	1			optional		2		ship				ship											
-droidcommand_turretdefense		front	droidcommand_turretdefense																																																										0	1							3		astromech				astromech											
+droidcommand_turretdefense		front	droidcommand_turretdefense																																																										1	1							3		astromech				astromech											
