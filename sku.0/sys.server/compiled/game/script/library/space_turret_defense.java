@@ -25,6 +25,11 @@ public class space_turret_defense extends script.base_script
     public static final float DURATION_SEC = 120.0f;
     public static final float TICK_SEC = 1.5f;
     public static final float MAX_RANGE = 500.0f;
+    // Drawback: the capacitor is rerouted to power the AI gunners. It is emptied once on activation
+    // and its maximum is limited to this fraction of normal until the program ends, so the pilot
+    // still has some charge to fire with.
+    public static final float CAPACITOR_MAX_FRACTION = 0.5f;
+    public static final String OV_ORIG_CAP_MAX = "turretDef.origCapMax";
 
     public static void start(obj_id player, obj_id ship) throws InterruptedException
     {
@@ -41,6 +46,8 @@ public class space_turret_defense extends script.base_script
         utils.setLocalVar(ship, LV_GEN, gen);
         int until = getGameTime() + (int)DURATION_SEC;
         utils.setLocalVar(ship, LV_UNTIL, until);
+        reroutePower(ship);
+        sendSystemMessageTestingOnly(player, "Capacitor power rerouted to the AI gunners.");
         sendSystemMessageTestingOnly(player, "Turret Defense online for " + (int)DURATION_SEC + " seconds.");
         dictionary params = new dictionary();
         params.put("gen", gen);
@@ -50,7 +57,7 @@ public class space_turret_defense extends script.base_script
 
     public static void tick(obj_id player, obj_id ship, int gen) throws InterruptedException
     {
-        if (!isIdValid(player) || !isIdValid(ship) || !exists(ship) || !exists(player))
+        if (!isIdValid(ship) || !exists(ship))
         {
             return;
         }
@@ -58,14 +65,21 @@ public class space_turret_defense extends script.base_script
         {
             return;
         }
+        if (!isIdValid(player) || !exists(player))
+        {
+            restorePower(ship);
+            return;
+        }
         if (getGameTime() >= utils.getIntLocalVar(ship, LV_UNTIL))
         {
-            sendSystemMessageTestingOnly(player, "Turret Defense offline.");
+            restorePower(ship);
+            sendSystemMessageTestingOnly(player, "Turret Defense offline. Capacitor power restored.");
             return;
         }
         obj_id containing = space_transition.getContainingShip(player);
         if (containing != ship)
         {
+            restorePower(ship);
             sendSystemMessageTestingOnly(player, "Turret Defense cancelled (left ship).");
             return;
         }
@@ -78,6 +92,38 @@ public class space_turret_defense extends script.base_script
         params.put("gen", gen);
         params.put("ship", ship);
         messageTo(player, "turretDefenseTick", params, TICK_SEC, false);
+    }
+
+    /** Empty the capacitor and limit its maximum. The original maximum is kept in an objvar so it survives restarts. */
+    public static void reroutePower(obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !exists(ship))
+        {
+            return;
+        }
+        float origMax;
+        if (hasObjVar(ship, OV_ORIG_CAP_MAX))
+        {
+            // already rerouted (program restarted): keep the true original
+            origMax = getFloatObjVar(ship, OV_ORIG_CAP_MAX);
+        }
+        else
+        {
+            origMax = getShipCapacitorEnergyMaximum(ship);
+            setObjVar(ship, OV_ORIG_CAP_MAX, origMax);
+        }
+        setShipCapacitorEnergyMaximum(ship, origMax * CAPACITOR_MAX_FRACTION);
+        setShipCapacitorEnergyCurrent(ship, 0.0f);
+    }
+
+    public static void restorePower(obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !exists(ship) || !hasObjVar(ship, OV_ORIG_CAP_MAX))
+        {
+            return;
+        }
+        setShipCapacitorEnergyMaximum(ship, getFloatObjVar(ship, OV_ORIG_CAP_MAX));
+        removeObjVar(ship, OV_ORIG_CAP_MAX);
     }
 
     public static obj_id[] pickHostileTargets(obj_id ship, obj_id player) throws InterruptedException
