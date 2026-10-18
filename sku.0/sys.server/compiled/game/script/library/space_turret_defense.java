@@ -25,10 +25,12 @@ public class space_turret_defense extends script.base_script
     public static final float DURATION_SEC = 120.0f;
     public static final float TICK_SEC = 1.5f;
     public static final float MAX_RANGE = 500.0f;
+    public static final float CAP_TICK_SEC = 0.25f;
     // Drawback: the capacitor is rerouted to power the AI gunners. It is emptied once on activation
-    // and its maximum is limited to this fraction of normal until the program ends, so the pilot
-    // still has some charge to fire with.
+    // and then cannot recharge above this fraction of its real maximum until the program ends. The
+    // maximum itself is untouched, so the bar still shows the full capacity with only part available.
     public static final float CAPACITOR_MAX_FRACTION = 0.5f;
+    // Legacy: an earlier version halved the maximum and stored the original here.
     public static final String OV_ORIG_CAP_MAX = "turretDef.origCapMax";
 
     public static void start(obj_id player, obj_id ship) throws InterruptedException
@@ -46,13 +48,32 @@ public class space_turret_defense extends script.base_script
         utils.setLocalVar(ship, LV_GEN, gen);
         int until = getGameTime() + (int)DURATION_SEC;
         utils.setLocalVar(ship, LV_UNTIL, until);
+        restorePower(ship);
         reroutePower(ship);
-        sendSystemMessageTestingOnly(player, "Capacitor power rerouted to the AI gunners.");
+        sendSystemMessageTestingOnly(player, "Capacitor power rerouted to the AI gunners (recharge limited to half).");
         sendSystemMessageTestingOnly(player, "Turret Defense online for " + (int)DURATION_SEC + " seconds.");
         dictionary params = new dictionary();
         params.put("gen", gen);
         params.put("ship", ship);
         messageTo(player, "turretDefenseTick", params, TICK_SEC, false);
+        messageTo(player, "turretDefenseCapTick", params, CAP_TICK_SEC, false);
+    }
+
+    public static void capTick(obj_id player, obj_id ship, int gen) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !exists(ship) || utils.getIntLocalVar(ship, LV_GEN) != gen)
+        {
+            return;
+        }
+        if (getGameTime() >= utils.getIntLocalVar(ship, LV_UNTIL))
+        {
+            return;
+        }
+        clampCapacitor(ship);
+        dictionary params = new dictionary();
+        params.put("gen", gen);
+        params.put("ship", ship);
+        messageTo(player, "turretDefenseCapTick", params, CAP_TICK_SEC, false);
     }
 
     public static void tick(obj_id player, obj_id ship, int gen) throws InterruptedException
@@ -67,20 +88,17 @@ public class space_turret_defense extends script.base_script
         }
         if (!isIdValid(player) || !exists(player))
         {
-            restorePower(ship);
             return;
         }
         if (getGameTime() >= utils.getIntLocalVar(ship, LV_UNTIL))
         {
-            restorePower(ship);
-            sendSystemMessageTestingOnly(player, "Turret Defense offline. Capacitor power restored.");
+            sendSystemMessageTestingOnly(player, "Turret Defense offline. Capacitor recharge restored.");
             return;
         }
         obj_id containing = space_transition.getContainingShip(player);
         if (containing != ship)
         {
-            restorePower(ship);
-            sendSystemMessageTestingOnly(player, "Turret Defense cancelled (left ship).");
+            sendSystemMessageTestingOnly(player, "Turret Defense cancelled (left ship). Capacitor recharge restored.");
             return;
         }
         obj_id[] targets = pickHostileTargets(ship, player);
@@ -94,28 +112,26 @@ public class space_turret_defense extends script.base_script
         messageTo(player, "turretDefenseTick", params, TICK_SEC, false);
     }
 
-    /** Empty the capacitor and limit its maximum. The original maximum is kept in an objvar so it survives restarts. */
+    /** Empty the capacitor once. The recharge limit is enforced by clampCapacitor. */
     public static void reroutePower(obj_id ship) throws InterruptedException
     {
-        if (!isIdValid(ship) || !exists(ship))
+        if (isIdValid(ship) && exists(ship))
         {
-            return;
+            setShipCapacitorEnergyCurrent(ship, 0.0f);
         }
-        float origMax;
-        if (hasObjVar(ship, OV_ORIG_CAP_MAX))
-        {
-            // already rerouted (program restarted): keep the true original
-            origMax = getFloatObjVar(ship, OV_ORIG_CAP_MAX);
-        }
-        else
-        {
-            origMax = getShipCapacitorEnergyMaximum(ship);
-            setObjVar(ship, OV_ORIG_CAP_MAX, origMax);
-        }
-        setShipCapacitorEnergyMaximum(ship, origMax * CAPACITOR_MAX_FRACTION);
-        setShipCapacitorEnergyCurrent(ship, 0.0f);
     }
 
+    /** Keep the capacitor at or below CAPACITOR_MAX_FRACTION of its real maximum. */
+    public static void clampCapacitor(obj_id ship) throws InterruptedException
+    {
+        float limit = getShipCapacitorEnergyMaximum(ship) * CAPACITOR_MAX_FRACTION;
+        if (getShipCapacitorEnergyCurrent(ship) > limit)
+        {
+            setShipCapacitorEnergyCurrent(ship, limit);
+        }
+    }
+
+    /** Legacy cleanup: restores a maximum that an earlier version of this program left halved. */
     public static void restorePower(obj_id ship) throws InterruptedException
     {
         if (!isIdValid(ship) || !exists(ship) || !hasObjVar(ship, OV_ORIG_CAP_MAX))
@@ -129,8 +145,14 @@ public class space_turret_defense extends script.base_script
     public static obj_id[] pickHostileTargets(obj_id ship, obj_id player) throws InterruptedException
     {
         java.util.ArrayList<obj_id> list = new java.util.ArrayList<obj_id>();
-        obj_id lookAt = getLookAtTarget(player);
-        if (isIdValid(lookAt) && exists(lookAt) && lookAt != ship && pvpCanAttack(player, lookAt))
+        // The pilot's selected target is stored on the ship in space, and attackability is judged
+        // from the ship (as in space_combat). Engage it even if it has not attacked yet.
+        obj_id lookAt = getLookAtTarget(ship);
+        if (!isIdValid(lookAt) || !exists(lookAt))
+        {
+            lookAt = getLookAtTarget(player);
+        }
+        if (isIdValid(lookAt) && exists(lookAt) && lookAt != ship && pvpCanAttack(ship, lookAt))
         {
             list.add(lookAt);
         }

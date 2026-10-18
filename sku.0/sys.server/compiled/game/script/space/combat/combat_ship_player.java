@@ -1505,6 +1505,11 @@ public class combat_ship_player extends script.base_script
         space_turret_defense.tick(self, params.getObjId("ship"), params.getInt("gen"));
         return SCRIPT_CONTINUE;
     }
+    public int turretDefenseCapTick(obj_id self, dictionary params) throws InterruptedException
+    {
+        space_turret_defense.capTick(self, params.getObjId("ship"), params.getInt("gen"));
+        return SCRIPT_CONTINUE;
+    }
     public int callWingmen(obj_id self, dictionary params) throws InterruptedException
     {
         int tier = space_wingmen.getTierFromCommand(params.getString("strCommandName"));
