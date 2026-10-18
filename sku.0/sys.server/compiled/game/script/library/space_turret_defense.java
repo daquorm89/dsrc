@@ -25,6 +25,9 @@ public class space_turret_defense extends script.base_script
     public static final float DURATION_SEC = 120.0f;
     public static final float TICK_SEC = 1.5f;
     public static final float MAX_RANGE = 500.0f;
+    // Drawback: the capacitor is rerouted to power the AI gunners. It is emptied on activation and,
+    // when true, kept empty until the program ends (set false to only drain once).
+    public static final boolean HOLD_CAPACITOR_DRAINED = true;
 
     public static void start(obj_id player, obj_id ship) throws InterruptedException
     {
@@ -41,6 +44,8 @@ public class space_turret_defense extends script.base_script
         utils.setLocalVar(ship, LV_GEN, gen);
         int until = getGameTime() + (int)DURATION_SEC;
         utils.setLocalVar(ship, LV_UNTIL, until);
+        drainCapacitor(ship);
+        sendSystemMessageTestingOnly(player, "Capacitor power rerouted to the AI gunners.");
         sendSystemMessageTestingOnly(player, "Turret Defense online for " + (int)DURATION_SEC + " seconds.");
         dictionary params = new dictionary();
         params.put("gen", gen);
@@ -60,7 +65,7 @@ public class space_turret_defense extends script.base_script
         }
         if (getGameTime() >= utils.getIntLocalVar(ship, LV_UNTIL))
         {
-            sendSystemMessageTestingOnly(player, "Turret Defense offline.");
+            sendSystemMessageTestingOnly(player, "Turret Defense offline. Capacitor power restored.");
             return;
         }
         obj_id containing = space_transition.getContainingShip(player);
@@ -68,6 +73,10 @@ public class space_turret_defense extends script.base_script
         {
             sendSystemMessageTestingOnly(player, "Turret Defense cancelled (left ship).");
             return;
+        }
+        if (HOLD_CAPACITOR_DRAINED)
+        {
+            drainCapacitor(ship);
         }
         obj_id[] targets = pickHostileTargets(ship, player);
         if (targets != null && targets.length > 0)
@@ -78,6 +87,14 @@ public class space_turret_defense extends script.base_script
         params.put("gen", gen);
         params.put("ship", ship);
         messageTo(player, "turretDefenseTick", params, TICK_SEC, false);
+    }
+
+    public static void drainCapacitor(obj_id ship) throws InterruptedException
+    {
+        if (isIdValid(ship) && exists(ship))
+        {
+            setShipCapacitorEnergyCurrent(ship, 0.0f);
+        }
     }
 
     public static obj_id[] pickHostileTargets(obj_id ship, obj_id player) throws InterruptedException
