@@ -142,6 +142,43 @@ public class space_turret_defense extends script.base_script
         removeObjVar(ship, OV_ORIG_CAP_MAX);
     }
 
+    /**
+     * Only real hostile ships are engaged: not stations, asteroids or other objects, not invincible or
+     * friendly/neutral (blue) ships. A ship that is already targeting us counts as hostile.
+     */
+    public static boolean isValidTurretTarget(obj_id ship, obj_id target, boolean isAttackingUs) throws InterruptedException
+    {
+        if (!isIdValid(target) || !exists(target) || target == ship)
+        {
+            return false;
+        }
+        if (!space_utils.isShip(target) || space_pilot_command.isStation(target) || hasObjVar(target, "intInvincible"))
+        {
+            return false;
+        }
+        if (isAttackingUs)
+        {
+            return true;
+        }
+        if (space_utils.isPlayerControlledShip(target))
+        {
+            return false;
+        }
+        return pvpIsEnemy(target, ship) || pvpIsEnemy(ship, target);
+    }
+
+    /** Maximum range of the weapon in the given chassis slot, from its installed component. */
+    public static float getWeaponRange(obj_id ship, int slot) throws InterruptedException
+    {
+        int crc = getShipComponentCrc(ship, slot);
+        float range = getShipComponentDescriptorWeaponRange(crc);
+        if (range <= 0.0f)
+        {
+            return MAX_RANGE;
+        }
+        return range;
+    }
+
     public static obj_id[] pickHostileTargets(obj_id ship, obj_id player) throws InterruptedException
     {
         java.util.ArrayList<obj_id> list = new java.util.ArrayList<obj_id>();
@@ -152,7 +189,7 @@ public class space_turret_defense extends script.base_script
         {
             lookAt = getLookAtTarget(player);
         }
-        if (isIdValid(lookAt) && exists(lookAt) && lookAt != ship && pvpCanAttack(ship, lookAt))
+        if (isValidTurretTarget(ship, lookAt, false))
         {
             list.add(lookAt);
         }
@@ -162,7 +199,7 @@ public class space_turret_defense extends script.base_script
         {
             for (obj_id a : attackers)
             {
-                if (isIdValid(a) && exists(a) && a != ship && !list.contains(a))
+                if (isValidTurretTarget(ship, a, true) && !list.contains(a))
                 {
                     list.add(a);
                 }
@@ -213,10 +250,17 @@ public class space_turret_defense extends script.base_script
             {
                 continue;
             }
+            int crc = getShipComponentCrc(ship, slot);
+            if (getShipComponentDescriptorWeaponIsMissile(crc) || getShipComponentDescriptorWeaponIsCountermeasure(crc)
+                || getShipComponentDescriptorWeaponIsMining(crc) || getShipComponentDescriptorWeaponIsTractor(crc))
+            {
+                continue;
+            }
+            float range = getWeaponRange(ship, slot);
             obj_id target = null;
             for (obj_id candidate : targets)
             {
-                if (isTargetInTurretArc(ship, w, candidate))
+                if (getDistance(ship, candidate) <= range && isTargetInTurretArc(ship, w, candidate))
                 {
                     target = candidate;
                     break;
