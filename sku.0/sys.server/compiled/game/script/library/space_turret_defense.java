@@ -102,10 +102,11 @@ public class space_turret_defense extends script.base_script
             return;
         }
         obj_id[] targets = pickHostileTargets(ship, player);
-        if (targets != null && targets.length > 0)
+        if (targets == null)
         {
-            fireAllTurretsAt(ship, targets);
+            targets = new obj_id[0];
         }
+        fireAllTurretsAt(ship, targets);
         dictionary params = new dictionary();
         params.put("gen", gen);
         params.put("ship", ship);
@@ -165,6 +166,50 @@ public class space_turret_defense extends script.base_script
             return false;
         }
         return pvpIsEnemy(target, ship) || pvpIsEnemy(ship, target);
+    }
+
+    public static boolean isMiningAsteroid(obj_id obj) throws InterruptedException
+    {
+        if (!isIdValid(obj) || !exists(obj))
+        {
+            return false;
+        }
+        int got = getGameObjectType(obj);
+        return got == GOT_ship_mining_asteroid_static || got == GOT_ship_mining_asteroid_dynamic;
+    }
+
+    /**
+     * Choose a mining asteroid or asteroid chunk for a mining laser: the pilot's selected target if it is
+     * one, otherwise the nearest in range. The target must be within the weapon range and the turret arc.
+     */
+    public static obj_id pickMiningTarget(obj_id ship, int weaponIndex, float range) throws InterruptedException
+    {
+        obj_id lookAt = getLookAtTarget(ship);
+        if (isMiningAsteroid(lookAt) && getDistance(ship, lookAt) <= range && isTargetInTurretArc(ship, weaponIndex, lookAt))
+        {
+            return lookAt;
+        }
+        obj_id[] nearby = getObjectsInRange(ship, range);
+        if (nearby == null)
+        {
+            return null;
+        }
+        obj_id best = null;
+        float bestDist = range + 1.0f;
+        for (obj_id o : nearby)
+        {
+            if (!isMiningAsteroid(o))
+            {
+                continue;
+            }
+            float d = getDistance(ship, o);
+            if (d <= range && d < bestDist && isTargetInTurretArc(ship, weaponIndex, o))
+            {
+                best = o;
+                bestDist = d;
+            }
+        }
+        return best;
     }
 
     /** Maximum range of the weapon in the given chassis slot, from its installed component. */
@@ -252,11 +297,27 @@ public class space_turret_defense extends script.base_script
             }
             int crc = getShipComponentCrc(ship, slot);
             if (getShipComponentDescriptorWeaponIsMissile(crc) || getShipComponentDescriptorWeaponIsCountermeasure(crc)
-                || getShipComponentDescriptorWeaponIsMining(crc) || getShipComponentDescriptorWeaponIsTractor(crc))
+                || getShipComponentDescriptorWeaponIsTractor(crc))
             {
                 continue;
             }
             float range = getWeaponRange(ship, slot);
+            if (getShipComponentDescriptorWeaponIsMining(crc))
+            {
+                // Mining lasers auto-target mining asteroids and chunks instead of hostile ships.
+                obj_id asteroid = pickMiningTarget(ship, w, range);
+                if (isIdValid(asteroid))
+                {
+                    try
+                    {
+                        fireShipTurretServer(ship, w, asteroid, space_combat.SHIP, true);
+                    }
+                    catch (Exception e)
+                    {
+                    }
+                }
+                continue;
+            }
             obj_id target = null;
             for (obj_id candidate : targets)
             {
