@@ -888,6 +888,8 @@ public class combat_ship extends script.base_script
     {
         obj_id player = utils.getContainingPlayer(self);
         setCondition(self, CONDITION_ON);
+        // Turret Defense reroutes capacitor power; restore it if the server restarted mid-program.
+        space_turret_defense.restorePower(self);
         String strChassisType = getShipChassisType(self);
         int[] intSlots = space_crafting.getShipInstalledSlots(self);
         for (int intSlot : intSlots) {
