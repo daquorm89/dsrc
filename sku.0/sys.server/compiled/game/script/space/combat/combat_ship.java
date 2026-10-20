@@ -1088,18 +1088,21 @@ public class combat_ship extends script.base_script
                         if (!isShipComponentDisabled(self, ship_chassis_slot_type.SCST_droid_interface))
                         {
                             associateDroidControlDeviceWithShip(self, objControlDevice);
+                            space_transition.refreshDroidCommandsForShip(objPlayer, self);
                         }
                         else 
                         {
                             string_id strSpam = new string_id("space/space_interaction", "droid_interface_disabled");
                             sendSystemMessage(objPlayer, strSpam);
                             associateDroidControlDeviceWithShip(self, objControlDevice);
+                            space_transition.refreshDroidCommandsForShip(objPlayer, self);
                         }
                         return SCRIPT_CONTINUE;
                     }
                     else 
                     {
                         associateDroidControlDeviceWithShip(self, objControlDevice);
+                        space_transition.refreshDroidCommandsForShip(objPlayer, self);
                         string_id strSpam = new string_id("space/space_interaction", "no_droid_command_module");
                         sendSystemMessage(objPlayer, strSpam);
                         return SCRIPT_CONTINUE;
