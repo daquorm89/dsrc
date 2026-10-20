@@ -2401,7 +2401,13 @@ public class space_transition extends script.base_script
                     space_combat.createFlightDroidFromData(droidControlDevice, pilotSlotObject);
                     obj_id objDroid = callable.getCDCallable(droidControlDevice);
                     setAnimationMood(objDroid, "ship");
-                    if (!space_utils.isShipWithInterior(ship))
+                    if (space_utils.isShipWithInterior(ship))
+                    {
+                        // POB: packShip revoked these (launch, store, zone change) and the pilot is
+                        // seated here, not via cmdPilotShip, so grant them again.
+                        grantPobPilotDroidCommands(player, ship);
+                    }
+                    else
                     {
                         grantDroidCommands(player);
                     }
@@ -2663,24 +2669,82 @@ public class space_transition extends script.base_script
         shipSetSpaceFactionAllies(ship, alliedFactions);
         return (676821884);
     }
+    private static final String DROID_COMMAND_PREFIX = "droid+";
+    private static final int MAX_DROID_COMMAND_REFCOUNT = 64;
+
+    /**
+     * Remove EVERY "droid+<program>" command the player holds, regardless of which droid or
+     * flight computer it came from. Player commands are reference counted (CreatureObject
+     * grantCommand increments, a script revokeCommand only decrements by one), so the old
+     * revoke (one call per program of the CURRENT device) left stacked or stale entries
+     * behind: grants made by an astromech stayed after switching to a flight computer, and
+     * repeated grants needed the same number of revokes.
+     */
+    public static void clearDroidCommands(obj_id objPlayer) throws InterruptedException
+    {
+        if (!isIdValid(objPlayer))
+        {
+            return;
+        }
+        String[] heldCommands = getCommandListingForPlayer(objPlayer);
+        if (heldCommands == null)
+        {
+            return;
+        }
+        for (String heldCommand : heldCommands)
+        {
+            if (heldCommand == null || !heldCommand.startsWith(DROID_COMMAND_PREFIX))
+            {
+                continue;
+            }
+            for (int i = 0; i < MAX_DROID_COMMAND_REFCOUNT && hasCommand(objPlayer, heldCommand); ++i)
+            {
+                revokeCommand(objPlayer, heldCommand);
+            }
+        }
+    }
+    /**
+     * Make the player's "droid+<program>" commands exactly match the programs on the droid or
+     * flight computer associated with the ship the player is in: stale entries are removed
+     * first, then each program is granted once. Safe to call any number of times.
+     */
     public static void grantDroidCommands(obj_id objPlayer) throws InterruptedException
     {
+        clearDroidCommands(objPlayer);
         String[] strDroidCommands = space_combat.getProgrammedDroidCommands(objPlayer);
         if (strDroidCommands != null && strDroidCommands.length > 0)
         {
             for (String strDroidCommand : strDroidCommands) {
-                grantCommand(objPlayer, "droid+" + strDroidCommand);
+                if (strDroidCommand != null && !strDroidCommand.isEmpty() && !hasCommand(objPlayer, DROID_COMMAND_PREFIX + strDroidCommand))
+                {
+                    grantCommand(objPlayer, DROID_COMMAND_PREFIX + strDroidCommand);
+                }
             }
         }
     }
     public static void revokeDroidCommands(obj_id objPlayer) throws InterruptedException
     {
-        String[] strDroidCommands = space_combat.getProgrammedDroidCommands(objPlayer);
-        if (strDroidCommands != null && strDroidCommands.length > 0)
+        clearDroidCommands(objPlayer);
+    }
+    /**
+     * Call after a droid or flight computer was associated with a ship, or after a program was
+     * added to its datapad. A player aboard that ship gets the new program list; anyone else
+     * (the usual case: equipping at a starport terminal) only has stale commands cleared, and
+     * receives the right list when seated.
+     */
+    public static void refreshDroidCommandsForShip(obj_id objPlayer, obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(objPlayer) || !isIdValid(ship) || !exists(objPlayer))
         {
-            for (String strDroidCommand : strDroidCommands) {
-                revokeCommand(objPlayer, "droid+" + strDroidCommand);
-            }
+            return;
+        }
+        if (getContainingShip(objPlayer) == ship && (getPilotId(ship) == objPlayer || space_utils.isShipWithInterior(ship)))
+        {
+            grantDroidCommands(objPlayer);
+        }
+        else if (!isIdValid(getContainingShip(objPlayer)))
+        {
+            clearDroidCommands(objPlayer);
         }
     }
 
