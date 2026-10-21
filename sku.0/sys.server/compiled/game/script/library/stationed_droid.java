@@ -702,6 +702,16 @@ public class stationed_droid extends script.base_script
         return stowed;
     }
 
+    /** True when the location is inside a cell of this ship (whether or not the ship is top level right now). */
+    private static boolean isCellOfShip(location loc, obj_id ship) throws InterruptedException
+    {
+        if (loc == null || !isIdValid(loc.cell))
+        {
+            return false;
+        }
+        return getContainedBy(loc.cell) == ship || getTopMostContainer(loc.cell) == ship;
+    }
+
     /**
      * Stows one droid: PCD back into the owner's datapad and locked, record written on the ship, droid
      * destroyed. The datapad droid cap is deliberately not applied here (the droid is not callable
@@ -723,11 +733,11 @@ public class stationed_droid extends script.base_script
         }
         // The post is where the droid belongs (centre of its wandering); fall back to where it stands.
         location spot = hasObjVar(droid, OBJVAR_HOME) ? getLocationObjVar(droid, OBJVAR_HOME) : null;
-        if (spot == null || !isIdValid(spot.cell) || getTopMostContainer(spot.cell) != ship)
+        if (!isCellOfShip(spot, ship))
         {
             spot = getLocation(droid);
         }
-        if (spot == null || !isIdValid(spot.cell) || getTopMostContainer(spot.cell) != ship)
+        if (!isCellOfShip(spot, ship))
         {
             return false;
         }

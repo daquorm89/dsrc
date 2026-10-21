@@ -607,6 +607,8 @@ public class space_transition extends script.base_script
                 return;
             }
         }
+        // The pack failed: the ship stays out, so droids stowed just now must come back to their posts.
+        restoreLooseDroidsAboard(ship);
         // Do NOT destroy player ships on ground pack failure — that was deleting
         // chassis after a failed atmospheric Store and leaving residual pilot state.
         if (isSpaceScene())
@@ -966,6 +968,8 @@ public class space_transition extends script.base_script
             setObjVar(ship, "shipControlDevice", shipControlDevice);
             return true;
         }
+        // Could not pack: the ship stays out, so droids stowed just now must come back to their posts.
+        restoreLooseDroidsAboard(ship);
         return false;
     }
 
