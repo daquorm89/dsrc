@@ -16,6 +16,12 @@ public class stationed_droid extends script.base_script
     {
     }
     public static final String SCRIPTVAR_TICK = "stationed.tick";
+    // Roam chain id (separate from the guard chain so neither cancels the other).
+    public static final String SCRIPTVAR_ROAM_TICK = "stationed.roamTick";
+    // Set while a hop is in progress; cleared by OnMovePathComplete / OnMovePathNotFound.
+    public static final String SCRIPTVAR_MOVING = "stationed.moving";
+    // Consecutive roam ticks that found no visible spot.
+    public static final String SCRIPTVAR_NO_SPOT = "stationed.noSpot";
     public static final float MAX_MENU_DISTANCE = 15.0f;
 
     public int OnAttach(obj_id self) throws InterruptedException
@@ -129,41 +135,247 @@ public class stationed_droid extends script.base_script
         {
             messageTo(self, "handleGuardTick", d, script.library.stationed_droid.GUARD_TICK_SEC, false);
         }
+        // Always bump the roam chain id so a pending roam message of an older mode stops itself.
+        utils.removeScriptVar(self, SCRIPTVAR_MOVING);
+        utils.removeScriptVar(self, SCRIPTVAR_NO_SPOT);
         if (mode == script.library.stationed_droid.MODE_WANDER || mode == script.library.stationed_droid.MODE_PATROL)
         {
-            messageTo(self, "handleRoamTick", d, 2, false);
+            scheduleRoam(self, 2.0f);
+        }
+        else
+        {
+            utils.setScriptVar(self, SCRIPTVAR_ROAM_TICK, utils.getIntScriptVar(self, SCRIPTVAR_ROAM_TICK) + 1);
         }
         return SCRIPT_CONTINUE;
     }
 
     // ---- wander / patrol movement --------------------------------------------------
+    //
+    // Short hops to spots the droid can SEE (canSee), so it never picks a point behind a wall;
+    // a pause after every hop (OnMovePathComplete); a varying, mostly walking speed; and a quick
+    // retry when no spot is found or the path is rejected. A watchdog message covers a hop that
+    // never reports completion (the droid is then stopped and picks again).
 
-    /** Walks to a random spot near the post every few seconds (wander and patrol). */
-    public int handleRoamTick(obj_id self, dictionary params) throws InterruptedException
+    private boolean isRoamMode(obj_id self) throws InterruptedException
     {
         int mode = script.library.stationed_droid.getMode(self);
-        if (params == null || params.getInt("tick") != utils.getIntScriptVar(self, SCRIPTVAR_TICK) || !script.library.stationed_droid.isStationed(self) || (mode != script.library.stationed_droid.MODE_WANDER && mode != script.library.stationed_droid.MODE_PATROL))
+        return mode == script.library.stationed_droid.MODE_WANDER || mode == script.library.stationed_droid.MODE_PATROL;
+    }
+
+    /** (Re)starts the roam chain: any older pending roam message becomes stale and stops itself. */
+    private void scheduleRoam(obj_id self, float delay) throws InterruptedException
+    {
+        int tick = utils.getIntScriptVar(self, SCRIPTVAR_ROAM_TICK) + 1;
+        utils.setScriptVar(self, SCRIPTVAR_ROAM_TICK, tick);
+        dictionary d = new dictionary();
+        d.put("tick", tick);
+        messageTo(self, "handleRoamTick", d, delay, false);
+    }
+
+    private float casualPause()
+    {
+        if (rand() < script.library.stationed_droid.ROAM_LONG_PAUSE_CHANCE)
+        {
+            return script.library.stationed_droid.ROAM_LONG_PAUSE_MIN_SEC + rand() * (script.library.stationed_droid.ROAM_LONG_PAUSE_MAX_SEC - script.library.stationed_droid.ROAM_LONG_PAUSE_MIN_SEC);
+        }
+        return script.library.stationed_droid.ROAM_PAUSE_MIN_SEC + rand() * (script.library.stationed_droid.ROAM_PAUSE_MAX_SEC - script.library.stationed_droid.ROAM_PAUSE_MIN_SEC);
+    }
+
+    private float quickRetry()
+    {
+        return script.library.stationed_droid.ROAM_RETRY_MIN_SEC + rand() * (script.library.stationed_droid.ROAM_RETRY_MAX_SEC - script.library.stationed_droid.ROAM_RETRY_MIN_SEC);
+    }
+
+    /** Picks this hop's speed (mostly a walk at 60-100%, sometimes a slow jog); returns the speed in m/s. */
+    private float applyCasualSpeed(obj_id self) throws InterruptedException
+    {
+        float speed;
+        if (rand() < script.library.stationed_droid.ROAM_JOG_CHANCE)
+        {
+            float pct = script.library.stationed_droid.ROAM_JOG_PCT_MIN + rand() * (script.library.stationed_droid.ROAM_JOG_PCT_MAX - script.library.stationed_droid.ROAM_JOG_PCT_MIN);
+            setMovementRun(self);
+            setMovementPercent(self, pct);
+            speed = getRunSpeed(self) * pct;
+        }
+        else
+        {
+            float pct = script.library.stationed_droid.ROAM_WALK_PCT_MIN + rand() * (script.library.stationed_droid.ROAM_WALK_PCT_MAX - script.library.stationed_droid.ROAM_WALK_PCT_MIN);
+            setMovementWalk(self);
+            setMovementPercent(self, pct);
+            speed = getWalkSpeed(self) * pct;
+        }
+        return speed < 0.5f ? 1.0f : speed;
+    }
+
+    private boolean sameCell(obj_id a, obj_id b)
+    {
+        if (!isIdValid(a) || !isIdValid(b))
+        {
+            return !isIdValid(a) && !isIdValid(b);
+        }
+        return a.equals(b);
+    }
+
+    /** True when the droid has a clear line of sight to (a point just above) the spot. */
+    private boolean canReach(obj_id self, location spot) throws InterruptedException
+    {
+        return canSee(self, new location(spot.x, spot.y + 0.6f, spot.z, spot.area, spot.cell));
+    }
+
+    /**
+     * A spot within range of the post and in clear view of the droid, or null when none was found.
+     * Outdoors the spot must also be on level-ish ground.
+     */
+    private location pickRoamSpot(obj_id self, int mode) throws InterruptedException
+    {
+        location cur = getLocation(self);
+        location home = hasObjVar(self, script.library.stationed_droid.OBJVAR_HOME) ? getLocationObjVar(self, script.library.stationed_droid.OBJVAR_HOME) : cur;
+        if (!sameCell(cur.cell, home.cell))
+        {
+            // The droid ended up in another room: that is its post now.
+            home = cur;
+            setObjVar(self, script.library.stationed_droid.OBJVAR_HOME, cur);
+        }
+        float range = (mode == script.library.stationed_droid.MODE_PATROL) ? script.library.stationed_droid.PATROL_MAX : script.library.stationed_droid.WANDER_MAX;
+        boolean indoors = isIdValid(cur.cell);
+        float stepMax = indoors ? script.library.stationed_droid.ROAM_STEP_MAX_INDOOR : script.library.stationed_droid.ROAM_STEP_MAX;
+        float stepMin = script.library.stationed_droid.ROAM_STEP_MIN;
+        for (int i = 0; i < script.library.stationed_droid.ROAM_PICK_TRIES; i++)
+        {
+            double ang = rand() * 6.2831853d;
+            float step = stepMin + rand() * (stepMax - stepMin);
+            float x = cur.x + (float)Math.sin(ang) * step;
+            float z = cur.z + (float)Math.cos(ang) * step;
+            float hx = x - home.x;
+            float hz = z - home.z;
+            if (hx * hx + hz * hz > range * range)
+            {
+                continue;
+            }
+            float y = cur.y;
+            if (!indoors)
+            {
+                y = getHeightAtLocation(x, z);
+                if (y != y || Math.abs(y - cur.y) > script.library.stationed_droid.ROAM_MAX_RISE)
+                {
+                    continue;
+                }
+            }
+            location spot = new location(x, y, z, cur.area, cur.cell);
+            if (canReach(self, spot))
+            {
+                utils.removeScriptVar(self, SCRIPTVAR_NO_SPOT);
+                return spot;
+            }
+        }
+        // Nothing visible. After several misses in a row take one short blind hop toward the post.
+        int misses = utils.getIntScriptVar(self, SCRIPTVAR_NO_SPOT) + 1;
+        if (misses < script.library.stationed_droid.ROAM_BLIND_AFTER)
+        {
+            utils.setScriptVar(self, SCRIPTVAR_NO_SPOT, misses);
+            return null;
+        }
+        utils.removeScriptVar(self, SCRIPTVAR_NO_SPOT);
+        float dx = home.x - cur.x;
+        float dz = home.z - cur.z;
+        float len = (float)Math.sqrt(dx * dx + dz * dz);
+        if (len < 1.5f)
+        {
+            return null;
+        }
+        float hop = Math.min(2.0f, len);
+        float y = cur.y;
+        if (!indoors)
+        {
+            y = getHeightAtLocation(cur.x + dx / len * hop, cur.z + dz / len * hop);
+            if (y != y)
+            {
+                return null;
+            }
+        }
+        return new location(cur.x + dx / len * hop, y, cur.z + dz / len * hop, cur.area, cur.cell);
+    }
+
+    /** Walks to a nearby visible spot, then pauses (wander and patrol). */
+    public int handleRoamTick(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (params == null || params.getInt("tick") != utils.getIntScriptVar(self, SCRIPTVAR_ROAM_TICK) || !script.library.stationed_droid.isStationed(self) || !isRoamMode(self))
         {
             return SCRIPT_CONTINUE;
         }
-        if (!ai_lib.isInCombat(self) && !ai_lib.isAiDead(self) && !isIncapacitated(self))
+        if (ai_lib.isInCombat(self) || ai_lib.isAiDead(self) || isIncapacitated(self))
         {
-            location home = hasObjVar(self, script.library.stationed_droid.OBJVAR_HOME) ? getLocationObjVar(self, script.library.stationed_droid.OBJVAR_HOME) : getLocation(self);
-            float range = (mode == script.library.stationed_droid.MODE_PATROL) ? script.library.stationed_droid.PATROL_MAX : script.library.stationed_droid.WANDER_MAX;
-            location dest = utils.getRandomLocationInRing(home, 1.5f, range);
-            if (!isIdValid(dest.cell))
-            {
-                dest.y = getHeightAtLocation(dest.x, dest.z);
-            }
-            if (getPosture(self) != POSTURE_UPRIGHT)
-            {
-                posture.stand(self);
-            }
-            pathTo(self, dest);
+            scheduleRoam(self, 4.0f);
+            return SCRIPT_CONTINUE;
         }
-        float delay = script.library.stationed_droid.ROAM_MIN_SEC + rand() * (script.library.stationed_droid.ROAM_MAX_SEC - script.library.stationed_droid.ROAM_MIN_SEC);
-        messageTo(self, "handleRoamTick", params, delay, false);
+        if (utils.hasScriptVar(self, SCRIPTVAR_MOVING))
+        {
+            // The previous hop never reported back (stuck): stop and choose again.
+            stop(self);
+            utils.removeScriptVar(self, SCRIPTVAR_MOVING);
+        }
+        location spot = pickRoamSpot(self, script.library.stationed_droid.getMode(self));
+        if (spot == null)
+        {
+            scheduleRoam(self, quickRetry());
+            return SCRIPT_CONTINUE;
+        }
+        if (getPosture(self) != POSTURE_UPRIGHT)
+        {
+            posture.stand(self);
+        }
+        float speed = applyCasualSpeed(self);
+        // The engine AI home (not the post, which is the objvar) follows the droid for each hop:
+        // ai.ai.OnMovePathNotFound warps a creature to its AI home, so even if that handler runs
+        // before ours the "teleport" lands on the spot the droid already stands on.
+        aiSetHomeLocation(self, getLocation(self));
+        utils.setScriptVar(self, SCRIPTVAR_MOVING, 1);
+        pathTo(self, spot);
+        if (utils.hasScriptVar(self, SCRIPTVAR_MOVING))
+        {
+            // Watchdog: normally OnMovePathComplete / OnMovePathNotFound restarts the chain sooner.
+            location cur = getLocation(self);
+            float dx = spot.x - cur.x;
+            float dz = spot.z - cur.z;
+            float dist = (float)Math.sqrt(dx * dx + dz * dz);
+            scheduleRoam(self, dist / speed * 1.6f + 4.0f);
+        }
         return SCRIPT_CONTINUE;
+    }
+
+    /** Arrived: pause for a casual few seconds, then pick the next spot. */
+    public int OnMovePathComplete(obj_id self) throws InterruptedException
+    {
+        if (script.library.stationed_droid.isStationed(self) && isRoamMode(self) && utils.hasScriptVar(self, SCRIPTVAR_MOVING))
+        {
+            utils.removeScriptVar(self, SCRIPTVAR_MOVING);
+            scheduleRoam(self, casualPause());
+        }
+        return SCRIPT_CONTINUE;
+    }
+
+    /**
+     * ai.ai.OnMovePathNotFound answers every failed path by warping the creature back to its home
+     * location (the visible "teleport"). A loose droid just stays put and tries another spot.
+     */
+    public int OnMovePathNotFound(obj_id self) throws InterruptedException
+    {
+        if (!script.library.stationed_droid.isStationed(self) || ai_lib.isInCombat(self))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        stop(self);
+        if (isRoamMode(self))
+        {
+            utils.removeScriptVar(self, SCRIPTVAR_MOVING);
+            scheduleRoam(self, quickRetry());
+        }
+        else
+        {
+            // Could not walk back to the post (stand / guard): the current spot becomes the post.
+            setObjVar(self, script.library.stationed_droid.OBJVAR_HOME, getLocation(self));
+        }
+        return SCRIPT_OVERRIDE;
     }
 
     // ---- guard ---------------------------------------------------------------------
@@ -184,6 +396,7 @@ public class stationed_droid extends script.base_script
                 {
                     if (isGuardTarget(self, owner, target))
                     {
+                        script.library.stationed_droid.resetSpeed(self);
                         startCombat(self, target);
                         break;
                     }
@@ -229,6 +442,7 @@ public class stationed_droid extends script.base_script
     {
         if (isIdValid(attacker) && exists(attacker) && attacker != self && attacker != script.library.stationed_droid.getLooseOwner(self) && !ai_lib.isInCombat(self) && !ai_lib.isAiDead(self) && !isIncapacitated(self) && pvpCanAttack(self, attacker))
         {
+            script.library.stationed_droid.resetSpeed(self);
             startCombat(self, attacker);
         }
         return SCRIPT_CONTINUE;
@@ -251,6 +465,7 @@ public class stationed_droid extends script.base_script
         {
             if (isIdValid(attacker) && attacker != self && attacker != owner && pvpCanAttack(self, attacker))
             {
+                script.library.stationed_droid.resetSpeed(self);
                 startCombat(self, attacker);
                 break;
             }
