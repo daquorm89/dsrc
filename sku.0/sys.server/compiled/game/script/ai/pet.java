@@ -1506,6 +1506,10 @@ public class pet extends script.base_script
             if (pet_lib.isDroidPet(self))
             {
                 mi.addSubMenu(opt_menu, menu_info_types.PET_STORE, new string_id(MENU_FILE, "menu_store"));
+                if (!pet_lib.isNewPlayerHelperDroid(self))
+                {
+                    mi.addSubMenu(opt_menu, menu_info_types.SERVER_MENU8, new string_id(MENU_FILE, "stationed_set_loose"));
+                }
             }
             else 
             {
@@ -1602,6 +1606,12 @@ public class pet extends script.base_script
                     pet_lib.storePet(self, player);
                 }
             }
+            return SCRIPT_CONTINUE;
+        }
+        if (item == menu_info_types.SERVER_MENU8 && pet_lib.isDroidPet(self))
+        {
+            // Fully qualified: script.ai.stationed_droid (the behaviour script) shadows the library.
+            script.library.stationed_droid.setLoose(self, player);
             return SCRIPT_CONTINUE;
         }
         if (item == menu_info_types.ITEM_ACTIVATE)
