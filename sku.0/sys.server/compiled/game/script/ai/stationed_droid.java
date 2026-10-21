@@ -49,6 +49,7 @@ public class stationed_droid extends script.base_script
         mi.addSubMenu(root, menu_info_types.SERVER_MENU2, script.library.stationed_droid.sid("stationed_stand"));
         mi.addSubMenu(root, menu_info_types.SERVER_MENU3, script.library.stationed_droid.sid("stationed_wander"));
         mi.addSubMenu(root, menu_info_types.SERVER_MENU4, script.library.stationed_droid.sid("stationed_guard"));
+        mi.addSubMenu(root, menu_info_types.SERVER_MENU8, script.library.stationed_droid.sid("stationed_patrol"));
         obj_id pcd = script.library.stationed_droid.getParkedPcd(self);
         if (isIdValid(pcd) && exists(pcd))
         {
@@ -82,6 +83,10 @@ public class stationed_droid extends script.base_script
         else if (item == menu_info_types.SERVER_MENU4)
         {
             script.library.stationed_droid.setMode(self, player, script.library.stationed_droid.MODE_GUARD);
+        }
+        else if (item == menu_info_types.SERVER_MENU8)
+        {
+            script.library.stationed_droid.setMode(self, player, script.library.stationed_droid.MODE_PATROL);
         }
         else if (item == menu_info_types.SERVER_MENU5 || item == menu_info_types.SERVER_MENU6)
         {
@@ -117,12 +122,47 @@ public class stationed_droid extends script.base_script
         // Restart the guard scan; the tick id makes any older scan chain stop itself.
         int tick = utils.getIntScriptVar(self, SCRIPTVAR_TICK) + 1;
         utils.setScriptVar(self, SCRIPTVAR_TICK, tick);
-        if (script.library.stationed_droid.getMode(self) == script.library.stationed_droid.MODE_GUARD)
+        int mode = script.library.stationed_droid.getMode(self);
+        dictionary d = new dictionary();
+        d.put("tick", tick);
+        if (mode == script.library.stationed_droid.MODE_GUARD || mode == script.library.stationed_droid.MODE_PATROL)
         {
-            dictionary d = new dictionary();
-            d.put("tick", tick);
             messageTo(self, "handleGuardTick", d, script.library.stationed_droid.GUARD_TICK_SEC, false);
         }
+        if (mode == script.library.stationed_droid.MODE_WANDER || mode == script.library.stationed_droid.MODE_PATROL)
+        {
+            messageTo(self, "handleRoamTick", d, 2, false);
+        }
+        return SCRIPT_CONTINUE;
+    }
+
+    // ---- wander / patrol movement --------------------------------------------------
+
+    /** Walks to a random spot near the post every few seconds (wander and patrol). */
+    public int handleRoamTick(obj_id self, dictionary params) throws InterruptedException
+    {
+        int mode = script.library.stationed_droid.getMode(self);
+        if (params == null || params.getInt("tick") != utils.getIntScriptVar(self, SCRIPTVAR_TICK) || !script.library.stationed_droid.isStationed(self) || (mode != script.library.stationed_droid.MODE_WANDER && mode != script.library.stationed_droid.MODE_PATROL))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (!ai_lib.isInCombat(self) && !ai_lib.isAiDead(self) && !isIncapacitated(self))
+        {
+            location home = hasObjVar(self, script.library.stationed_droid.OBJVAR_HOME) ? getLocationObjVar(self, script.library.stationed_droid.OBJVAR_HOME) : getLocation(self);
+            float range = (mode == script.library.stationed_droid.MODE_PATROL) ? script.library.stationed_droid.PATROL_MAX : script.library.stationed_droid.WANDER_MAX;
+            location dest = utils.getRandomLocationInRing(home, 1.5f, range);
+            if (!isIdValid(dest.cell))
+            {
+                dest.y = getHeightAtLocation(dest.x, dest.z);
+            }
+            if (getPosture(self) != POSTURE_UPRIGHT)
+            {
+                posture.stand(self);
+            }
+            pathTo(self, dest);
+        }
+        float delay = script.library.stationed_droid.ROAM_MIN_SEC + rand() * (script.library.stationed_droid.ROAM_MAX_SEC - script.library.stationed_droid.ROAM_MIN_SEC);
+        messageTo(self, "handleRoamTick", params, delay, false);
         return SCRIPT_CONTINUE;
     }
 
@@ -130,7 +170,7 @@ public class stationed_droid extends script.base_script
 
     public int handleGuardTick(obj_id self, dictionary params) throws InterruptedException
     {
-        if (params == null || params.getInt("tick") != utils.getIntScriptVar(self, SCRIPTVAR_TICK) || !script.library.stationed_droid.isStationed(self) || script.library.stationed_droid.getMode(self) != script.library.stationed_droid.MODE_GUARD)
+        if (params == null || params.getInt("tick") != utils.getIntScriptVar(self, SCRIPTVAR_TICK) || !script.library.stationed_droid.isStationed(self) || (script.library.stationed_droid.getMode(self) != script.library.stationed_droid.MODE_GUARD && script.library.stationed_droid.getMode(self) != script.library.stationed_droid.MODE_PATROL))
         {
             return SCRIPT_CONTINUE;
         }
@@ -179,13 +219,26 @@ public class stationed_droid extends script.base_script
         {
             return true;
         }
-        return aiIsAggressive(target);
+        // Guard only reacts when the owner or the droid is attacked; patrol also attacks
+        // aggressive creatures on sight.
+        return script.library.stationed_droid.getMode(self) == script.library.stationed_droid.MODE_PATROL && aiIsAggressive(target);
+    }
+
+    /** A droid always fights back when it is attacked, whatever its mode. */
+    public int OnDefenderCombatAction(obj_id self, obj_id attacker, obj_id weapon, int combatResult) throws InterruptedException
+    {
+        if (isIdValid(attacker) && exists(attacker) && attacker != self && attacker != script.library.stationed_droid.getLooseOwner(self) && !ai_lib.isInCombat(self) && !ai_lib.isAiDead(self) && !isIncapacitated(self) && pvpCanAttack(self, attacker))
+        {
+            startCombat(self, attacker);
+        }
+        return SCRIPT_CONTINUE;
     }
 
     public int OnSawAttack(obj_id self, obj_id defender, obj_id[] attackers) throws InterruptedException
     {
         // Overrides ai.ai: a loose droid must not join social-group / lair defence on its own.
-        if (script.library.stationed_droid.getMode(self) != script.library.stationed_droid.MODE_GUARD || ai_lib.isInCombat(self) || attackers == null)
+        int mode = script.library.stationed_droid.getMode(self);
+        if ((mode != script.library.stationed_droid.MODE_GUARD && mode != script.library.stationed_droid.MODE_PATROL) || ai_lib.isInCombat(self) || attackers == null)
         {
             return SCRIPT_OVERRIDE;
         }

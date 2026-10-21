@@ -40,6 +40,9 @@ public class stationed_droid extends script.base_script
     public static final int MODE_STAND = 0;
     public static final int MODE_WANDER = 1;
     public static final int MODE_GUARD = 2;
+    // Wander around the post and attack hostile creatures on sight (guard only reacts when
+    // the owner or the droid itself is attacked).
+    public static final int MODE_PATROL = 3;
 
     // Scripts that make the PCD act on the droid; detached while parked.
     public static final String[] PCD_SCRIPTS = { "ai.pet_control_device", "ai.pcd_ping_response" };
@@ -54,6 +57,10 @@ public class stationed_droid extends script.base_script
 
     public static final float WANDER_MIN = 0.0f;
     public static final float WANDER_MAX = 8.0f;
+    public static final float PATROL_MAX = 15.0f;
+    // Script-driven roaming: seconds between picking a new spot (engine loiter did not move the droids).
+    public static final float ROAM_MIN_SEC = 6.0f;
+    public static final float ROAM_MAX_SEC = 14.0f;
     public static final float GUARD_RANGE = 20.0f;
     public static final float GUARD_TICK_SEC = 3.0f;
     public static final float INCAP_RECOVER_SEC = 45.0f;
@@ -407,7 +414,7 @@ public class stationed_droid extends script.base_script
     /** Owner command: change the droid's mode. The post becomes wherever the droid stands now. */
     public static boolean setMode(obj_id droid, obj_id player, int mode) throws InterruptedException
     {
-        if (!isStationed(droid) || getLooseOwner(droid) != player || mode < MODE_STAND || mode > MODE_GUARD)
+        if (!isStationed(droid) || getLooseOwner(droid) != player || mode < MODE_STAND || mode > MODE_PATROL)
         {
             return false;
         }
@@ -421,6 +428,9 @@ public class stationed_droid extends script.base_script
                 break;
             case MODE_GUARD:
                 sendSystemMessage(player, sid("stationed_mode_guard"));
+                break;
+            case MODE_PATROL:
+                sendSystemMessage(player, sid("stationed_mode_patrol"));
                 break;
             default:
                 sendSystemMessage(player, sid("stationed_mode_stand"));
@@ -439,28 +449,14 @@ public class stationed_droid extends script.base_script
         location home = hasObjVar(droid, OBJVAR_HOME) ? getLocationObjVar(droid, OBJVAR_HOME) : getLocation(droid);
         aiSetHomeLocation(droid, home);
         setHomeLocation(droid, home);
-        switch (getMode(droid))
-        {
-            case MODE_WANDER:
-                setObjVar(droid, "ai.loiterMinRange", WANDER_MIN);
-                setObjVar(droid, "ai.loiterMaxRange", WANDER_MAX);
-                setWantSawAttackTriggers(droid, false);
-                ai_lib.setDefaultCalmBehavior(droid, ai_lib.BEHAVIOR_LOITER);
-                break;
-            case MODE_GUARD:
-                removeObjVar(droid, "ai.loiterMinRange");
-                removeObjVar(droid, "ai.loiterMaxRange");
-                setWantSawAttackTriggers(droid, true);
-                ai_lib.setDefaultCalmBehavior(droid, ai_lib.BEHAVIOR_STOP);
-                break;
-            default:
-                removeObjVar(droid, "ai.loiterMinRange");
-                removeObjVar(droid, "ai.loiterMaxRange");
-                setWantSawAttackTriggers(droid, false);
-                ai_lib.setDefaultCalmBehavior(droid, ai_lib.BEHAVIOR_STOP);
-                break;
-        }
-        if (getMode(droid) != MODE_WANDER && !ai_lib.isInCombat(droid) && getDistance(droid, home) > 1.5f)
+        // Movement for wander/patrol is driven by ai.stationed_droid (handleRoamTick); the engine
+        // loiter only made these droids turn on the spot. The engine default is therefore STOP.
+        removeObjVar(droid, "ai.loiterMinRange");
+        removeObjVar(droid, "ai.loiterMaxRange");
+        int mode = getMode(droid);
+        setWantSawAttackTriggers(droid, mode == MODE_GUARD || mode == MODE_PATROL);
+        ai_lib.setDefaultCalmBehavior(droid, ai_lib.BEHAVIOR_STOP);
+        if (mode != MODE_WANDER && mode != MODE_PATROL && !ai_lib.isInCombat(droid) && getDistance(droid, home) > 1.5f)
         {
             pathTo(droid, home);
         }
