@@ -607,6 +607,8 @@ public class space_transition extends script.base_script
                 return;
             }
         }
+        // The pack failed: the ship stays out, so droids stowed just now must come back to their posts.
+        restoreLooseDroidsAboard(ship);
         // Do NOT destroy player ships on ground pack failure — that was deleting
         // chassis after a failed atmospheric Store and leaving residual pilot state.
         if (isSpaceScene())
@@ -643,6 +645,32 @@ public class space_transition extends script.base_script
         catch (Exception e)
         {
             LOG("space_transition", "stowLooseDroidsAboard failed for ship=" + ship + ": " + e);
+        }
+    }
+    /**
+     * Counterpart of stowLooseDroidsAboard: called when a ship has been taken out of its control device.
+     * If loose droids were stowed with it, ai.stationed_ship_restore recreates them at their posts and
+     * sets them loose again (a few seconds later, once the owner is out of the pilot seat). Never blocks
+     * unpacking, so any failure is only logged.
+     */
+    public static void restoreLooseDroidsAboard(obj_id ship) throws InterruptedException
+    {
+        try
+        {
+            if (isIdValid(ship) && hasObjVar(ship, stationed_droid.OBJVAR_SHIP_RECORDS))
+            {
+                if (!hasScript(ship, stationed_droid.SCRIPT_SHIP_RESTORE))
+                {
+                    attachScript(ship, stationed_droid.SCRIPT_SHIP_RESTORE);
+                }
+                dictionary restoreParams = new dictionary();
+                restoreParams.put("attempt", 0);
+                messageTo(ship, "handleRestoreLooseDroids", restoreParams, 3.0f, false);
+            }
+        }
+        catch (Exception e)
+        {
+            LOG("space_transition", "restoreLooseDroidsAboard failed for ship=" + ship + ": " + e);
         }
     }
     public static obj_id[] getAllObjectsInPob(obj_id pob) throws InterruptedException
@@ -940,6 +968,8 @@ public class space_transition extends script.base_script
             setObjVar(ship, "shipControlDevice", shipControlDevice);
             return true;
         }
+        // Could not pack: the ship stays out, so droids stowed just now must come back to their posts.
+        restoreLooseDroidsAboard(ship);
         return false;
     }
 
@@ -2477,6 +2507,7 @@ public class space_transition extends script.base_script
                     }
                 }
                 LOG("space", "AOK");
+                restoreLooseDroidsAboard(ship);
                 return true;
             }
             else
@@ -2501,6 +2532,7 @@ public class space_transition extends script.base_script
                             attachScript(ship, "space.combat.combat_ship");
                         }
                         startAtmosAltitudeWatch(player);
+                        restoreLooseDroidsAboard(ship);
                         return true;
                     }
                     // Ship may already be in the world from setLocation even if pilot failed
@@ -2514,6 +2546,7 @@ public class space_transition extends script.base_script
                         }
                         snapShipToGroundAndMarkLanded(ship);
                         setShipLanded(ship, false);
+                        restoreLooseDroidsAboard(ship);
                         return true;
                     }
                 }
