@@ -529,6 +529,16 @@ public class stationed_droid extends script.base_script
     // (handleAddMaster, handleSetupPet) must have run first.
     public static final float RESTORE_FINISH_DELAY_SEC = 1.5f;
 
+    // On the ship, while a droid is being restored (created, but not yet set loose again):
+    // the droid, its record and the game time it was created. A droid in this state is an ordinary
+    // follower pet, so a pack in that window must put it back (restowInFlight) instead of leaving it
+    // in the cell, where it would fall through the hull the next time the ship is called out.
+    public static final String OBJVAR_RESTORING_DROID = "stationed.restoring.droid";
+    public static final String OBJVAR_RESTORING_RECORD = "stationed.restoring.record";
+    public static final String OBJVAR_RESTORING_TIME = "stationed.restoring.time";
+    // A restore marker older than this (seconds) is stale (its finish message was lost).
+    public static final int RESTORING_STALE_SEC = 20;
+
     // record fields
     private static final int REC_PCD = 0;
     private static final int REC_OWNER = 1;
@@ -672,16 +682,20 @@ public class stationed_droid extends script.base_script
         {
             return 0;
         }
-        obj_id[] contents = space_transition.getAllObjectsInPob(ship);
-        if (contents == null)
+        // A droid that is only half restored (created, not yet loose) is not "stationed" yet.
+        obj_id restowed = restowInFlightIfAny(ship, "the ship was packed");
+        int stowed = isIdValid(restowed) ? 1 : 0;
+        java.util.List<obj_id> aboard = findDroidsAboard(ship);
+        if (isIdValid(restowed))
         {
-            return 0;
+            aboard.remove(restowed);
         }
-        int stowed = 0;
-        for (obj_id c : contents)
+        LOG("stationed_droid", "stowDroidsAboard: ship=" + ship + " candidates=" + aboard.size() + " inFlightRestowed=" + stowed);
+        for (obj_id c : aboard)
         {
             if (!isStationed(c))
             {
+                stowFollowerDroid(c);
                 continue;
             }
             obj_id owner = getLooseOwner(c);
@@ -700,6 +714,120 @@ public class stationed_droid extends script.base_script
             }
         }
         return stowed;
+    }
+
+    /**
+     * Safety net, run right AFTER the hull went into its control device: any droid still standing in
+     * a cell (a pack that raced with a restore, a droid the pre-pack stow could not see) would be left
+     * behind and fall through the hull when the ship is called out again. Stows what it finds the same
+     * way stowDroidsAboard does; a droid that cannot be stowed is logged (it cannot be ejected from a
+     * packed hull). Returns the number of droids stowed.
+     */
+    public static int sweepPackedShip(obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !exists(ship))
+        {
+            return 0;
+        }
+        obj_id restowed = restowInFlightIfAny(ship, "the ship was packed");
+        int stowed = isIdValid(restowed) ? 1 : 0;
+        java.util.List<obj_id> aboard = findDroidsAboard(ship);
+        if (isIdValid(restowed))
+        {
+            aboard.remove(restowed);
+        }
+        for (obj_id c : aboard)
+        {
+            if (!isStationed(c))
+            {
+                stowFollowerDroid(c);
+                stowed++;
+                continue;
+            }
+            obj_id owner = getLooseOwner(c);
+            String name = getName(c);
+            if (stowDroid(c, ship))
+            {
+                stowed++;
+                LOG("stationed_droid", "sweepPackedShip: late stow of droid " + c + " from packed ship " + ship);
+                if (isIdValid(owner) && exists(owner))
+                {
+                    sendSystemMessageTestingOnly(owner, "Your droid " + name + " was stowed in your datapad while the ship is packed. It returns to its post when the ship is called out.");
+                }
+            }
+            else
+            {
+                LOG("stationed_droid", "sweepPackedShip: droid " + c + " is left in packed ship " + ship + " (could not be stowed)");
+            }
+        }
+        if (stowed > 0)
+        {
+            LOG("stationed_droid", "sweepPackedShip: ship=" + ship + " stowed=" + stowed);
+        }
+        return stowed;
+    }
+
+    /** True when the droid stands inside this ship (container chain first, cell location as a fallback). */
+    private static boolean isAboard(obj_id droid, obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(droid) || !exists(droid))
+        {
+            return false;
+        }
+        if (space_transition.getContainingShip(droid) == ship)
+        {
+            return true;
+        }
+        return isCellOfShip(getLocation(droid), ship);
+    }
+
+    /**
+     * Every droid standing in the ship's cells: the cell contents, plus the owner's registered loose
+     * droids that are in the hull but were not listed (getContents does not always see all of them).
+     * Both stationed droids and plain follower droids are returned.
+     */
+    private static java.util.List<obj_id> findDroidsAboard(obj_id ship) throws InterruptedException
+    {
+        java.util.List<obj_id> found = new java.util.ArrayList<obj_id>();
+        obj_id[] contents = space_transition.getAllObjectsInPob(ship);
+        if (contents != null)
+        {
+            for (obj_id c : contents)
+            {
+                if (!isIdValid(c) || !exists(c) || found.contains(c))
+                {
+                    continue;
+                }
+                if (isStationed(c) || (isMob(c) && !isPlayer(c) && pet_lib.isDroidPet(c)))
+                {
+                    found.add(c);
+                }
+            }
+        }
+        obj_id shipOwner = getOwner(ship);
+        if (isIdValid(shipOwner))
+        {
+            for (obj_id d : getOwnedDroids(shipOwner))
+            {
+                if (isIdValid(d) && exists(d) && !found.contains(d) && isAboard(d, ship))
+                {
+                    LOG("stationed_droid", "findDroidsAboard: droid " + d + " was in the hull but not in the cell contents, ship=" + ship);
+                    found.add(d);
+                }
+            }
+        }
+        return found;
+    }
+
+    /**
+     * A called-out (follower) droid left standing in a hull that is being packed: stored like any
+     * other droid (back into its control device in the datapad). It does not come back on its own.
+     */
+    private static void stowFollowerDroid(obj_id droid) throws InterruptedException
+    {
+        obj_id master = getMaster(droid);
+        LOG("stationed_droid", "stowFollowerDroid: storing follower droid " + droid + " master=" + master);
+        pet_lib.storePet(droid, master);
     }
 
     /** True when the location is inside a cell of this ship (whether or not the ship is top level right now). */
@@ -724,11 +852,13 @@ public class stationed_droid extends script.base_script
         obj_id pcd = getParkedPcd(droid);
         if (!isIdValid(owner) || !exists(owner) || !isIdValid(pcd) || !exists(pcd))
         {
+            LOG("stationed_droid", "stowDroid: droid " + droid + " not stowed: owner=" + owner + " ownerLoaded=" + (isIdValid(owner) && exists(owner)) + " pcd=" + pcd + " pcdLoaded=" + (isIdValid(pcd) && exists(pcd)));
             return false;
         }
         obj_id datapad = utils.getPlayerDatapad(owner);
         if (!isIdValid(datapad) || !exists(datapad))
         {
+            LOG("stationed_droid", "stowDroid: droid " + droid + " not stowed: owner " + owner + " has no usable datapad");
             return false;
         }
         // The post is where the droid belongs (centre of its wandering); fall back to where it stands.
@@ -739,11 +869,13 @@ public class stationed_droid extends script.base_script
         }
         if (!isCellOfShip(spot, ship))
         {
+            LOG("stationed_droid", "stowDroid: droid " + droid + " not stowed: neither its post nor its position is in a cell of ship " + ship);
             return false;
         }
         String cellName = getCellName(spot.cell);
         if (cellName == null || cellName.length() == 0 || cellName.indexOf('|') >= 0)
         {
+            LOG("stationed_droid", "stowDroid: droid " + droid + " not stowed: unusable cell name '" + cellName + "' (cell " + spot.cell + ")");
             return false;
         }
         float yaw = getYaw(droid);
@@ -752,6 +884,7 @@ public class stationed_droid extends script.base_script
         stop(droid);
         if (!returnPcdToDatapad(droid, pcd, datapad))
         {
+            LOG("stationed_droid", "stowDroid: droid " + droid + " not stowed: the datapad refused PCD " + pcd);
             return false;
         }
         setObjVar(pcd, OBJVAR_ABOARD_SHIP, ship);
@@ -836,6 +969,23 @@ public class stationed_droid extends script.base_script
             // packed, gone, or in space (loose droids cannot be set loose in space): records stay for a later unpack
             return false;
         }
+        if (attempt == 0)
+        {
+            // A droid that fell out of the hull on this unpack goes back on its post first.
+            recoverFallenDroids(ship);
+        }
+        // One droid at a time: while one is half restored its own finish step starts the next pass.
+        // (Several chains can be running after quick pack/unpack cycles.)
+        if (hasObjVar(ship, OBJVAR_RESTORING_DROID))
+        {
+            obj_id inFlight = getObjIdObjVar(ship, OBJVAR_RESTORING_DROID);
+            int age = getGameTime() - (hasObjVar(ship, OBJVAR_RESTORING_TIME) ? getIntObjVar(ship, OBJVAR_RESTORING_TIME) : 0);
+            if (isIdValid(inFlight) && exists(inFlight) && age <= RESTORING_STALE_SEC)
+            {
+                return false;
+            }
+            restowInFlightIfAny(ship, "its restore never finished");
+        }
         boolean retry = false;
         boolean lastTry = attempt >= RESTORE_MAX_TRIES - 1;
         for (String raw : getShipRecords(ship))
@@ -912,8 +1062,10 @@ public class stationed_droid extends script.base_script
         // an ordinary called-out PCD from here on.
         removeShipRecord(ship, pcd);
         removeObjVar(pcd, OBJVAR_ABOARD_SHIP);
+        markRestoring(ship, droid, raw);
         stop(droid);
-        setLocation(droid, spot);
+        boolean placed = setLocation(droid, spot);
+        LOG("stationed_droid", "restore: created droid=" + droid + " for pcd=" + pcd + " on ship=" + ship + " cell=" + r[REC_CELL] + " setLocation=" + placed + " aboard=" + isAboard(droid, ship));
         dictionary d = new dictionary();
         d.put("droid", droid);
         d.put("owner", owner);
@@ -933,7 +1085,14 @@ public class stationed_droid extends script.base_script
         String[] r = decodeRecord(raw);
         if (r == null || !isIdValid(droid) || !exists(droid) || !isIdValid(owner) || !exists(owner) || !isIdValid(ship) || !exists(ship))
         {
+            clearRestoringFor(ship, droid);
             return false;   // droid or owner gone: the PCD is already safe in the datapad
+        }
+        if (isIdValid(getContainedBy(ship)) || isSpaceScene())
+        {
+            // The ship was packed again before the droid was loose: it must not stay in the hull.
+            restowInFlight(ship, droid, owner, raw, "the ship was packed again");
+            return false;
         }
         String name = getName(droid);
         obj_id cell = getCellId(ship, r[REC_CELL]);
@@ -943,6 +1102,18 @@ public class stationed_droid extends script.base_script
             // The pet follow behaviour may have moved it towards the owner in the meantime.
             stop(droid);
             setLocation(droid, spot);
+            if (!isAboard(droid, ship))
+            {
+                // Never set a droid loose outside the hull: it would stand on the ground under the ship.
+                LOG("stationed_droid", "restore: droid " + droid + " is not aboard ship " + ship + " after setLocation, try " + tries);
+                if (tries < FINISH_MAX_TRIES - 1)
+                {
+                    return true;
+                }
+                restowInFlight(ship, droid, owner, raw, "it could not be placed back on its post");
+                sendSystemMessageTestingOnly(owner, "Your droid " + name + " could not be placed back aboard the ship. It is in your datapad: call it and set it loose again.");
+                return false;
+            }
         }
         string_id why = getSetLooseBlocker(droid, owner);
         if (why != null)
@@ -951,11 +1122,13 @@ public class stationed_droid extends script.base_script
             {
                 return true;
             }
+            clearRestoringFor(ship, droid);
             sendSystemMessageTestingOnly(owner, "Your droid " + name + " is back aboard the ship but could not be set loose again. It is following you: set it loose again.");
             return false;
         }
         if (!setLoose(droid, owner, true))
         {
+            clearRestoringFor(ship, droid);
             sendSystemMessageTestingOnly(owner, "Your droid " + name + " is back aboard the ship but could not be set loose again. It is following you: set it loose again.");
             return false;
         }
@@ -987,8 +1160,146 @@ public class stationed_droid extends script.base_script
         setObjVar(droid, OBJVAR_MODE, mode);
         applyMode(droid);
         messageTo(droid, "handleApplyMode", null, 2, false);
+        clearRestoringFor(ship, droid);
         sendSystemMessageTestingOnly(owner, "Your droid " + name + " is back at its post aboard the ship.");
         return false;
+    }
+
+    // ---- restore bookkeeping ---------------------------------------------------------------
+
+    private static void markRestoring(obj_id ship, obj_id droid, String raw) throws InterruptedException
+    {
+        setObjVar(ship, OBJVAR_RESTORING_DROID, droid);
+        setObjVar(ship, OBJVAR_RESTORING_RECORD, raw);
+        setObjVar(ship, OBJVAR_RESTORING_TIME, getGameTime());
+    }
+
+    private static void clearRestoring(obj_id ship) throws InterruptedException
+    {
+        removeObjVar(ship, OBJVAR_RESTORING_DROID);
+        removeObjVar(ship, OBJVAR_RESTORING_RECORD);
+        removeObjVar(ship, OBJVAR_RESTORING_TIME);
+    }
+
+    /** Clears the in-flight marker only when it belongs to this droid (a newer restore may own it now). */
+    private static void clearRestoringFor(obj_id ship, obj_id droid) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !hasObjVar(ship, OBJVAR_RESTORING_DROID))
+        {
+            return;
+        }
+        obj_id marked = getObjIdObjVar(ship, OBJVAR_RESTORING_DROID);
+        if (!isIdValid(droid) || marked == null || marked.equals(droid))
+        {
+            clearRestoring(ship);
+        }
+    }
+
+    /**
+     * If a droid on this ship is half restored, puts it back (see restowInFlight). Returns that droid,
+     * or null when nothing was in flight.
+     */
+    private static obj_id restowInFlightIfAny(obj_id ship, String why) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !hasObjVar(ship, OBJVAR_RESTORING_DROID))
+        {
+            return null;
+        }
+        obj_id droid = getObjIdObjVar(ship, OBJVAR_RESTORING_DROID);
+        String raw = hasObjVar(ship, OBJVAR_RESTORING_RECORD) ? getStringObjVar(ship, OBJVAR_RESTORING_RECORD) : null;
+        obj_id owner = null;
+        String[] r = decodeRecord(raw);
+        if (r != null)
+        {
+            owner = parseId(r[REC_OWNER]);
+        }
+        if (!isIdValid(droid) || !exists(droid))
+        {
+            LOG("stationed_droid", "restowInFlightIfAny: in-flight droid " + droid + " of ship " + ship + " no longer exists; marker dropped");
+            clearRestoring(ship);
+            if (r != null)
+            {
+                obj_id pcd = parseId(r[REC_PCD]);
+                if (isIdValid(pcd) && exists(pcd))
+                {
+                    // the PCD was linked to the lost droid: make it callable again, and leave it unlocked
+                    callable.setCDCallable(pcd, null);
+                    removeObjVar(pcd, OBJVAR_ABOARD_SHIP);
+                }
+            }
+            return null;
+        }
+        restowInFlight(ship, droid, owner, raw, why);
+        return droid;
+    }
+
+    /**
+     * A droid that was recreated for a ship (so it is an ordinary follower pet until finishAboardRestore
+     * sets it loose) has to go back into its PCD: the PCD is stored in the datapad again and locked, and
+     * the record returns to the ship, so the droid comes back at its post on the next unpack. Never loses
+     * the droid.
+     */
+    private static void restowInFlight(obj_id ship, obj_id droid, obj_id owner, String raw, String why) throws InterruptedException
+    {
+        LOG("stationed_droid", "restowInFlight: droid=" + droid + " ship=" + ship + " reason=" + why);
+        clearRestoring(ship);
+        String[] r = decodeRecord(raw);
+        if (!isIdValid(owner) && r != null)
+        {
+            owner = parseId(r[REC_OWNER]);
+        }
+        if (isIdValid(droid) && exists(droid))
+        {
+            pet_lib.storePet(droid, owner);
+        }
+        if (r != null)
+        {
+            obj_id pcd = parseId(r[REC_PCD]);
+            if (isIdValid(pcd) && exists(pcd))
+            {
+                setObjVar(pcd, OBJVAR_ABOARD_SHIP, ship);
+                addShipRecord(ship, pcd, raw);
+                if (!hasScript(ship, SCRIPT_SHIP_RESTORE))
+                {
+                    attachScript(ship, SCRIPT_SHIP_RESTORE);
+                }
+            }
+        }
+    }
+
+    /**
+     * A ship was called out and one of its droids stands outside the hull although its post is inside
+     * (it fell through the hull, or was left in a cell by an earlier pack): put it back on its post.
+     * Uses the owner's loose-droid registry, so only droids loaded on this server are seen.
+     */
+    public static int recoverFallenDroids(obj_id ship) throws InterruptedException
+    {
+        obj_id owner = getOwner(ship);
+        if (!isIdValid(owner))
+        {
+            return 0;
+        }
+        int recovered = 0;
+        for (obj_id d : getOwnedDroids(owner))
+        {
+            if (!isIdValid(d) || !exists(d) || !hasObjVar(d, OBJVAR_HOME))
+            {
+                continue;
+            }
+            location home = getLocationObjVar(d, OBJVAR_HOME);
+            if (!isCellOfShip(home, ship) || isAboard(d, ship))
+            {
+                continue;
+            }
+            LOG("stationed_droid", "recoverFallenDroids: droid " + d + " stands outside ship " + ship + " but its post is inside; putting it back");
+            stop(d);
+            if (setLocation(d, home))
+            {
+                messageTo(d, "handleApplyMode", null, 1, false);
+                recovered++;
+            }
+        }
+        return recovered;
     }
 
     /** Fallback: puts the droid on the ground beside the ship (its new post) when it cannot be stowed. */
