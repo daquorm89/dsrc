@@ -592,6 +592,7 @@ public class space_transition extends script.base_script
             stowLooseDroidsAboard(ship);
             if (isIdValid(shipControlDevice) && putIn(ship, shipControlDevice))
             {
+                sweepPackedShipDroids(ship);
                 if (isGameObjectTypeOf(ship, GOT_ship_fighter) && space_utils.isShipWithInterior(ship))
                 {
                     obj_id[] shipContents = getAllObjectsInPob(ship);
@@ -671,6 +672,26 @@ public class space_transition extends script.base_script
         catch (Exception e)
         {
             LOG("space_transition", "restoreLooseDroidsAboard failed for ship=" + ship + ": " + e);
+        }
+    }
+    /**
+     * Safety net after the hull went into its control device: a droid that was still standing in a cell
+     * (a pack that raced with a restore, a droid the pre-pack stow did not see) is stowed now, so it does
+     * not fall through the hull when the ship is called out again. Never blocks packing: failures are
+     * only logged.
+     */
+    public static void sweepPackedShipDroids(obj_id ship) throws InterruptedException
+    {
+        try
+        {
+            if (isIdValid(ship) && space_utils.isShipWithInterior(ship))
+            {
+                stationed_droid.sweepPackedShip(ship);
+            }
+        }
+        catch (Exception e)
+        {
+            LOG("space_transition", "sweepPackedShipDroids failed for ship=" + ship + ": " + e);
         }
     }
     public static obj_id[] getAllObjectsInPob(obj_id pob) throws InterruptedException
@@ -966,6 +987,7 @@ public class space_transition extends script.base_script
         {
             setObjVar(shipControlDevice, "ship", ship);
             setObjVar(ship, "shipControlDevice", shipControlDevice);
+            sweepPackedShipDroids(ship);
             return true;
         }
         // Could not pack: the ship stays out, so droids stowed just now must come back to their posts.
