@@ -303,6 +303,9 @@ public class stationed_droid extends script.base_script
         detachPresent(droid, PET_SCRIPTS);
         registerDroid(player, droid);
         attachScript(droid, SCRIPT);
+        // ai.pet.OnDetach scheduled its own "default calm behaviour" message; apply our mode
+        // now so that message finds our objvars instead of briefly letting the droid wander.
+        applyMode(droid);
         sendSystemMessage(player, sid("stationed_now_loose"));
         return true;
     }
