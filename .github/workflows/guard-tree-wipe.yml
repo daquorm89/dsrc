@@ -1,0 +1,29 @@
+name: guard-tree-wipe
+on:
+  pull_request:
+    branches: [master]
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Block mass deletions and missing sentinel files
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          ALLOW: ${{ contains(github.event.pull_request.labels.*.name, 'allow-mass-delete') }}
+        run: |
+          deleted=$(git diff --diff-filter=D --name-only $BASE...$HEAD | wc -l)
+          before=$(git ls-tree -r --name-only $BASE | wc -l)
+          after=$(git ls-tree -r --name-only $HEAD | wc -l)
+          echo "deleted=$deleted tree $before -> $after"
+          fail=0
+          if [ "$ALLOW" != "true" ]; then
+            [ "$deleted" -gt 25 ] && { echo "::error::PR deletes $deleted files (limit 25). Add label allow-mass-delete only if intended."; fail=1; }
+            [ "$before" -gt 100 ] && [ $((after*10)) -lt $((before*9)) ] && { echo "::error::Tree shrinks >10% ($before -> $after)"; fail=1; }
+          fi
+          for f in sku.0/sys.server/compiled/game/script/ai/ai.java; do
+            git ls-tree -r --name-only $HEAD | grep -qx "$f" || { echo "::error::Sentinel file missing: $f"; fail=1; }
+          done
+          exit $fail
