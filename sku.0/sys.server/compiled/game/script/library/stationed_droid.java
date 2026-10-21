@@ -218,4 +218,208 @@ public class stationed_droid extends script.base_script
         }
         return null;
     }
+
+    // ---- script helpers --------------------------------------------------------------
+
+    /** Detaches every listed script that is attached; returns the names that were. */
+    private static String[] detachPresent(obj_id obj, String[] scripts) throws InterruptedException
+    {
+        java.util.Vector gone = new java.util.Vector();
+        for (String s : scripts)
+        {
+            if (hasScript(obj, s))
+            {
+                detachScript(obj, s);
+                gone.add(s);
+            }
+        }
+        return (String[])gone.toArray(new String[0]);
+    }
+
+    private static void attachMissing(obj_id obj, String[] scripts) throws InterruptedException
+    {
+        for (String s : scripts)
+        {
+            if (!hasScript(obj, s))
+            {
+                attachScript(obj, s);
+            }
+        }
+    }
+
+    // ---- set loose -------------------------------------------------------------------
+
+    /**
+     * Turns the player's called-out droid into a persisted, autonomous NPC. Every step that
+     * can fail runs BEFORE anything is detached, and a failed park rolls the droid back into
+     * the datapad, so the droid and its control device are never lost.
+     */
+    public static boolean setLoose(obj_id droid, obj_id player) throws InterruptedException
+    {
+        string_id why = getSetLooseBlocker(droid, player);
+        if (why != null)
+        {
+            sendSystemMessage(player, why);
+            return false;
+        }
+        obj_id pcd = callable.getCallableCD(droid);
+        obj_id inv = utils.getInventoryContainer(droid);
+
+        // The droid must be persisted before the PCD is parked in it, otherwise the PCD
+        // would sit in a non-persisted container and be lost on the next restart.
+        if (!persistObject(droid) && !isObjectPersisted(droid))
+        {
+            sendSystemMessage(player, sid("stationed_failed"));
+            return false;
+        }
+
+        setObjVar(droid, OBJVAR_OWNER, player);
+        setObjVar(droid, OBJVAR_MODE, MODE_STAND);
+        setObjVar(droid, OBJVAR_PCD, pcd);
+        setObjVar(droid, OBJVAR_HOME, getLocation(droid));
+
+        // Flush damage / name / colours into the PCD while it is still linked and loaded.
+        pet_lib.savePetInfo(droid, pcd);
+        pet_lib.removeActiveDroid(player, droid);
+
+        // Park the PCD. Its scripts must go first: ai.pet_control_device.OnTransferred
+        // destroys the linked droid when the PCD moves.
+        String[] gone = detachPresent(pcd, PCD_SCRIPTS);
+        setObjVar(droid, OBJVAR_PCD_SCRIPTS, gone);
+        callable.setCDCallable(pcd, null);
+        if (!putIn(pcd, inv))
+        {
+            // Roll back: PCD stays usable in the datapad and the droid goes back into it.
+            attachMissing(pcd, gone);
+            callable.setCDCallable(pcd, droid);
+            removeObjVar(droid, "stationed");
+            sendSystemMessage(player, sid("stationed_failed"));
+            pet_lib.storePet(droid, player);
+            return false;
+        }
+
+        // The droid stops being a follower pet. ai.pet.OnDetach clears the "ai.pet" objvars
+        // and the inventory owner; nothing below relies on those.
+        detachPresent(droid, PET_SCRIPTS);
+        registerDroid(player, droid);
+        attachScript(droid, SCRIPT);
+        sendSystemMessage(player, sid("stationed_now_loose"));
+        return true;
+    }
+
+    // ---- pick up ---------------------------------------------------------------------
+
+    /** Returns a loose droid to its owner's datapad (restoring the PCD) and removes the NPC. */
+    public static boolean pickUp(obj_id droid, obj_id player) throws InterruptedException
+    {
+        if (!isStationed(droid) || !isIdValid(player) || getLooseOwner(droid) != player)
+        {
+            sendSystemMessage(player, sid("stationed_not_owner"));
+            return false;
+        }
+        if (ai_lib.isInCombat(droid) || ai_lib.isInCombat(player))
+        {
+            sendSystemMessage(player, sid("stationed_cant_combat"));
+            return false;
+        }
+        obj_id pcd = getParkedPcd(droid);
+        obj_id datapad = utils.getPlayerDatapad(player);
+        if (!isIdValid(pcd) || !exists(pcd) || !isIdValid(datapad) || !exists(datapad))
+        {
+            sendSystemMessage(player, sid("stationed_failed"));
+            return false;
+        }
+        if (pet_lib.hasMaxStoredPetsOfType(player, pet_lib.PET_TYPE_DROID))
+        {
+            sendSystemMessage(player, pet_lib.SID_SYS_TOO_MANY_STORED_PETS);
+            return false;
+        }
+        if (!putIn(pcd, datapad))
+        {
+            sendSystemMessage(player, sid("stationed_failed"));
+            return false;
+        }
+        // PCD is a normal stored control device again.
+        String[] scripts = hasObjVar(droid, OBJVAR_PCD_SCRIPTS) ? getStringArrayObjVar(droid, OBJVAR_PCD_SCRIPTS) : PCD_SCRIPTS;
+        callable.setCDCallable(pcd, null);
+        callable.setCallableCD(droid, pcd);
+        pet_lib.savePetInfo(droid, pcd);
+        setObjVar(pcd, "pet.timeStored", getGameTime());
+        setCount(pcd, 0);
+        attachMissing(pcd, scripts);
+        sendDirtyObjectMenuNotification(pcd);
+
+        unregisterDroid(player, droid);
+        utils.setScriptVar(droid, "stored", true);
+        if (!destroyObject(droid))
+        {
+            LOG("stationed_droid", "pickUp: failed to destroy droid " + droid + " after returning PCD " + pcd);
+        }
+        sendSystemMessage(player, sid("stationed_picked_up"));
+        return true;
+    }
+
+    // ---- orders ----------------------------------------------------------------------
+
+    /** Owner command: change the droid's mode. The post becomes wherever the droid stands now. */
+    public static boolean setMode(obj_id droid, obj_id player, int mode) throws InterruptedException
+    {
+        if (!isStationed(droid) || getLooseOwner(droid) != player || mode < MODE_STAND || mode > MODE_GUARD)
+        {
+            return false;
+        }
+        setObjVar(droid, OBJVAR_MODE, mode);
+        setObjVar(droid, OBJVAR_HOME, getLocation(droid));
+        messageTo(droid, "handleApplyMode", null, 0, false);
+        switch (mode)
+        {
+            case MODE_WANDER:
+                sendSystemMessage(player, sid("stationed_mode_wander"));
+                break;
+            case MODE_GUARD:
+                sendSystemMessage(player, sid("stationed_mode_guard"));
+                break;
+            default:
+                sendSystemMessage(player, sid("stationed_mode_stand"));
+                break;
+        }
+        return true;
+    }
+
+    /** Pushes the stored mode into the engine AI. Called by ai.stationed_droid. */
+    public static void applyMode(obj_id droid) throws InterruptedException
+    {
+        if (!isStationed(droid))
+        {
+            return;
+        }
+        location home = hasObjVar(droid, OBJVAR_HOME) ? getLocationObjVar(droid, OBJVAR_HOME) : getLocation(droid);
+        aiSetHomeLocation(droid, home);
+        setHomeLocation(droid, home);
+        switch (getMode(droid))
+        {
+            case MODE_WANDER:
+                setObjVar(droid, "ai.loiterMinRange", WANDER_MIN);
+                setObjVar(droid, "ai.loiterMaxRange", WANDER_MAX);
+                setWantSawAttackTriggers(droid, false);
+                ai_lib.setDefaultCalmBehavior(droid, ai_lib.BEHAVIOR_LOITER);
+                break;
+            case MODE_GUARD:
+                removeObjVar(droid, "ai.loiterMinRange");
+                removeObjVar(droid, "ai.loiterMaxRange");
+                setWantSawAttackTriggers(droid, true);
+                ai_lib.setDefaultCalmBehavior(droid, ai_lib.BEHAVIOR_STOP);
+                break;
+            default:
+                removeObjVar(droid, "ai.loiterMinRange");
+                removeObjVar(droid, "ai.loiterMaxRange");
+                setWantSawAttackTriggers(droid, false);
+                ai_lib.setDefaultCalmBehavior(droid, ai_lib.BEHAVIOR_STOP);
+                break;
+        }
+        if (getMode(droid) != MODE_WANDER && !ai_lib.isInCombat(droid) && getDistance(droid, home) > 1.5f)
+        {
+            pathTo(droid, home);
+        }
+    }
 }
