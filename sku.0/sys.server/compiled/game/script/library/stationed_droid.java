@@ -46,10 +46,11 @@ public class stationed_droid extends script.base_script
     // Scripts that make the droid behave as a follower pet; detached while loose.
     public static final String[] PET_SCRIPTS = { "ai.pet_ping", "ai.pet" };
 
-    public static final int MAX_LOOSE_DROIDS_PER_PLAYER = 10;
+    public static final int MAX_LOOSE_DROIDS_PER_PLAYER = 25;
     // Ships/POB interiors are packed and unpacked by space_transition; what that does to a
-    // persisted NPC in a cell is UNVERIFIED, so this is off until tested in game.
-    public static final boolean ALLOW_IN_SHIPS = false;
+    // persisted NPC in a cell is UNVERIFIED in game, but the owner asked for it to be enabled.
+    // Set to false to block set loose while aboard a ship again.
+    public static final boolean ALLOW_IN_SHIPS = true;
 
     public static final float WANDER_MIN = 0.0f;
     public static final float WANDER_MAX = 8.0f;
