@@ -334,20 +334,12 @@ public class stationed_droid extends script.base_script
             sendSystemMessage(player, pet_lib.SID_SYS_TOO_MANY_STORED_PETS);
             return false;
         }
-        if (!putIn(pcd, datapad))
+        if (!returnPcdToDatapad(droid, pcd, datapad))
         {
             sendSystemMessage(player, sid("stationed_failed"));
             return false;
         }
-        // PCD is a normal stored control device again.
-        String[] scripts = hasObjVar(droid, OBJVAR_PCD_SCRIPTS) ? getStringArrayObjVar(droid, OBJVAR_PCD_SCRIPTS) : PCD_SCRIPTS;
-        callable.setCDCallable(pcd, null);
-        callable.setCallableCD(droid, pcd);
         pet_lib.savePetInfo(droid, pcd);
-        setObjVar(pcd, "pet.timeStored", getGameTime());
-        setCount(pcd, 0);
-        attachMissing(pcd, scripts);
-        sendDirtyObjectMenuNotification(pcd);
 
         unregisterDroid(player, droid);
         utils.setScriptVar(droid, "stored", true);
@@ -356,6 +348,53 @@ public class stationed_droid extends script.base_script
             LOG("stationed_droid", "pickUp: failed to destroy droid " + droid + " after returning PCD " + pcd);
         }
         sendSystemMessage(player, sid("stationed_picked_up"));
+        return true;
+    }
+
+    /** Moves the parked PCD back into the datapad and makes it a normal stored PCD again. */
+    private static boolean returnPcdToDatapad(obj_id droid, obj_id pcd, obj_id datapad) throws InterruptedException
+    {
+        if (!putIn(pcd, datapad))
+        {
+            return false;
+        }
+        String[] scripts = hasObjVar(droid, OBJVAR_PCD_SCRIPTS) ? getStringArrayObjVar(droid, OBJVAR_PCD_SCRIPTS) : PCD_SCRIPTS;
+        callable.setCDCallable(pcd, null);
+        callable.setCallableCD(droid, pcd);
+        setObjVar(pcd, "pet.timeStored", getGameTime());
+        setCount(pcd, 0);
+        attachMissing(pcd, scripts);
+        sendDirtyObjectMenuNotification(pcd);
+        return true;
+    }
+
+    /**
+     * Last-resort recovery when a loose droid is about to be destroyed (killed, or removed by
+     * some other script) while the PCD is still parked inside it: the PCD would be destroyed
+     * with the droid's inventory. Puts the PCD back in the owner's datapad (this server never
+     * flags a PCD as permanently dead). Returns true when the PCD is safe.
+     */
+    public static boolean rescuePcd(obj_id droid) throws InterruptedException
+    {
+        obj_id pcd = getParkedPcd(droid);
+        obj_id owner = getLooseOwner(droid);
+        if (!isIdValid(pcd) || !exists(pcd))
+        {
+            return false;
+        }
+        obj_id inv = utils.getInventoryContainer(droid);
+        if (isIdValid(inv) && getContainedBy(pcd) != inv)
+        {
+            return true;
+        }
+        obj_id datapad = isIdValid(owner) ? utils.getPlayerDatapad(owner) : null;
+        if (!isIdValid(datapad) || !exists(datapad) || !returnPcdToDatapad(droid, pcd, datapad))
+        {
+            LOG("stationed_droid", "rescuePcd: could not return PCD " + pcd + " of droid " + droid + " to owner " + owner + "; it will be lost with the droid");
+            return false;
+        }
+        unregisterDroid(owner, droid);
+        sendSystemMessage(owner, pet_lib.SID_SYS_PACKED_DROID);
         return true;
     }
 
