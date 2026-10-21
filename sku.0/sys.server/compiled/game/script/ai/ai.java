@@ -949,7 +949,9 @@ public class ai extends script.base_script
         debugSpeakMsgc(aiLoggingEnabled(self), self, "OnIncapacitated");
         chat.setBadMood(self);
         ai_lib.barkString(self, "death");
-        if (!pet_lib.isPet(self) && !beast_lib.isBeast(self) && !utils.hasScriptVar(self, "petBeingInitialized"))
+        // Loose (stationed) droids are downed, never killed: ai.stationed_droid revives them.
+        // Without this guard the kill below also empties the inventory holding the parked PCD.
+        if (!pet_lib.isPet(self) && !beast_lib.isBeast(self) && !utils.hasScriptVar(self, "petBeingInitialized") && !script.library.stationed_droid.isStationed(self))
         {
             obj_id weapon = getCurrentWeapon(self);
             if (isIdValid(weapon) && !isDefaultWeapon(weapon))
