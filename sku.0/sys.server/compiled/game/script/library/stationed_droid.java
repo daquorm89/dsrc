@@ -58,9 +58,33 @@ public class stationed_droid extends script.base_script
     public static final float WANDER_MIN = 0.0f;
     public static final float WANDER_MAX = 8.0f;
     public static final float PATROL_MAX = 15.0f;
-    // Script-driven roaming: seconds between picking a new spot (engine loiter did not move the droids).
-    public static final float ROAM_MIN_SEC = 6.0f;
-    public static final float ROAM_MAX_SEC = 14.0f;
+    // Script-driven roaming (engine loiter did not move the droids). The droid walks short hops
+    // to spots it can see (line of sight), pauses after each hop, and varies its speed.
+    public static final float ROAM_STEP_MIN = 2.0f;
+    public static final float ROAM_STEP_MAX = 6.0f;
+    // Inside buildings / ship interiors hops are shorter (rooms are small).
+    public static final float ROAM_STEP_MAX_INDOOR = 3.5f;
+    // Largest height change allowed between two outdoor spots (avoids cliffs / ledges).
+    public static final float ROAM_MAX_RISE = 1.5f;
+    public static final int ROAM_PICK_TRIES = 8;
+    // After this many ticks in a row without any visible spot, take one short blind hop toward
+    // the post (safety valve in case line-of-sight tests are unreliable at a location).
+    public static final int ROAM_BLIND_AFTER = 6;
+    // Pause after reaching a spot; sometimes a longer idle.
+    public static final float ROAM_PAUSE_MIN_SEC = 4.0f;
+    public static final float ROAM_PAUSE_MAX_SEC = 12.0f;
+    public static final float ROAM_LONG_PAUSE_CHANCE = 0.2f;
+    public static final float ROAM_LONG_PAUSE_MIN_SEC = 15.0f;
+    public static final float ROAM_LONG_PAUSE_MAX_SEC = 30.0f;
+    // Retry soon when no reachable spot was found (narrow spaces) or the path was rejected.
+    public static final float ROAM_RETRY_MIN_SEC = 1.5f;
+    public static final float ROAM_RETRY_MAX_SEC = 3.5f;
+    // Casual speed: mostly a walk at 60-100% of walking speed, now and then a slow jog.
+    public static final float ROAM_WALK_PCT_MIN = 0.6f;
+    public static final float ROAM_WALK_PCT_MAX = 1.0f;
+    public static final float ROAM_JOG_CHANCE = 0.15f;
+    public static final float ROAM_JOG_PCT_MIN = 0.5f;
+    public static final float ROAM_JOG_PCT_MAX = 0.75f;
     public static final float GUARD_RANGE = 20.0f;
     public static final float GUARD_TICK_SEC = 3.0f;
     public static final float INCAP_RECOVER_SEC = 45.0f;
@@ -447,6 +471,7 @@ public class stationed_droid extends script.base_script
             return;
         }
         location home = hasObjVar(droid, OBJVAR_HOME) ? getLocationObjVar(droid, OBJVAR_HOME) : getLocation(droid);
+        resetSpeed(droid);
         aiSetHomeLocation(droid, home);
         setHomeLocation(droid, home);
         // Movement for wander/patrol is driven by ai.stationed_droid (handleRoamTick); the engine
@@ -459,6 +484,115 @@ public class stationed_droid extends script.base_script
         if (mode != MODE_WANDER && mode != MODE_PATROL && !ai_lib.isInCombat(droid) && getDistance(droid, home) > 1.5f)
         {
             pathTo(droid, home);
+        }
+    }
+
+    // ---- speed -------------------------------------------------------------------------
+
+    /** Full normal speed (what the droid used before casual roaming): used for fights and returning to the post. */
+    public static void resetSpeed(obj_id droid) throws InterruptedException
+    {
+        setMovementPercent(droid, 1.0f);
+        setMovementRun(droid);
+    }
+
+    // ---- ships ---------------------------------------------------------------------------
+
+    /**
+     * Called just before a ship with an interior is packed into its control device. A loose droid
+     * left standing in a cell stays behind and falls to the ground when the ship is called again,
+     * so every loose droid in the interior is returned to its owner's datapad instead (the owner
+     * can set it loose again after calling the ship). A droid that cannot be stored (datapad full,
+     * owner offline) is moved outside next to the ship, never left in the cell.
+     * Returns the number of droids stored.
+     */
+    public static int stowDroidsAboard(obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !exists(ship))
+        {
+            return 0;
+        }
+        obj_id[] contents = space_transition.getAllObjectsInPob(ship);
+        if (contents == null)
+        {
+            return 0;
+        }
+        int stowed = 0;
+        for (obj_id c : contents)
+        {
+            if (!isStationed(c))
+            {
+                continue;
+            }
+            obj_id owner = getLooseOwner(c);
+            String name = getName(c);
+            if (stowDroid(c))
+            {
+                stowed++;
+                if (isIdValid(owner) && exists(owner))
+                {
+                    sendSystemMessageTestingOnly(owner, "Your droid " + name + " was returned to your datapad because the ship was packed. Call it again and set it loose when the ship is out.");
+                }
+            }
+            else
+            {
+                ejectFromShip(c, ship, owner, name);
+            }
+        }
+        return stowed;
+    }
+
+    /** Same result as pickUp (PCD back in the datapad, droid removed) but without the owner interaction checks. */
+    private static boolean stowDroid(obj_id droid) throws InterruptedException
+    {
+        obj_id owner = getLooseOwner(droid);
+        obj_id pcd = getParkedPcd(droid);
+        if (!isIdValid(owner) || !exists(owner) || !isIdValid(pcd) || !exists(pcd))
+        {
+            return false;
+        }
+        obj_id datapad = utils.getPlayerDatapad(owner);
+        if (!isIdValid(datapad) || !exists(datapad) || pet_lib.hasMaxStoredPetsOfType(owner, pet_lib.PET_TYPE_DROID))
+        {
+            return false;
+        }
+        stop(droid);
+        if (!returnPcdToDatapad(droid, pcd, datapad))
+        {
+            return false;
+        }
+        pet_lib.savePetInfo(droid, pcd);
+        unregisterDroid(owner, droid);
+        utils.setScriptVar(droid, "stored", true);
+        if (!destroyObject(droid))
+        {
+            LOG("stationed_droid", "stowDroid: failed to destroy droid " + droid + " after returning PCD " + pcd);
+        }
+        return true;
+    }
+
+    /** Fallback: puts the droid on the ground beside the ship (its new post) when it cannot be stored. */
+    private static void ejectFromShip(obj_id droid, obj_id ship, obj_id owner, String name) throws InterruptedException
+    {
+        location shipLoc = getLocation(ship);
+        if (shipLoc == null || isIdValid(shipLoc.cell) || isSpaceScene())
+        {
+            return;
+        }
+        location dest = new location(shipLoc.x + 3.0f, shipLoc.y, shipLoc.z + 3.0f, shipLoc.area);
+        float h = getHeightAtLocation(dest.x, dest.z);
+        if (h == h)
+        {
+            dest.y = h;
+        }
+        stop(droid);
+        if (setLocation(droid, dest))
+        {
+            setObjVar(droid, OBJVAR_HOME, dest);
+            if (isIdValid(owner) && exists(owner))
+            {
+                sendSystemMessageTestingOnly(owner, "Your droid " + name + " could not be stored (datapad full?) and was placed beside the ship.");
+            }
         }
     }
 }
