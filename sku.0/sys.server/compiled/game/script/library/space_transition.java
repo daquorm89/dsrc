@@ -589,6 +589,7 @@ public class space_transition extends script.base_script
                 }
             }
             space_pilot_command.allPurposeShipComponentReset(ship);
+            stowLooseDroidsAboard(ship);
             if (isIdValid(shipControlDevice) && putIn(ship, shipControlDevice))
             {
                 if (isGameObjectTypeOf(ship, GOT_ship_fighter) && space_utils.isShipWithInterior(ship))
@@ -619,6 +620,29 @@ public class space_transition extends script.base_script
         else
         {
             LOG("space_transition", "packShip failed on ground — leaving ship intact ship=" + ship);
+        }
+    }
+    /**
+     * Loose ("set loose") droids standing in a ship interior are returned to their owner's datapad
+     * before the hull is packed (otherwise they are left behind and fall to the ground when the ship
+     * is called again). Must never block packing, so any failure is only logged.
+     */
+    public static void stowLooseDroidsAboard(obj_id ship) throws InterruptedException
+    {
+        try
+        {
+            if (isIdValid(ship) && space_utils.isShipWithInterior(ship))
+            {
+                int stowed = stationed_droid.stowDroidsAboard(ship);
+                if (stowed > 0)
+                {
+                    LOG("space_transition", "stowLooseDroidsAboard: stored " + stowed + " loose droid(s) from ship=" + ship);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            LOG("space_transition", "stowLooseDroidsAboard failed for ship=" + ship + ": " + e);
         }
     }
     public static obj_id[] getAllObjectsInPob(obj_id pob) throws InterruptedException
@@ -898,6 +922,7 @@ public class space_transition extends script.base_script
             }
         }
 
+        stowLooseDroidsAboard(ship);
         int can = canPutIn(ship, shipControlDevice);
         LOG("space_transition", "restoreShipToControlDevice: canPutIn=" + can + " ship=" + ship + " scd=" + shipControlDevice
             + " containedBy=" + getContainedBy(ship) + " topMost=" + getTopMostContainer(ship));
