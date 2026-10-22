@@ -23,6 +23,9 @@ public class stationed_droid extends script.base_script
     // Consecutive roam ticks that found no visible spot.
     public static final String SCRIPTVAR_NO_SPOT = "stationed.noSpot";
     public static final float MAX_MENU_DISTANCE = 15.0f;
+    // Slow watchdog (all modes): a droid that ends up outside the hull of its ship goes back to its post.
+    public static final String SCRIPTVAR_WATCH_TICK = "stationed.watchTick";
+    public static final float WATCH_TICK_SEC = 10.0f;
 
     public int OnAttach(obj_id self) throws InterruptedException
     {
@@ -135,6 +138,12 @@ public class stationed_droid extends script.base_script
         {
             messageTo(self, "handleGuardTick", d, script.library.stationed_droid.GUARD_TICK_SEC, false);
         }
+        // (Re)start the watchdog; the tick id makes an older chain stop itself.
+        int watch = utils.getIntScriptVar(self, SCRIPTVAR_WATCH_TICK) + 1;
+        utils.setScriptVar(self, SCRIPTVAR_WATCH_TICK, watch);
+        dictionary w = new dictionary();
+        w.put("tick", watch);
+        messageTo(self, "handleWatchTick", w, WATCH_TICK_SEC, false);
         // Always bump the roam chain id so a pending roam message of an older mode stops itself.
         utils.removeScriptVar(self, SCRIPTVAR_MOVING);
         utils.removeScriptVar(self, SCRIPTVAR_NO_SPOT);
@@ -146,6 +155,21 @@ public class stationed_droid extends script.base_script
         {
             utils.setScriptVar(self, SCRIPTVAR_ROAM_TICK, utils.getIntScriptVar(self, SCRIPTVAR_ROAM_TICK) + 1);
         }
+        return SCRIPT_CONTINUE;
+    }
+
+    public int handleWatchTick(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (!script.library.stationed_droid.isStationed(self) || params == null || params.getInt("tick") != utils.getIntScriptVar(self, SCRIPTVAR_WATCH_TICK))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (script.library.stationed_droid.recoverIfFallen(self))
+        {
+            messageTo(self, "handleApplyMode", null, 1, false);
+            return SCRIPT_CONTINUE;   // handleApplyMode restarts this chain
+        }
+        messageTo(self, "handleWatchTick", params, WATCH_TICK_SEC, false);
         return SCRIPT_CONTINUE;
     }
 
