@@ -26,6 +26,7 @@ public class stationed_droid extends script.base_script
     // Slow watchdog (all modes): a droid that ends up outside the hull of its ship goes back to its post.
     public static final String SCRIPTVAR_WATCH_TICK = "stationed.watchTick";
     public static final float WATCH_TICK_SEC = 10.0f;
+    public static final float WATCH_TICK_SHIP_SEC = 3.0f;   // droids with a post inside a ship are checked more often
 
     public int OnAttach(obj_id self) throws InterruptedException
     {
@@ -143,7 +144,7 @@ public class stationed_droid extends script.base_script
         utils.setScriptVar(self, SCRIPTVAR_WATCH_TICK, watch);
         dictionary w = new dictionary();
         w.put("tick", watch);
-        messageTo(self, "handleWatchTick", w, WATCH_TICK_SEC, false);
+        messageTo(self, "handleWatchTick", w, watchInterval(self), false);
         // Always bump the roam chain id so a pending roam message of an older mode stops itself.
         utils.removeScriptVar(self, SCRIPTVAR_MOVING);
         utils.removeScriptVar(self, SCRIPTVAR_NO_SPOT);
@@ -169,8 +170,13 @@ public class stationed_droid extends script.base_script
             messageTo(self, "handleApplyMode", null, 1, false);
             return SCRIPT_CONTINUE;   // handleApplyMode restarts this chain
         }
-        messageTo(self, "handleWatchTick", params, WATCH_TICK_SEC, false);
+        messageTo(self, "handleWatchTick", params, watchInterval(self), false);
         return SCRIPT_CONTINUE;
+    }
+
+    private float watchInterval(obj_id self) throws InterruptedException
+    {
+        return isIdValid(script.library.stationed_droid.getPostShip(self)) ? WATCH_TICK_SHIP_SEC : WATCH_TICK_SEC;
     }
 
     // ---- wander / patrol movement --------------------------------------------------
@@ -256,6 +262,12 @@ public class stationed_droid extends script.base_script
         location home = hasObjVar(self, script.library.stationed_droid.OBJVAR_HOME) ? getLocationObjVar(self, script.library.stationed_droid.OBJVAR_HOME) : cur;
         if (!sameCell(cur.cell, home.cell))
         {
+            if (isIdValid(script.library.stationed_droid.getPostShip(self)))
+            {
+                // Post is inside a ship: the droid is out of place, never make the outside its post.
+                script.library.stationed_droid.recoverIfFallen(self);
+                return null;
+            }
             // The droid ended up in another room: that is its post now.
             home = cur;
             setObjVar(self, script.library.stationed_droid.OBJVAR_HOME, cur);
@@ -332,6 +344,12 @@ public class stationed_droid extends script.base_script
             scheduleRoam(self, 4.0f);
             return SCRIPT_CONTINUE;
         }
+        if (script.library.stationed_droid.recoverIfFallen(self))
+        {
+            utils.removeScriptVar(self, SCRIPTVAR_MOVING);
+            scheduleRoam(self, 2.0f);
+            return SCRIPT_CONTINUE;
+        }
         if (utils.hasScriptVar(self, SCRIPTVAR_MOVING))
         {
             // The previous hop never reported back (stuck): stop and choose again.
@@ -373,6 +391,7 @@ public class stationed_droid extends script.base_script
         if (script.library.stationed_droid.isStationed(self) && isRoamMode(self) && utils.hasScriptVar(self, SCRIPTVAR_MOVING))
         {
             utils.removeScriptVar(self, SCRIPTVAR_MOVING);
+            script.library.stationed_droid.recoverIfFallen(self);
             scheduleRoam(self, casualPause());
         }
         return SCRIPT_CONTINUE;
@@ -396,8 +415,16 @@ public class stationed_droid extends script.base_script
         }
         else
         {
-            // Could not walk back to the post (stand / guard): the current spot becomes the post.
-            setObjVar(self, script.library.stationed_droid.OBJVAR_HOME, getLocation(self));
+            // Could not walk back to the post (stand / guard): the current spot becomes the post,
+            // except inside a ship, where the post is fixed and the droid is put back on it.
+            if (isIdValid(script.library.stationed_droid.getPostShip(self)))
+            {
+                script.library.stationed_droid.recoverIfFallen(self);
+            }
+            else
+            {
+                setObjVar(self, script.library.stationed_droid.OBJVAR_HOME, getLocation(self));
+            }
         }
         return SCRIPT_OVERRIDE;
     }
@@ -447,7 +474,7 @@ public class stationed_droid extends script.base_script
         {
             return false;
         }
-        if (!pvpCanAttack(self, target))
+        if (!pvpCanAttack(self, target) || !script.library.stationed_droid.mayEngage(self, target))
         {
             return false;
         }
@@ -464,7 +491,7 @@ public class stationed_droid extends script.base_script
     /** A droid always fights back when it is attacked, whatever its mode. */
     public int OnDefenderCombatAction(obj_id self, obj_id attacker, obj_id weapon, int combatResult) throws InterruptedException
     {
-        if (isIdValid(attacker) && exists(attacker) && attacker != self && attacker != script.library.stationed_droid.getLooseOwner(self) && !ai_lib.isInCombat(self) && !ai_lib.isAiDead(self) && !isIncapacitated(self) && pvpCanAttack(self, attacker))
+        if (isIdValid(attacker) && exists(attacker) && attacker != self && attacker != script.library.stationed_droid.getLooseOwner(self) && !ai_lib.isInCombat(self) && !ai_lib.isAiDead(self) && !isIncapacitated(self) && pvpCanAttack(self, attacker) && script.library.stationed_droid.mayEngage(self, attacker))
         {
             script.library.stationed_droid.resetSpeed(self);
             startCombat(self, attacker);
@@ -487,7 +514,7 @@ public class stationed_droid extends script.base_script
         }
         for (obj_id attacker : attackers)
         {
-            if (isIdValid(attacker) && attacker != self && attacker != owner && pvpCanAttack(self, attacker))
+            if (isIdValid(attacker) && attacker != self && attacker != owner && pvpCanAttack(self, attacker) && script.library.stationed_droid.mayEngage(self, attacker))
             {
                 script.library.stationed_droid.resetSpeed(self);
                 startCombat(self, attacker);

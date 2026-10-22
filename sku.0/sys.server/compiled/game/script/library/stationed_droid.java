@@ -490,6 +490,10 @@ public class stationed_droid extends script.base_script
         int mode = getMode(droid);
         setWantSawAttackTriggers(droid, mode == MODE_GUARD || mode == MODE_PATROL);
         ai_lib.setDefaultCalmBehavior(droid, ai_lib.BEHAVIOR_STOP);
+        if (isIdValid(getPostShip(droid)) && recoverIfFallen(droid))
+        {
+            return;   // was out of place inside a hull: put back on the post, nothing to walk
+        }
         if (mode != MODE_WANDER && mode != MODE_PATROL && !ai_lib.isInCombat(droid) && getDistance(droid, home) > 1.5f)
         {
             pathTo(droid, home);
@@ -1322,34 +1326,117 @@ public class stationed_droid extends script.base_script
         return isCellOfShip(getLocationObjVar(droid, OBJVAR_HOME), ship);
     }
 
-    /**
-     * A loose droid whose post is inside a ship that is out in the world, but which stands outside the
-     * hull (it fell through, or was dropped when the ship was placed): puts it back on its post.
-     * Returns true when it was moved. Safe to call at any time (cheap when nothing is wrong).
-     */
-    public static boolean recoverIfFallen(obj_id droid) throws InterruptedException
+    /** Extra metres a droid may stray from its roam range before it counts as out of place. */
+    public static final float POST_SLACK = 3.0f;
+    /** Largest vertical difference to the post (ship decks) before a droid counts as out of place. */
+    public static final float POST_MAX_RISE = 3.0f;
+    /** Seconds between [droid] recovery messages of one droid (a failing recovery must not spam). */
+    private static final int RECOVER_MSG_GAP_SEC = 30;
+
+    /** The ship whose cell holds this droid's post, or null when the post is not inside a ship. */
+    public static obj_id getPostShip(obj_id droid) throws InterruptedException
     {
-        if (!isStationed(droid) || !hasObjVar(droid, OBJVAR_HOME) || isSpaceScene())
+        if (!isStationed(droid) || !hasObjVar(droid, OBJVAR_HOME))
         {
-            return false;
+            return null;
         }
         location home = getLocationObjVar(droid, OBJVAR_HOME);
         if (home == null || !isIdValid(home.cell))
         {
-            return false;
+            return null;
         }
         obj_id ship = getContainedBy(home.cell);
-        if (!isIdValid(ship) || !exists(ship) || isIdValid(getContainedBy(ship)) || space_transition.getContainingShip(home.cell) != ship)
+        if (!isIdValid(ship) || space_transition.getContainingShip(home.cell) != ship)
+        {
+            return null;
+        }
+        return ship;
+    }
+
+    /** How far from its post a droid inside a hull may legitimately be (roam range or fight range plus slack). */
+    private static float postLeash(obj_id droid) throws InterruptedException
+    {
+        int mode = getMode(droid);
+        float range = 0.0f;
+        if (mode == MODE_PATROL || ai_lib.isInCombat(droid))
+        {
+            range = PATROL_MAX;
+        }
+        else if (mode == MODE_WANDER)
+        {
+            range = WANDER_MAX;
+        }
+        else if (mode == MODE_GUARD)
+        {
+            range = WANDER_MAX;
+        }
+        return range + POST_SLACK;
+    }
+
+    /**
+     * True when the droid stands in the same cell as its post and within its leash. This is a
+     * POSITION check on purpose: a droid that walked through a hull wall is still a child of the cell
+     * (so a container check says it is aboard) but is no longer anywhere near its post.
+     */
+    public static boolean isHeldAtPost(obj_id droid, location home) throws InterruptedException
+    {
+        location cur = getLocation(droid);
+        if (cur == null || home == null || !isIdValid(cur.cell) || !cur.cell.equals(home.cell))
+        {
+            return false;
+        }
+        float dx = cur.x - home.x;
+        float dz = cur.z - home.z;
+        float max = postLeash(droid);
+        return dx * dx + dz * dz <= max * max && Math.abs(cur.y - home.y) <= POST_MAX_RISE;
+    }
+
+    /**
+     * A loose droid whose post is inside a ship that is out in the world, but which is not held at
+     * that post (it is outside the hull, in another cell, or far from the post inside the same cell):
+     * puts it back on its post. The post is never rewritten here. Returns true when it was moved.
+     * Cheap when nothing is wrong, safe to call at any time.
+     */
+    public static boolean recoverIfFallen(obj_id droid) throws InterruptedException
+    {
+        if (isSpaceScene())
+        {
+            return false;
+        }
+        obj_id ship = getPostShip(droid);
+        if (!isIdValid(ship) || !exists(ship) || isIdValid(getContainedBy(ship)))
         {
             return false;   // post is not in a ship that is out in the world right now
         }
-        if (isAboard(droid, ship))
+        location home = getLocationObjVar(droid, OBJVAR_HOME);
+        if (isHeldAtPost(droid, home))
         {
             return false;
         }
-        dbg(getLooseOwner(droid), "recoverIfFallen: droid " + droid + " stands outside ship " + ship + " but its post is inside; putting it back at " + home);
+        location cur = getLocation(droid);
+        String msg = "recoverIfFallen: droid " + droid + " is not at its post in ship " + ship + " (now " + cur + "); putting it back at " + home;
+        int now = getGameTime();
+        if (!utils.hasScriptVar(droid, "stationed.recoverMsg") || now - utils.getIntScriptVar(droid, "stationed.recoverMsg") >= RECOVER_MSG_GAP_SEC)
+        {
+            utils.setScriptVar(droid, "stationed.recoverMsg", now);
+            dbg(getLooseOwner(droid), msg);
+        }
         stop(droid);
         return setLocation(droid, home);
+    }
+
+    /**
+     * May this loose droid start a fight with the target? A droid whose post is inside a ship only
+     * fights targets that are inside the same ship, so it never chases anything out through the hull.
+     */
+    public static boolean mayEngage(obj_id droid, obj_id target) throws InterruptedException
+    {
+        obj_id ship = getPostShip(droid);
+        if (!isIdValid(ship))
+        {
+            return true;
+        }
+        return isIdValid(target) && space_transition.getContainingShip(target) == ship;
     }
 
     /** True when this ship out in the world has droids to restore or recover (records, or posts aboard). */
