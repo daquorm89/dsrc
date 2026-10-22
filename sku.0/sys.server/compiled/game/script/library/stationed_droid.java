@@ -524,13 +524,15 @@ public class stationed_droid extends script.base_script
     // While the POB droid handling is being debugged, every stow / restore decision is also sent to the
     // owner as a system message ("[droid] ..."), so a test needs no log reading. Set to false when stable.
     public static final boolean DEBUG_MESSAGES = true;
+    /** Shown in every [droid] message so the chat log proves which build the server runs. Bump on every change. */
+    public static final String BUILD_TAG = "P18.14-1";
 
     public static void dbg(obj_id owner, String msg) throws InterruptedException
     {
         LOG("stationed_droid", msg);
         if (DEBUG_MESSAGES && isIdValid(owner) && exists(owner))
         {
-            sendSystemMessageTestingOnly(owner, "[droid] " + msg);
+            sendSystemMessageTestingOnly(owner, "[droid " + BUILD_TAG + "] " + msg);
         }
     }
 
