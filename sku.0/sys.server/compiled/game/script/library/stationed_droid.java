@@ -517,6 +517,19 @@ public class stationed_droid extends script.base_script
     // The PCD is always in the owner's datapad in between, so a failure at any point can never lose
     // a droid: the worst case is an unlocked droid in the datapad.
 
+    // While the POB droid handling is being debugged, every stow / restore decision is also sent to the
+    // owner as a system message ("[droid] ..."), so a test needs no log reading. Set to false when stable.
+    public static final boolean DEBUG_MESSAGES = true;
+
+    public static void dbg(obj_id owner, String msg) throws InterruptedException
+    {
+        LOG("stationed_droid", msg);
+        if (DEBUG_MESSAGES && isIdValid(owner) && exists(owner))
+        {
+            sendSystemMessageTestingOnly(owner, "[droid] " + msg);
+        }
+    }
+
     public static final String SCRIPT_SHIP_RESTORE = "ai.stationed_ship_restore";
     // On the PCD: obj_id of the packed ship the droid belongs to (blocks calling it by hand).
     public static final String OBJVAR_ABOARD_SHIP = "stationed.aboardShip";
@@ -691,26 +704,36 @@ public class stationed_droid extends script.base_script
             aboard.remove(restowed);
         }
         LOG("stationed_droid", "stowDroidsAboard: ship=" + ship + " candidates=" + aboard.size() + " inFlightRestowed=" + stowed);
+        obj_id shipOwner = getOwner(ship);
+        dbg(shipOwner, "stow: " + aboard.size() + " droid(s) found aboard before packing");
         for (obj_id c : aboard)
         {
-            if (!isStationed(c))
+            try
             {
-                stowFollowerDroid(c);
-                continue;
-            }
-            obj_id owner = getLooseOwner(c);
-            String name = getName(c);
-            if (stowDroid(c, ship))
-            {
-                stowed++;
-                if (isIdValid(owner) && exists(owner))
+                if (!isStationed(c))
                 {
-                    sendSystemMessageTestingOnly(owner, "Your droid " + name + " was stowed in your datapad while the ship is packed. It returns to its post when the ship is called out.");
+                    stowFollowerDroid(c);
+                    continue;
+                }
+                obj_id owner = getLooseOwner(c);
+                String name = getName(c);
+                if (stowDroid(c, ship))
+                {
+                    stowed++;
+                    if (isIdValid(owner) && exists(owner))
+                    {
+                        sendSystemMessageTestingOnly(owner, "Your droid " + name + " was stowed in your datapad while the ship is packed. It returns to its post when the ship is called out.");
+                    }
+                }
+                else
+                {
+                    dbg(owner, "stow: droid " + name + " could not be stowed, ejecting it beside the ship");
+                    ejectFromShip(c, ship, owner, name);
                 }
             }
-            else
+            catch (Exception e)
             {
-                ejectFromShip(c, ship, owner, name);
+                dbg(shipOwner, "stow: exception on droid " + c + ": " + e);
             }
         }
         return stowed;
@@ -736,28 +759,40 @@ public class stationed_droid extends script.base_script
         {
             aboard.remove(restowed);
         }
+        obj_id shipOwner = getOwner(ship);
+        if (aboard.size() > 0)
+        {
+            dbg(shipOwner, "sweep: " + aboard.size() + " droid(s) still in the hull after packing");
+        }
         for (obj_id c : aboard)
         {
-            if (!isStationed(c))
+            try
             {
-                stowFollowerDroid(c);
-                stowed++;
-                continue;
-            }
-            obj_id owner = getLooseOwner(c);
-            String name = getName(c);
-            if (stowDroid(c, ship))
-            {
-                stowed++;
-                LOG("stationed_droid", "sweepPackedShip: late stow of droid " + c + " from packed ship " + ship);
-                if (isIdValid(owner) && exists(owner))
+                if (!isStationed(c))
                 {
-                    sendSystemMessageTestingOnly(owner, "Your droid " + name + " was stowed in your datapad while the ship is packed. It returns to its post when the ship is called out.");
+                    stowFollowerDroid(c);
+                    stowed++;
+                    continue;
+                }
+                obj_id owner = getLooseOwner(c);
+                String name = getName(c);
+                if (stowDroid(c, ship))
+                {
+                    stowed++;
+                    LOG("stationed_droid", "sweepPackedShip: late stow of droid " + c + " from packed ship " + ship);
+                    if (isIdValid(owner) && exists(owner))
+                    {
+                        sendSystemMessageTestingOnly(owner, "Your droid " + name + " was stowed in your datapad while the ship is packed. It returns to its post when the ship is called out.");
+                    }
+                }
+                else
+                {
+                    dbg(owner, "sweep: droid " + name + " is left in the packed ship (could not be stowed)");
                 }
             }
-            else
+            catch (Exception e)
             {
-                LOG("stationed_droid", "sweepPackedShip: droid " + c + " is left in packed ship " + ship + " (could not be stowed)");
+                dbg(shipOwner, "sweep: exception on droid " + c + ": " + e);
             }
         }
         if (stowed > 0)
@@ -858,13 +893,13 @@ public class stationed_droid extends script.base_script
         obj_id pcd = getParkedPcd(droid);
         if (!isIdValid(owner) || !exists(owner) || !isIdValid(pcd) || !exists(pcd))
         {
-            LOG("stationed_droid", "stowDroid: droid " + droid + " not stowed: owner=" + owner + " ownerLoaded=" + (isIdValid(owner) && exists(owner)) + " pcd=" + pcd + " pcdLoaded=" + (isIdValid(pcd) && exists(pcd)));
+            dbg(owner, "stowDroid: droid " + droid + " not stowed: owner=" + owner + " ownerLoaded=" + (isIdValid(owner) && exists(owner)) + " pcd=" + pcd + " pcdLoaded=" + (isIdValid(pcd) && exists(pcd)));
             return false;
         }
         obj_id datapad = utils.getPlayerDatapad(owner);
         if (!isIdValid(datapad) || !exists(datapad))
         {
-            LOG("stationed_droid", "stowDroid: droid " + droid + " not stowed: owner " + owner + " has no usable datapad");
+            dbg(owner, "stowDroid: droid " + droid + " not stowed: owner " + owner + " has no usable datapad");
             return false;
         }
         // The post is where the droid belongs (centre of its wandering); fall back to where it stands.
@@ -875,13 +910,13 @@ public class stationed_droid extends script.base_script
         }
         if (!isCellOfShip(spot, ship))
         {
-            LOG("stationed_droid", "stowDroid: droid " + droid + " not stowed: neither its post nor its position is in a cell of ship " + ship);
+            dbg(owner, "stowDroid: droid " + droid + " not stowed: neither its post nor its position is in a cell of ship " + ship);
             return false;
         }
         String cellName = getCellName(spot.cell);
         if (cellName == null || cellName.length() == 0 || cellName.indexOf('|') >= 0)
         {
-            LOG("stationed_droid", "stowDroid: droid " + droid + " not stowed: unusable cell name '" + cellName + "' (cell " + spot.cell + ")");
+            dbg(owner, "stowDroid: droid " + droid + " not stowed: unusable cell name '" + cellName + "' (cell " + spot.cell + ")");
             return false;
         }
         float yaw = getYaw(droid);
@@ -890,7 +925,7 @@ public class stationed_droid extends script.base_script
         stop(droid);
         if (!returnPcdToDatapad(droid, pcd, datapad))
         {
-            LOG("stationed_droid", "stowDroid: droid " + droid + " not stowed: the datapad refused PCD " + pcd);
+            dbg(owner, "stowDroid: droid " + droid + " not stowed: the datapad refused PCD " + pcd);
             return false;
         }
         setObjVar(pcd, OBJVAR_ABOARD_SHIP, ship);
@@ -904,7 +939,7 @@ public class stationed_droid extends script.base_script
         utils.setScriptVar(droid, "stored", true);
         if (!destroyObject(droid))
         {
-            LOG("stationed_droid", "stowDroid: failed to destroy droid " + droid + " after returning PCD " + pcd);
+            dbg(owner, "stowDroid: failed to destroy droid " + droid + " after returning PCD " + pcd);
         }
         return true;
     }
@@ -950,7 +985,7 @@ public class stationed_droid extends script.base_script
     /** The droid cannot come back: release the lock and tell the owner it is in the datapad. */
     private static void giveUpRestore(obj_id ship, obj_id pcd, obj_id owner, String why) throws InterruptedException
     {
-        LOG("stationed_droid", "restore given up: pcd=" + pcd + " ship=" + ship + " reason=" + why);
+        dbg(owner, "restore given up: pcd=" + pcd + " ship=" + ship + " reason=" + why);
         removeShipRecord(ship, pcd);
         if (isIdValid(pcd) && exists(pcd))
         {
@@ -994,6 +1029,10 @@ public class stationed_droid extends script.base_script
         }
         boolean retry = false;
         boolean lastTry = attempt >= RESTORE_MAX_TRIES - 1;
+        if (attempt == 0 && getShipRecords(ship).length > 0)
+        {
+            dbg(getOwner(ship), "restore: " + getShipRecords(ship).length + " stowed droid(s) to bring back");
+        }
         for (String raw : getShipRecords(ship))
         {
             String[] r = decodeRecord(raw);
@@ -1071,7 +1110,7 @@ public class stationed_droid extends script.base_script
         markRestoring(ship, droid, raw);
         stop(droid);
         boolean placed = setLocation(droid, spot);
-        LOG("stationed_droid", "restore: created droid=" + droid + " for pcd=" + pcd + " on ship=" + ship + " cell=" + r[REC_CELL] + " setLocation=" + placed + " aboard=" + isAboard(droid, ship));
+        dbg(owner, "restore: created droid=" + droid + " for pcd=" + pcd + " on ship=" + ship + " cell=" + r[REC_CELL] + " setLocation=" + placed + " aboard=" + isAboard(droid, ship));
         dictionary d = new dictionary();
         d.put("droid", droid);
         d.put("owner", owner);
@@ -1111,7 +1150,7 @@ public class stationed_droid extends script.base_script
             if (!isAboard(droid, ship))
             {
                 // Never set a droid loose outside the hull: it would stand on the ground under the ship.
-                LOG("stationed_droid", "restore: droid " + droid + " is not aboard ship " + ship + " after setLocation, try " + tries);
+                dbg(owner, "restore: droid " + droid + " is not aboard ship " + ship + " after setLocation, try " + tries);
                 if (tries < FINISH_MAX_TRIES - 1)
                 {
                     return true;
@@ -1247,7 +1286,7 @@ public class stationed_droid extends script.base_script
      */
     private static void restowInFlight(obj_id ship, obj_id droid, obj_id owner, String raw, String why) throws InterruptedException
     {
-        LOG("stationed_droid", "restowInFlight: droid=" + droid + " ship=" + ship + " reason=" + why);
+        dbg(owner, "restowInFlight: droid=" + droid + " ship=" + ship + " reason=" + why);
         clearRestoring(ship);
         String[] r = decodeRecord(raw);
         if (!isIdValid(owner) && r != null)
@@ -1308,7 +1347,7 @@ public class stationed_droid extends script.base_script
         {
             return false;
         }
-        LOG("stationed_droid", "recoverIfFallen: droid " + droid + " stands outside ship " + ship + " but its post is inside; putting it back at " + home);
+        dbg(getLooseOwner(droid), "recoverIfFallen: droid " + droid + " stands outside ship " + ship + " but its post is inside; putting it back at " + home);
         stop(droid);
         return setLocation(droid, home);
     }
