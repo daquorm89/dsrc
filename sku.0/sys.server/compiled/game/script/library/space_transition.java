@@ -658,7 +658,7 @@ public class space_transition extends script.base_script
     {
         try
         {
-            if (isIdValid(ship) && hasObjVar(ship, stationed_droid.OBJVAR_SHIP_RECORDS))
+            if (isIdValid(ship) && stationed_droid.needsRestorePass(ship))
             {
                 if (!hasScript(ship, stationed_droid.SCRIPT_SHIP_RESTORE))
                 {

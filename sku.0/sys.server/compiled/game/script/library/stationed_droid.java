@@ -809,9 +809,15 @@ public class stationed_droid extends script.base_script
         {
             for (obj_id d : getOwnedDroids(shipOwner))
             {
-                if (isIdValid(d) && exists(d) && !found.contains(d) && isAboard(d, ship))
+                if (!isIdValid(d) || !exists(d) || found.contains(d))
                 {
-                    LOG("stationed_droid", "findDroidsAboard: droid " + d + " was in the hull but not in the cell contents, ship=" + ship);
+                    continue;
+                }
+                // In the hull but not listed, OR already fallen out of it while its post is inside:
+                // stowDroid files the record under the post, so a fallen droid is stowed too.
+                if (isAboard(d, ship) || isPostInShip(d, ship))
+                {
+                    LOG("stationed_droid", "findDroidsAboard: droid " + d + " belongs to ship " + ship + " but was not in the cell contents (aboard=" + isAboard(d, ship) + ")");
                     found.add(d);
                 }
             }
@@ -1267,11 +1273,72 @@ public class stationed_droid extends script.base_script
         }
     }
 
+    /** True when the droid's post (stationed.home) is a spot inside a cell of this ship. */
+    public static boolean isPostInShip(obj_id droid, obj_id ship) throws InterruptedException
+    {
+        if (!isStationed(droid) || !hasObjVar(droid, OBJVAR_HOME))
+        {
+            return false;
+        }
+        return isCellOfShip(getLocationObjVar(droid, OBJVAR_HOME), ship);
+    }
+
     /**
-     * A ship was called out and one of its droids stands outside the hull although its post is inside
-     * (it fell through the hull, or was left in a cell by an earlier pack): put it back on its post.
-     * Uses the owner's loose-droid registry, so only droids loaded on this server are seen.
+     * A loose droid whose post is inside a ship that is out in the world, but which stands outside the
+     * hull (it fell through, or was dropped when the ship was placed): puts it back on its post.
+     * Returns true when it was moved. Safe to call at any time (cheap when nothing is wrong).
      */
+    public static boolean recoverIfFallen(obj_id droid) throws InterruptedException
+    {
+        if (!isStationed(droid) || !hasObjVar(droid, OBJVAR_HOME) || isSpaceScene())
+        {
+            return false;
+        }
+        location home = getLocationObjVar(droid, OBJVAR_HOME);
+        if (home == null || !isIdValid(home.cell))
+        {
+            return false;
+        }
+        obj_id ship = getContainedBy(home.cell);
+        if (!isIdValid(ship) || !exists(ship) || isIdValid(getContainedBy(ship)) || space_transition.getContainingShip(home.cell) != ship)
+        {
+            return false;   // post is not in a ship that is out in the world right now
+        }
+        if (isAboard(droid, ship))
+        {
+            return false;
+        }
+        LOG("stationed_droid", "recoverIfFallen: droid " + droid + " stands outside ship " + ship + " but its post is inside; putting it back at " + home);
+        stop(droid);
+        return setLocation(droid, home);
+    }
+
+    /** True when this ship out in the world has droids to restore or recover (records, or posts aboard). */
+    public static boolean needsRestorePass(obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(ship))
+        {
+            return false;
+        }
+        if (hasObjVar(ship, OBJVAR_SHIP_RECORDS) || hasObjVar(ship, OBJVAR_RESTORING_DROID))
+        {
+            return true;
+        }
+        obj_id owner = getOwner(ship);
+        if (isIdValid(owner))
+        {
+            for (obj_id d : getOwnedDroids(owner))
+            {
+                if (isIdValid(d) && exists(d) && isPostInShip(d, ship))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** Recovers every registered droid of the ship owner that fell out of this ship (see recoverIfFallen). */
     public static int recoverFallenDroids(obj_id ship) throws InterruptedException
     {
         obj_id owner = getOwner(ship);
@@ -1282,18 +1349,7 @@ public class stationed_droid extends script.base_script
         int recovered = 0;
         for (obj_id d : getOwnedDroids(owner))
         {
-            if (!isIdValid(d) || !exists(d) || !hasObjVar(d, OBJVAR_HOME))
-            {
-                continue;
-            }
-            location home = getLocationObjVar(d, OBJVAR_HOME);
-            if (!isCellOfShip(home, ship) || isAboard(d, ship))
-            {
-                continue;
-            }
-            LOG("stationed_droid", "recoverFallenDroids: droid " + d + " stands outside ship " + ship + " but its post is inside; putting it back");
-            stop(d);
-            if (setLocation(d, home))
+            if (isIdValid(d) && exists(d) && recoverIfFallen(d))
             {
                 messageTo(d, "handleApplyMode", null, 1, false);
                 recovered++;
