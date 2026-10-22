@@ -366,7 +366,60 @@ public class stationed_droid extends script.base_script
         {
             posture.stand(self);
         }
+        // Turn on the spot first: the server snaps the facing at once while the client turns at the
+        // walk turn rate, which showed as sideways sliding and turning halfway through a hop.
+        location from = getLocation(self);
+        float bearing = (float)Math.toDegrees(Math.atan2(spot.x - from.x, spot.z - from.z));
+        float delta = bearing - getYaw(self);
+        while (delta > 180.0f) delta -= 360.0f;
+        while (delta < -180.0f) delta += 360.0f;
+        float absDelta = Math.abs(delta);
+        if (absDelta <= TURN_FIRST_MIN_DEG)
+        {
+            startHop(self, spot);
+            return SCRIPT_CONTINUE;
+        }
+        stop(self);
+        faceTo(self, spot);
+        float wait = Math.min(TURN_WAIT_MAX_SEC, 0.25f + absDelta / TURN_DEG_PER_SEC);
+        int tick = utils.getIntScriptVar(self, SCRIPTVAR_ROAM_TICK);
+        dictionary d = new dictionary();
+        d.put("tick", tick);
+        d.put("spot", spot);
+        messageTo(self, "handleRoamGo", d, wait, false);
+        return SCRIPT_CONTINUE;
+    }
+
+    public static final float TURN_FIRST_MIN_DEG = 25.0f;
+    public static final float TURN_DEG_PER_SEC = 150.0f;
+    public static final float TURN_WAIT_MAX_SEC = 1.6f;
+
+    /** Second half of a hop: the droid now faces the spot, start walking. */
+    public int handleRoamGo(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (params == null || params.getInt("tick") != utils.getIntScriptVar(self, SCRIPTVAR_ROAM_TICK) || !script.library.stationed_droid.isStationed(self) || !isRoamMode(self) || ai_lib.isInCombat(self) || isIncapacitated(self))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        location spot = params.getLocation("spot");
+        if (spot == null)
+        {
+            scheduleRoam(self, quickRetry());
+            return SCRIPT_CONTINUE;
+        }
+        startHop(self, spot);
+        return SCRIPT_CONTINUE;
+    }
+
+    private void startHop(obj_id self, location spot) throws InterruptedException
+    {
         float speed = applyCasualSpeed(self);
+        int now = getGameTime();
+        if (!utils.hasScriptVar(self, "stationed.hopMsg") || now - utils.getIntScriptVar(self, "stationed.hopMsg") >= 60)
+        {
+            utils.setScriptVar(self, "stationed.hopMsg", now);
+            script.library.stationed_droid.dbg(script.library.stationed_droid.getLooseOwner(self), "hop: walkSpeed=" + getWalkSpeed(self) + " runSpeed=" + getRunSpeed(self) + " chosen=" + speed);
+        }
         // The engine AI home (not the post, which is the objvar) follows the droid for each hop:
         // ai.ai.OnMovePathNotFound warps a creature to its AI home, so even if that handler runs
         // before ours the "teleport" lands on the spot the droid already stands on.
@@ -382,7 +435,6 @@ public class stationed_droid extends script.base_script
             float dist = (float)Math.sqrt(dx * dx + dz * dz);
             scheduleRoam(self, dist / speed * 1.6f + 4.0f);
         }
-        return SCRIPT_CONTINUE;
     }
 
     /** Arrived: pause for a casual few seconds, then pick the next spot. */
