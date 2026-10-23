@@ -274,17 +274,16 @@ public class stationed_droid extends script.base_script
         location home = hasObjVar(self, script.library.stationed_droid.OBJVAR_HOME) ? getLocationObjVar(self, script.library.stationed_droid.OBJVAR_HOME) : cur;
         if (!sameCell(cur.cell, home.cell))
         {
-            if (isIdValid(script.library.stationed_droid.getPostShip(self)))
+            if (isIdValid(script.library.stationed_droid.getPostShip(self)) && script.library.stationed_droid.recoverIfFallen(self))
             {
-                // Post is inside a ship: the droid is out of place, never make the outside its post.
-                script.library.stationed_droid.recoverIfFallen(self);
+                // Post is inside a ship and the droid was outside the hull: it was put back, never make the outside its post.
                 return null;
             }
-            // The droid ended up in another room: that is its post now.
+            // The droid ended up in another room (of the same ship, or not in a ship): that is its post now.
             home = cur;
             setObjVar(self, script.library.stationed_droid.OBJVAR_HOME, cur);
         }
-        float range = script.library.stationed_droid.roamRange(self, mode);
+        float range = (mode == script.library.stationed_droid.MODE_PATROL) ? script.library.stationed_droid.PATROL_MAX : script.library.stationed_droid.WANDER_MAX;
         boolean indoors = isIdValid(cur.cell);
         float stepMax = indoors ? script.library.stationed_droid.ROAM_STEP_MAX_INDOOR : script.library.stationed_droid.ROAM_STEP_MAX;
         float stepMin = script.library.stationed_droid.ROAM_STEP_MIN;

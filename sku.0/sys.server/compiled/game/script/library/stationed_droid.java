@@ -87,9 +87,7 @@ public class stationed_droid extends script.base_script
     public static final float ROAM_WALK_PCT_MIN = 1.0f;
     public static final float ROAM_WALK_PCT_MAX = 1.0f;
     public static final float ROAM_JOG_CHANCE = 0.0f;
-    /** Roam range for droids whose post is inside a ship: ship rooms are only about 3 m deep, 8 m walked them through doors. */
-    public static final float SHIP_WANDER_MAX = 2.5f;
-    public static final float SHIP_PATROL_MAX = 3.5f;
+
     public static final float ROAM_JOG_PCT_MIN = 0.5f;
     public static final float ROAM_JOG_PCT_MAX = 0.75f;
     public static final float GUARD_RANGE = 20.0f;
@@ -532,7 +530,7 @@ public class stationed_droid extends script.base_script
     // owner as a system message ("[droid] ..."), so a test needs no log reading. Set to false when stable.
     public static final boolean DEBUG_MESSAGES = true;
     /** Shown in every [droid] message so the chat log proves which build the server runs. Bump on every change. */
-    public static final String BUILD_TAG = "P18.15-1";
+    public static final String BUILD_TAG = "P18.15-2";
 
     public static void dbg(obj_id owner, String msg) throws InterruptedException
     {
@@ -1362,17 +1360,6 @@ public class stationed_droid extends script.base_script
         return ship;
     }
 
-    /** Roam range for a mode: small inside a ship (rooms are about 3 m deep), the normal range elsewhere. */
-    public static float roamRange(obj_id droid, int mode) throws InterruptedException
-    {
-        boolean inShip = isIdValid(getPostShip(droid));
-        if (mode == MODE_PATROL)
-        {
-            return inShip ? SHIP_PATROL_MAX : PATROL_MAX;
-        }
-        return inShip ? SHIP_WANDER_MAX : WANDER_MAX;
-    }
-
     /** How far from its post a droid inside a hull may legitimately be (roam range or fight range plus slack). */
     private static float postLeash(obj_id droid) throws InterruptedException
     {
@@ -1380,11 +1367,11 @@ public class stationed_droid extends script.base_script
         float range = 0.0f;
         if (mode == MODE_PATROL || ai_lib.isInCombat(droid))
         {
-            range = SHIP_PATROL_MAX;
+            range = PATROL_MAX;
         }
         else if (mode == MODE_WANDER || mode == MODE_GUARD)
         {
-            range = SHIP_WANDER_MAX;
+            range = WANDER_MAX;
         }
         return range + POST_SLACK;
     }
@@ -1397,9 +1384,15 @@ public class stationed_droid extends script.base_script
     public static boolean isHeldAtPost(obj_id droid, location home) throws InterruptedException
     {
         location cur = getLocation(droid);
-        if (cur == null || home == null || !isIdValid(cur.cell) || !cur.cell.equals(home.cell))
+        if (cur == null || home == null || !isIdValid(cur.cell))
         {
-            return false;
+            return false;   // outside any cell: it is in the world, not in the hull
+        }
+        if (!cur.cell.equals(home.cell))
+        {
+            // Another room of the SAME ship is fine (the roam code makes it the new post); anything else is not.
+            obj_id homeShip = space_transition.getContainingShip(home.cell);
+            return isIdValid(homeShip) && space_transition.getContainingShip(cur.cell) == homeShip;
         }
         float dx = cur.x - home.x;
         float dz = cur.z - home.z;
