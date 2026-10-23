@@ -290,6 +290,11 @@ public class stationed_droid extends script.base_script
         for (int i = 0; i < script.library.stationed_droid.ROAM_PICK_TRIES; i++)
         {
             double ang = rand() * 6.2831853d;
+            if (i < script.library.stationed_droid.ROAM_FORWARD_TRIES)
+            {
+                // First tries: keep going roughly the way the droid already faces (gentle direction change).
+                ang = Math.toRadians(getYaw(self) + (rand() * 2.0f - 1.0f) * script.library.stationed_droid.ROAM_FORWARD_CONE_DEG);
+            }
             float step = stepMin + rand() * (stepMax - stepMin);
             float x = cur.x + (float)Math.sin(ang) * step;
             float z = cur.z + (float)Math.cos(ang) * step;

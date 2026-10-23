@@ -60,10 +60,10 @@ public class stationed_droid extends script.base_script
     public static final float PATROL_MAX = 15.0f;
     // Script-driven roaming (engine loiter did not move the droids). The droid walks short hops
     // to spots it can see (line of sight), pauses after each hop, and varies its speed.
-    public static final float ROAM_STEP_MIN = 2.0f;
-    public static final float ROAM_STEP_MAX = 6.0f;
+    public static final float ROAM_STEP_MIN = 3.0f;
+    public static final float ROAM_STEP_MAX = 9.0f;
     // Inside buildings / ship interiors hops are shorter (rooms are small).
-    public static final float ROAM_STEP_MAX_INDOOR = 3.5f;
+    public static final float ROAM_STEP_MAX_INDOOR = 7.0f;
     // Largest height change allowed between two outdoor spots (avoids cliffs / ledges).
     public static final float ROAM_MAX_RISE = 1.5f;
     public static final int ROAM_PICK_TRIES = 8;
@@ -71,11 +71,11 @@ public class stationed_droid extends script.base_script
     // the post (safety valve in case line-of-sight tests are unreliable at a location).
     public static final int ROAM_BLIND_AFTER = 6;
     // Pause after reaching a spot; sometimes a longer idle.
-    public static final float ROAM_PAUSE_MIN_SEC = 4.0f;
-    public static final float ROAM_PAUSE_MAX_SEC = 12.0f;
-    public static final float ROAM_LONG_PAUSE_CHANCE = 0.2f;
-    public static final float ROAM_LONG_PAUSE_MIN_SEC = 15.0f;
-    public static final float ROAM_LONG_PAUSE_MAX_SEC = 30.0f;
+    public static final float ROAM_PAUSE_MIN_SEC = 1.5f;
+    public static final float ROAM_PAUSE_MAX_SEC = 5.0f;
+    public static final float ROAM_LONG_PAUSE_CHANCE = 0.1f;
+    public static final float ROAM_LONG_PAUSE_MIN_SEC = 6.0f;
+    public static final float ROAM_LONG_PAUSE_MAX_SEC = 12.0f;
     // Retry soon when no reachable spot was found (narrow spaces) or the path was rejected.
     public static final float ROAM_RETRY_MIN_SEC = 1.5f;
     public static final float ROAM_RETRY_MAX_SEC = 3.5f;
@@ -88,6 +88,9 @@ public class stationed_droid extends script.base_script
     public static final float ROAM_WALK_PCT_MAX = 1.0f;
     public static final float ROAM_JOG_CHANCE = 0.0f;
 
+    /** Hops mostly continue roughly in the facing direction (+/- this many degrees), so direction changes are gentle. */
+    public static final float ROAM_FORWARD_CONE_DEG = 75.0f;
+    public static final int ROAM_FORWARD_TRIES = 5;
     public static final float ROAM_JOG_PCT_MIN = 0.5f;
     public static final float ROAM_JOG_PCT_MAX = 0.75f;
     public static final float GUARD_RANGE = 20.0f;
@@ -530,7 +533,7 @@ public class stationed_droid extends script.base_script
     // owner as a system message ("[droid] ..."), so a test needs no log reading. Set to false when stable.
     public static final boolean DEBUG_MESSAGES = true;
     /** Shown in every [droid] message so the chat log proves which build the server runs. Bump on every change. */
-    public static final String BUILD_TAG = "P18.15-2";
+    public static final String BUILD_TAG = "P18.16-1";
 
     public static void dbg(obj_id owner, String msg) throws InterruptedException
     {
