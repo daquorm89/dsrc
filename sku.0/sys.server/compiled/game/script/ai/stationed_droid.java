@@ -27,6 +27,8 @@ public class stationed_droid extends script.base_script
     public static final String SCRIPTVAR_WATCH_TICK = "stationed.watchTick";
     public static final float WATCH_TICK_SEC = 10.0f;
     public static final float WATCH_TICK_SHIP_SEC = 3.0f;   // droids with a post inside a ship are checked more often
+    public static final float WATCH_TICK_FAST_SEC = 1.0f;   // ... and every second for the first seconds after being set loose
+    public static final int WATCH_FAST_WINDOW_SEC = 20;
 
     public int OnAttach(obj_id self) throws InterruptedException
     {
@@ -128,6 +130,7 @@ public class stationed_droid extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
+        utils.setScriptVar(self, "stationed.fastWatchUntil", getGameTime() + WATCH_FAST_WINDOW_SEC);
         script.library.stationed_droid.applyMode(self);
         // Restart the guard scan; the tick id makes any older scan chain stop itself.
         int tick = utils.getIntScriptVar(self, SCRIPTVAR_TICK) + 1;
@@ -176,7 +179,16 @@ public class stationed_droid extends script.base_script
 
     private float watchInterval(obj_id self) throws InterruptedException
     {
-        return isIdValid(script.library.stationed_droid.getPostShip(self)) ? WATCH_TICK_SHIP_SEC : WATCH_TICK_SEC;
+        if (!isIdValid(script.library.stationed_droid.getPostShip(self)))
+        {
+            return WATCH_TICK_SEC;
+        }
+        // Right after a restore something warps the droid to the owner (seen in the log): look every second.
+        if (utils.hasScriptVar(self, "stationed.fastWatchUntil") && getGameTime() < utils.getIntScriptVar(self, "stationed.fastWatchUntil"))
+        {
+            return WATCH_TICK_FAST_SEC;
+        }
+        return WATCH_TICK_SHIP_SEC;
     }
 
     // ---- wander / patrol movement --------------------------------------------------
@@ -272,7 +284,7 @@ public class stationed_droid extends script.base_script
             home = cur;
             setObjVar(self, script.library.stationed_droid.OBJVAR_HOME, cur);
         }
-        float range = (mode == script.library.stationed_droid.MODE_PATROL) ? script.library.stationed_droid.PATROL_MAX : script.library.stationed_droid.WANDER_MAX;
+        float range = script.library.stationed_droid.roamRange(self, mode);
         boolean indoors = isIdValid(cur.cell);
         float stepMax = indoors ? script.library.stationed_droid.ROAM_STEP_MAX_INDOOR : script.library.stationed_droid.ROAM_STEP_MAX;
         float stepMin = script.library.stationed_droid.ROAM_STEP_MIN;
