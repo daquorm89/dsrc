@@ -26,7 +26,7 @@ public class stationed_droid extends script.base_script
     // Slow watchdog (all modes): a droid that ends up outside the hull of its ship goes back to its post.
     public static final String SCRIPTVAR_WATCH_TICK = "stationed.watchTick";
     public static final float WATCH_TICK_SEC = 10.0f;
-    public static final float WATCH_TICK_SHIP_SEC = 3.0f;   // droids with a post inside a ship are checked more often
+    public static final float WATCH_TICK_SHIP_SEC = 1.5f;   // droids with a post inside a ship are checked more often
     public static final float WATCH_TICK_FAST_SEC = 1.0f;   // ... and every second for the first seconds after being set loose
     public static final int WATCH_FAST_WINDOW_SEC = 20;
 
@@ -440,6 +440,7 @@ public class stationed_droid extends script.base_script
         // ai.ai.OnMovePathNotFound warps a creature to its AI home, so even if that handler runs
         // before ours the "teleport" lands on the spot the droid already stands on.
         aiSetHomeLocation(self, getLocation(self));
+        script.library.stationed_droid.clearFollowState(self);
         utils.setScriptVar(self, SCRIPTVAR_MOVING, 1);
         pathTo(self, spot);
         if (utils.hasScriptVar(self, SCRIPTVAR_MOVING))
