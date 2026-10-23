@@ -560,9 +560,11 @@ public class stationed_droid extends script.base_script
 
     // While the POB droid handling is being debugged, every stow / restore decision is also sent to the
     // owner as a system message ("[droid] ..."), so a test needs no log reading. Set to false when stable.
-    public static final boolean DEBUG_MESSAGES = true;
+    // Owner decision 2026-10-23: chat debug lines OFF for normal play. Set to true and rebuild (utils/build_java_checked.sh) to see
+    // the [droid <tag>] lines again (stow/restore steps, recoverIfFallen, hop speed, area scan, object census).
+    public static final boolean DEBUG_MESSAGES = false;
     /** Shown in every [droid] message so the chat log proves which build the server runs. Bump on every change. */
-    public static final String BUILD_TAG = "P18.20-2";
+    public static final String BUILD_TAG = "P18.21-1";
 
     public static void dbg(obj_id owner, String msg) throws InterruptedException
     {
