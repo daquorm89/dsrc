@@ -562,7 +562,7 @@ public class stationed_droid extends script.base_script
     // owner as a system message ("[droid] ..."), so a test needs no log reading. Set to false when stable.
     public static final boolean DEBUG_MESSAGES = true;
     /** Shown in every [droid] message so the chat log proves which build the server runs. Bump on every change. */
-    public static final String BUILD_TAG = "P18.18-1";
+    public static final String BUILD_TAG = "P18.19-3";
 
     public static void dbg(obj_id owner, String msg) throws InterruptedException
     {
@@ -864,6 +864,91 @@ public class stationed_droid extends script.base_script
      * droids that are in the hull but were not listed (getContents does not always see all of them).
      * Both stationed droids and plain follower droids are returned.
      */
+    /** Radius around a ship that is scanned for loose droids that belong to it but are not in its cells or in the owner's list. */
+    public static final float AREA_SCAN_RANGE = 200.0f;
+
+    /**
+     * Loose droids of the ship's owner within AREA_SCAN_RANGE of the ship whose post is inside this ship. This finds droids that
+     * are no longer in the hull AND are missing from the owner's droid list (they would otherwise stay in the world, heard but not
+     * seen, when the ship is packed). With log = true every loose droid of the owner in the area is reported to the owner.
+     */
+    public static java.util.List<obj_id> areaDroidsOfShip(obj_id ship, boolean log) throws InterruptedException
+    {
+        java.util.List<obj_id> mine = new java.util.ArrayList<obj_id>();
+        location shipLoc = getLocation(ship);
+        obj_id owner = getOwner(ship);
+        if (shipLoc == null || isIdValid(shipLoc.cell) || isSpaceScene())
+        {
+            return mine;
+        }
+        obj_id[] near = getCreaturesInRange(shipLoc, AREA_SCAN_RANGE);
+        if (near == null)
+        {
+            return mine;
+        }
+        int ownerDroids = 0;
+        int auditLines = 0;
+        for (obj_id c : near)
+        {
+            if (!isIdValid(c) || !exists(c))
+            {
+                continue;
+            }
+            if (!isStationed(c))
+            {
+                // Audit: any other droid creature that still belongs to the owner (a stowed droid must be gone).
+                if (log && auditLines < 10 && isMob(c) && !isPlayer(c) && (pet_lib.isDroidPet(c) || ai_lib.isDroid(c)))
+                {
+                    obj_id master = getMaster(c);
+                    location cl = getLocation(c);
+                    boolean ownerMaster = isIdValid(owner) && owner.equals(master);
+                    boolean masterless = !isIdValid(master) && cl != null && getDistance(shipLoc, cl) <= 40.0f;
+                    if (ownerMaster || masterless)
+                    {
+                        auditLines++;
+                        dbg(owner, "area scan: droid creature " + c + " (not stationed) template " + getTemplateName(c) + ", master " + master + ", " + describeSpot(cl));
+                    }
+                }
+                continue;
+            }
+            obj_id looseOwner = getLooseOwner(c);
+            if (isIdValid(owner) && !owner.equals(looseOwner))
+            {
+                continue;   // somebody else's droid
+            }
+            ownerDroids++;
+            boolean belongs = ship.equals(getPostShip(c));
+            if (belongs)
+            {
+                mine.add(c);
+            }
+            if (log)
+            {
+                dbg(owner, "area scan: loose droid " + c + " " + describeSpot(getLocation(c)) + ", post in this ship: " + belongs);
+            }
+        }
+        if (log)
+        {
+            dbg(owner, "area scan: " + ownerDroids + " loose droid(s) of yours within " + AREA_SCAN_RANGE + " m, " + mine.size() + " belong to this ship");
+        }
+        return mine;
+    }
+
+    /** Where something is: a cell, or the world with its height above the terrain (a droid hanging in the air shows here). */
+    private static String describeSpot(location l) throws InterruptedException
+    {
+        if (l == null)
+        {
+            return "at an unknown place";
+        }
+        if (isIdValid(l.cell))
+        {
+            return "in cell " + l.cell;
+        }
+        float terrain = getHeightAtLocation(l.x, l.z);
+        return "in the world at " + l + " (terrain y " + terrain + ", " + (l.y - terrain) + " m above the ground)";
+    }
+
     private static java.util.List<obj_id> findDroidsAboard(obj_id ship) throws InterruptedException
     {
         java.util.List<obj_id> found = new java.util.ArrayList<obj_id>();
@@ -898,6 +983,15 @@ public class stationed_droid extends script.base_script
                     LOG("stationed_droid", "findDroidsAboard: droid " + d + " belongs to ship " + ship + " but was not in the cell contents (aboard=" + isAboard(d, ship) + ")");
                     found.add(d);
                 }
+            }
+        }
+        // Droids of this ship that are outside the hull and not in the owner's list: found by an area scan.
+        for (obj_id d : areaDroidsOfShip(ship, true))
+        {
+            if (!found.contains(d))
+            {
+                LOG("stationed_droid", "findDroidsAboard: droid " + d + " belongs to ship " + ship + " and was found by the area scan only");
+                found.add(d);
             }
         }
         return found;
@@ -1571,7 +1665,19 @@ public class stationed_droid extends script.base_script
             return 0;
         }
         int recovered = 0;
+        java.util.List<obj_id> candidates = new java.util.ArrayList<obj_id>();
         for (obj_id d : getOwnedDroids(owner))
+        {
+            candidates.add(d);
+        }
+        for (obj_id d : areaDroidsOfShip(ship, true))
+        {
+            if (!candidates.contains(d))
+            {
+                candidates.add(d);
+            }
+        }
+        for (obj_id d : candidates)
         {
             if (isIdValid(d) && exists(d) && recoverIfFallen(d))
             {
