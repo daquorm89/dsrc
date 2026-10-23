@@ -533,7 +533,7 @@ public class stationed_droid extends script.base_script
     // owner as a system message ("[droid] ..."), so a test needs no log reading. Set to false when stable.
     public static final boolean DEBUG_MESSAGES = true;
     /** Shown in every [droid] message so the chat log proves which build the server runs. Bump on every change. */
-    public static final String BUILD_TAG = "P18.17-1";
+    public static final String BUILD_TAG = "P18.17-2";
 
     public static void dbg(obj_id owner, String msg) throws InterruptedException
     {
@@ -1478,7 +1478,8 @@ public class stationed_droid extends script.base_script
         }
         location cur = getLocation(droid);
         obj_id owner = getLooseOwner(droid);
-        String msg = "recoverIfFallen: droid " + droid + " is not at its post in ship " + ship + " (now " + cur + "); putting it back at " + home + "; owner is at " + (isIdValid(owner) && exists(owner) ? String.valueOf(getLocation(owner)) : "unknown");
+        String msg = "recoverIfFallen: droid " + droid + " is not at its post in ship " + ship + " (now " + cur + "); putting it back at " + home + "; owner is at " + (isIdValid(owner) && exists(owner) ? String.valueOf(getLocation(owner)) : "unknown")
+            + "; ship is at " + getLocation(ship) + "; aiHome " + aiGetHomeLocation(droid) + "; movementState " + aiGetMovementState(droid) + "; following " + ai_lib.isFollowing(droid);
         int now = getGameTime();
         if (!utils.hasScriptVar(droid, "stationed.recoverMsg") || now - utils.getIntScriptVar(droid, "stationed.recoverMsg") >= RECOVER_MSG_GAP_SEC)
         {
