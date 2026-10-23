@@ -562,7 +562,7 @@ public class stationed_droid extends script.base_script
     // owner as a system message ("[droid] ..."), so a test needs no log reading. Set to false when stable.
     public static final boolean DEBUG_MESSAGES = true;
     /** Shown in every [droid] message so the chat log proves which build the server runs. Bump on every change. */
-    public static final String BUILD_TAG = "P18.19-1";
+    public static final String BUILD_TAG = "P18.19-2";
 
     public static void dbg(obj_id owner, String msg) throws InterruptedException
     {
@@ -887,10 +887,21 @@ public class stationed_droid extends script.base_script
             return mine;
         }
         int ownerDroids = 0;
+        int auditLines = 0;
         for (obj_id c : near)
         {
-            if (!isIdValid(c) || !exists(c) || !isStationed(c))
+            if (!isIdValid(c) || !exists(c))
             {
+                continue;
+            }
+            if (!isStationed(c))
+            {
+                // Audit: any other droid creature that still belongs to the owner (a stowed droid must be gone).
+                if (log && auditLines < 10 && isMob(c) && !isPlayer(c) && isIdValid(owner) && owner.equals(getMaster(c)) && (pet_lib.isDroidPet(c) || ai_lib.isDroid(c)))
+                {
+                    auditLines++;
+                    dbg(owner, "area scan: droid creature " + c + " (not stationed) template " + getTemplateName(c) + ", master " + getMaster(c) + ", at " + getLocation(c));
+                }
                 continue;
             }
             obj_id looseOwner = getLooseOwner(c);
