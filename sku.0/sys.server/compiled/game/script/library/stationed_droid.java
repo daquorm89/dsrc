@@ -562,7 +562,7 @@ public class stationed_droid extends script.base_script
     // owner as a system message ("[droid] ..."), so a test needs no log reading. Set to false when stable.
     public static final boolean DEBUG_MESSAGES = true;
     /** Shown in every [droid] message so the chat log proves which build the server runs. Bump on every change. */
-    public static final String BUILD_TAG = "P18.19-2";
+    public static final String BUILD_TAG = "P18.19-3";
 
     public static void dbg(obj_id owner, String msg) throws InterruptedException
     {
@@ -897,10 +897,17 @@ public class stationed_droid extends script.base_script
             if (!isStationed(c))
             {
                 // Audit: any other droid creature that still belongs to the owner (a stowed droid must be gone).
-                if (log && auditLines < 10 && isMob(c) && !isPlayer(c) && isIdValid(owner) && owner.equals(getMaster(c)) && (pet_lib.isDroidPet(c) || ai_lib.isDroid(c)))
+                if (log && auditLines < 10 && isMob(c) && !isPlayer(c) && (pet_lib.isDroidPet(c) || ai_lib.isDroid(c)))
                 {
-                    auditLines++;
-                    dbg(owner, "area scan: droid creature " + c + " (not stationed) template " + getTemplateName(c) + ", master " + getMaster(c) + ", at " + getLocation(c));
+                    obj_id master = getMaster(c);
+                    location cl = getLocation(c);
+                    boolean ownerMaster = isIdValid(owner) && owner.equals(master);
+                    boolean masterless = !isIdValid(master) && cl != null && getDistance(shipLoc, cl) <= 40.0f;
+                    if (ownerMaster || masterless)
+                    {
+                        auditLines++;
+                        dbg(owner, "area scan: droid creature " + c + " (not stationed) template " + getTemplateName(c) + ", master " + master + ", " + describeSpot(cl));
+                    }
                 }
                 continue;
             }
@@ -917,9 +924,7 @@ public class stationed_droid extends script.base_script
             }
             if (log)
             {
-                location l = getLocation(c);
-                String where = (l != null && isIdValid(l.cell)) ? "in cell " + l.cell : "in the world at " + l + " (terrain y " + getHeightAtLocation(l.x, l.z) + ")";
-                dbg(owner, "area scan: loose droid " + c + " " + where + ", post in this ship: " + belongs);
+                dbg(owner, "area scan: loose droid " + c + " " + describeSpot(getLocation(c)) + ", post in this ship: " + belongs);
             }
         }
         if (log)
@@ -927,6 +932,21 @@ public class stationed_droid extends script.base_script
             dbg(owner, "area scan: " + ownerDroids + " loose droid(s) of yours within " + AREA_SCAN_RANGE + " m, " + mine.size() + " belong to this ship");
         }
         return mine;
+    }
+
+    /** Where something is: a cell, or the world with its height above the terrain (a droid hanging in the air shows here). */
+    private static String describeSpot(location l) throws InterruptedException
+    {
+        if (l == null)
+        {
+            return "at an unknown place";
+        }
+        if (isIdValid(l.cell))
+        {
+            return "in cell " + l.cell;
+        }
+        float terrain = getHeightAtLocation(l.x, l.z);
+        return "in the world at " + l + " (terrain y " + terrain + ", " + (l.y - terrain) + " m above the ground)";
     }
 
     private static java.util.List<obj_id> findDroidsAboard(obj_id ship) throws InterruptedException
