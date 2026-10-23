@@ -26,6 +26,12 @@ public class static_item extends script.base_script
     public static final string_id ALREADY_HAVE_SIMILAR_BUFF = new string_id("base_player", "already_have_similar_buff");
     public static final string_id BUFF_APPLIED = new string_id("base_player", "buff_applied");
     public static final string_id SID_ITEM_LEVEL_TOO_LOW = new string_id("base_player", "level_too_low_for_effect");
+    /**
+     * Pre-CU: this server does not use combat levels. true = no item (armor, weapons, static items, consumables, worn effects) is blocked
+     * by a combat-level requirement and the "combat level required" lines are not shown. Skill requirements are NOT affected.
+     * Note: javac inlines this constant into every script that uses it; after changing it rebuild all scripts that mention it.
+     */
+    public static final boolean NO_LEVEL_REQUIREMENTS = true;
     public static final string_id SID_UNIQUE_NO_CREATE = new string_id("base_player", "unique_failed_create");
     public static final string_id SID_ITEM_NOT_ENOUGH_SKILL = new string_id("base_player", "not_correct_skill");
     public static final String STATIC_ITEM_NAME = "static_item_n";
@@ -484,10 +490,14 @@ public class static_item extends script.base_script
     }
     public static boolean validateLevelRequired(obj_id player, int requiredLevel) throws InterruptedException
     {
-        return getLevel(player) >= requiredLevel;
+        return NO_LEVEL_REQUIREMENTS || getLevel(player) >= requiredLevel;
     }
     public static boolean validateLevelRequired(obj_id player, obj_id item) throws InterruptedException
     {
+        if (NO_LEVEL_REQUIREMENTS)
+        {
+            return true;
+        }
         int playerLevel = getLevel(player);
         dictionary itemData = getMasterItemDictionary(item);
         if (itemData != null)
@@ -505,6 +515,10 @@ public class static_item extends script.base_script
     }
     public static boolean validateLevelRequiredForWornEffect(obj_id player, obj_id item) throws InterruptedException
     {
+        if (NO_LEVEL_REQUIREMENTS)
+        {
+            return true;
+        }
         int playerLevel = getLevel(player);
         String itemName = getStaticItemName(item);
         dictionary itemData = getStaticObjectTypeDictionary(itemName);
@@ -1094,10 +1108,13 @@ public class static_item extends script.base_script
         int free = 0;
         dictionary itemData = static_item.getMergedItemDictionary(staticItemName);
         int levelRequired = itemData.getInt("required_level");
-        names[free] = "healing_combat_level_required";
-        attribs[free++] = "" + levelRequired;
-        names[free] = "tooltip.healing_combat_level_required";
-        attribs[free++] = "" + levelRequired;
+        if (!NO_LEVEL_REQUIREMENTS)
+        {
+            names[free] = "healing_combat_level_required";
+            attribs[free++] = "" + levelRequired;
+            names[free] = "tooltip.healing_combat_level_required";
+            attribs[free++] = "" + levelRequired;
+        }
         String skillRequired = itemData.getString("required_skill");
         String skillRequiredAttribute;
         if (skillRequired != null && !skillRequired.equals(""))
@@ -1174,10 +1191,13 @@ public class static_item extends script.base_script
         int free = 0;
         dictionary itemData = static_item.getMergedItemDictionary(staticItemName);
         int levelRequired = itemData.getInt("required_level");
-        names[free] = "healing_combat_level_required";
-        attribs[free++] = "" + levelRequired;
-        names[free] = "tooltip.healing_combat_level_required";
-        attribs[free++] = "" + levelRequired;
+        if (!NO_LEVEL_REQUIREMENTS)
+        {
+            names[free] = "healing_combat_level_required";
+            attribs[free++] = "" + levelRequired;
+            names[free] = "tooltip.healing_combat_level_required";
+            attribs[free++] = "" + levelRequired;
+        }
         String skillRequired = itemData.getString("required_skill");
         String skillRequiredAttribute;
         if (skillRequired != null && !skillRequired.equals(""))
@@ -1237,7 +1257,7 @@ public class static_item extends script.base_script
         int free = 0;
         dictionary itemData = static_item.getMergedItemDictionary(item_name);
         int requiredLevelToEquip = itemData.getInt("required_level");
-        if (requiredLevelToEquip != 0)
+        if (!NO_LEVEL_REQUIREMENTS && requiredLevelToEquip != 0)
         {
             names[free] = utils.packStringId(new string_id("proc/proc", "required_combat_level"));
             attribs[free++] = "" + requiredLevelToEquip;
