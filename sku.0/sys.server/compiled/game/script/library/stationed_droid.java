@@ -349,6 +349,7 @@ public class stationed_droid extends script.base_script
         detachPresent(droid, PET_SCRIPTS);
         registerDroid(player, droid);
         attachScript(droid, SCRIPT);
+        clearFollowState(droid);
         // ai.pet.OnDetach scheduled its own "default calm behaviour" message; apply our mode
         // now so that message finds our objvars instead of briefly letting the droid wander.
         applyMode(droid);
@@ -481,12 +482,40 @@ public class stationed_droid extends script.base_script
     }
 
     /** Pushes the stored mode into the engine AI. Called by ai.stationed_droid. */
+    /**
+     * The pet follow code leaves "ai.persistantFollowing" (and possibly formation flags) on a droid.
+     * ai.ai.doDefaultCalmBehavior restarts a follow from them whenever the droid calms down, which walked loose
+     * droids towards their owner and, because a hull room has no path to the owner, made the engine warp them onto
+     * the owner (seen: droid at the owner's exact position, movementState 3 = follow, following = true).
+     * A loose droid must never carry them.
+     */
+    public static void clearFollowState(obj_id droid) throws InterruptedException
+    {
+        if (!isIdValid(droid) || !exists(droid))
+        {
+            return;
+        }
+        if (hasObjVar(droid, "ai.persistantFollowing"))
+        {
+            removeObjVar(droid, "ai.persistantFollowing");
+        }
+        if (hasObjVar(droid, "ai.formationType"))
+        {
+            removeObjVar(droid, "ai.formationType");
+        }
+        if (hasObjVar(droid, "ai.inFormation"))
+        {
+            removeObjVar(droid, "ai.inFormation");
+        }
+    }
+
     public static void applyMode(obj_id droid) throws InterruptedException
     {
         if (!isStationed(droid))
         {
             return;
         }
+        clearFollowState(droid);
         location home = hasObjVar(droid, OBJVAR_HOME) ? getLocationObjVar(droid, OBJVAR_HOME) : getLocation(droid);
         resetSpeed(droid);
         aiSetHomeLocation(droid, home);
@@ -533,7 +562,7 @@ public class stationed_droid extends script.base_script
     // owner as a system message ("[droid] ..."), so a test needs no log reading. Set to false when stable.
     public static final boolean DEBUG_MESSAGES = true;
     /** Shown in every [droid] message so the chat log proves which build the server runs. Bump on every change. */
-    public static final String BUILD_TAG = "P18.17-2";
+    public static final String BUILD_TAG = "P18.18-1";
 
     public static void dbg(obj_id owner, String msg) throws InterruptedException
     {
@@ -1168,6 +1197,7 @@ public class stationed_droid extends script.base_script
             return false;
         }
         stop(droid);
+        clearFollowState(droid);
         aiSetHomeLocation(droid, spot);
         if (!isAboard(droid, ship) || !isIdValid(getLocation(droid).cell) || !getLocation(droid).cell.equals(spot.cell))
         {
@@ -1210,6 +1240,7 @@ public class stationed_droid extends script.base_script
         {
             // The pet follow behaviour may have moved it towards the owner in the meantime.
             stop(droid);
+            clearFollowState(droid);
             setLocation(droid, spot);
             aiSetHomeLocation(droid, spot);
             if (!isAboard(droid, ship))
@@ -1487,6 +1518,7 @@ public class stationed_droid extends script.base_script
             dbg(getLooseOwner(droid), msg);
         }
         stop(droid);
+        clearFollowState(droid);
         aiSetHomeLocation(droid, home);
         return setLocation(droid, home);
     }
