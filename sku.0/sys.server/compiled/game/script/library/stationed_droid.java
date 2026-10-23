@@ -562,7 +562,7 @@ public class stationed_droid extends script.base_script
     // owner as a system message ("[droid] ..."), so a test needs no log reading. Set to false when stable.
     public static final boolean DEBUG_MESSAGES = true;
     /** Shown in every [droid] message so the chat log proves which build the server runs. Bump on every change. */
-    public static final String BUILD_TAG = "P18.19-3";
+    public static final String BUILD_TAG = "P18.20-1";
 
     public static void dbg(obj_id owner, String msg) throws InterruptedException
     {
@@ -789,6 +789,96 @@ public class stationed_droid extends script.base_script
      * way stowDroidsAboard does; a droid that cannot be stowed is logged (it cannot be ejected from a
      * packed hull). Returns the number of droids stowed.
      */
+    /**
+     * Diagnostics after a pack: what objects are left around the owner, in the packed ship, in the datapad and in the
+     * inventory, by template name. Used to find what keeps making droid sounds after every droid was stowed.
+     */
+    private static void objectCensus(obj_id ship, obj_id owner) throws InterruptedException
+    {
+        try
+        {
+            if (!DEBUG_MESSAGES || !isIdValid(owner) || !exists(owner))
+            {
+                return;
+            }
+            logCensus(owner, "census within 40 m of you (creatures, droids, sounds)", getObjectsInRange(owner, 40.0f), true);
+            logCensus(owner, "census in the packed ship's rooms", space_transition.getAllObjectsInPob(ship), false);
+            obj_id datapad = utils.getPlayerDatapad(owner);
+            if (isIdValid(datapad))
+            {
+                logCensus(owner, "census in your datapad", getContents(datapad), false);
+            }
+            obj_id inventory = utils.getInventoryContainer(owner);
+            if (isIdValid(inventory))
+            {
+                logCensus(owner, "census in your inventory (creatures, droids, sounds)", getContents(inventory), true);
+            }
+        }
+        catch (Exception e)
+        {
+            dbg(owner, "census failed: " + e);
+        }
+    }
+
+    private static void logCensus(obj_id owner, String label, obj_id[] objects, boolean onlyInteresting) throws InterruptedException
+    {
+        java.util.TreeMap<String, Integer> counts = new java.util.TreeMap<String, Integer>();
+        int total = 0;
+        if (objects != null)
+        {
+            for (obj_id o : objects)
+            {
+                if (!isIdValid(o) || !exists(o) || isPlayer(o))
+                {
+                    continue;
+                }
+                String template = getTemplateName(o);
+                if (template == null)
+                {
+                    template = "?";
+                }
+                template = template.replace("object/", "").replace(".iff", "");
+                if (onlyInteresting && !(template.indexOf("creature") >= 0 || template.indexOf("droid") >= 0 || template.indexOf("mobile") >= 0 || template.indexOf("sound") >= 0 || template.indexOf("npc") >= 0))
+                {
+                    continue;
+                }
+                total++;
+                Integer n = counts.get(template);
+                counts.put(template, n == null ? 1 : n + 1);
+            }
+        }
+        if (total == 0)
+        {
+            dbg(owner, label + ": none");
+            return;
+        }
+        dbg(owner, label + ": " + total + " object(s) of " + counts.size() + " kind(s)");
+        StringBuilder line = new StringBuilder();
+        int shown = 0;
+        int inLine = 0;
+        for (java.util.Map.Entry<String, Integer> e : counts.entrySet())
+        {
+            if (shown >= 24)
+            {
+                line.append(" ...");
+                break;
+            }
+            line.append(e.getKey()).append(" x").append(e.getValue()).append("; ");
+            shown++;
+            inLine++;
+            if (inLine >= 4)
+            {
+                dbg(owner, "  " + line);
+                line.setLength(0);
+                inLine = 0;
+            }
+        }
+        if (line.length() > 0)
+        {
+            dbg(owner, "  " + line);
+        }
+    }
+
     public static int sweepPackedShip(obj_id ship) throws InterruptedException
     {
         if (!isIdValid(ship) || !exists(ship))
@@ -842,6 +932,7 @@ public class stationed_droid extends script.base_script
         {
             LOG("stationed_droid", "sweepPackedShip: ship=" + ship + " stowed=" + stowed);
         }
+        objectCensus(ship, shipOwner);
         return stowed;
     }
 
