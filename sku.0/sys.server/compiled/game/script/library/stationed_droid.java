@@ -80,9 +80,14 @@ public class stationed_droid extends script.base_script
     public static final float ROAM_RETRY_MIN_SEC = 1.5f;
     public static final float ROAM_RETRY_MAX_SEC = 3.5f;
     // Casual speed: mostly a walk at 60-100% of walking speed, now and then a slow jog.
-    public static final float ROAM_WALK_PCT_MIN = 0.6f;
+    // Natural speed only. The client (RemoteCreatureController) slides a creature straight at the last
+    // server position and RUNS at full run speed whenever it lags more than its own max walk speed
+    // (metres) behind it. Scaling the walk speed down shrinks that threshold and made droids run in
+    // bursts and slide sideways, and jogs (3-14 m/s) on 2-3.5 m hops made it worse. So: always 100 % walk.
+    public static final float ROAM_WALK_PCT_MIN = 1.0f;
     public static final float ROAM_WALK_PCT_MAX = 1.0f;
-    public static final float ROAM_JOG_CHANCE = 0.15f;
+    public static final float ROAM_JOG_CHANCE = 0.0f;
+
     public static final float ROAM_JOG_PCT_MIN = 0.5f;
     public static final float ROAM_JOG_PCT_MAX = 0.75f;
     public static final float GUARD_RANGE = 20.0f;
@@ -525,7 +530,7 @@ public class stationed_droid extends script.base_script
     // owner as a system message ("[droid] ..."), so a test needs no log reading. Set to false when stable.
     public static final boolean DEBUG_MESSAGES = true;
     /** Shown in every [droid] message so the chat log proves which build the server runs. Bump on every change. */
-    public static final String BUILD_TAG = "P18.14-1";
+    public static final String BUILD_TAG = "P18.15-2";
 
     public static void dbg(obj_id owner, String msg) throws InterruptedException
     {
@@ -1364,11 +1369,7 @@ public class stationed_droid extends script.base_script
         {
             range = PATROL_MAX;
         }
-        else if (mode == MODE_WANDER)
-        {
-            range = WANDER_MAX;
-        }
-        else if (mode == MODE_GUARD)
+        else if (mode == MODE_WANDER || mode == MODE_GUARD)
         {
             range = WANDER_MAX;
         }
@@ -1383,9 +1384,15 @@ public class stationed_droid extends script.base_script
     public static boolean isHeldAtPost(obj_id droid, location home) throws InterruptedException
     {
         location cur = getLocation(droid);
-        if (cur == null || home == null || !isIdValid(cur.cell) || !cur.cell.equals(home.cell))
+        if (cur == null || home == null || !isIdValid(cur.cell))
         {
-            return false;
+            return false;   // outside any cell: it is in the world, not in the hull
+        }
+        if (!cur.cell.equals(home.cell))
+        {
+            // Another room of the SAME ship is fine (the roam code makes it the new post); anything else is not.
+            obj_id homeShip = space_transition.getContainingShip(home.cell);
+            return isIdValid(homeShip) && space_transition.getContainingShip(cur.cell) == homeShip;
         }
         float dx = cur.x - home.x;
         float dz = cur.z - home.z;
@@ -1416,7 +1423,8 @@ public class stationed_droid extends script.base_script
             return false;
         }
         location cur = getLocation(droid);
-        String msg = "recoverIfFallen: droid " + droid + " is not at its post in ship " + ship + " (now " + cur + "); putting it back at " + home;
+        obj_id owner = getLooseOwner(droid);
+        String msg = "recoverIfFallen: droid " + droid + " is not at its post in ship " + ship + " (now " + cur + "); putting it back at " + home + "; owner is at " + (isIdValid(owner) && exists(owner) ? String.valueOf(getLocation(owner)) : "unknown");
         int now = getGameTime();
         if (!utils.hasScriptVar(droid, "stationed.recoverMsg") || now - utils.getIntScriptVar(droid, "stationed.recoverMsg") >= RECOVER_MSG_GAP_SEC)
         {
