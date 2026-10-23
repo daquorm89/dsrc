@@ -42,6 +42,26 @@ public class stationed_ship_restore extends script.base_script
         return SCRIPT_CONTINUE;
     }
 
+    /** Keeps a droid that is being restored still and on its post until it is set loose. */
+    public int handleHoldRestoringDroid(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (params == null)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        int n = params.getInt("n");
+        obj_id droid = params.getObjId("droid");
+        if (n < script.library.stationed_droid.RESTORE_HOLD_MAX && script.library.stationed_droid.holdRestoringDroid(self, droid, params.getString("record")))
+        {
+            dictionary again = new dictionary();
+            again.put("droid", droid);
+            again.put("record", params.getString("record"));
+            again.put("n", n + 1);
+            messageTo(self, "handleHoldRestoringDroid", again, script.library.stationed_droid.RESTORE_HOLD_SEC, false);
+        }
+        return SCRIPT_CONTINUE;
+    }
+
     public int handleFinishLooseDroid(obj_id self, dictionary params) throws InterruptedException
     {
         if (params == null)

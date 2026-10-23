@@ -533,7 +533,7 @@ public class stationed_droid extends script.base_script
     // owner as a system message ("[droid] ..."), so a test needs no log reading. Set to false when stable.
     public static final boolean DEBUG_MESSAGES = true;
     /** Shown in every [droid] message so the chat log proves which build the server runs. Bump on every change. */
-    public static final String BUILD_TAG = "P18.16-1";
+    public static final String BUILD_TAG = "P18.17-1";
 
     public static void dbg(obj_id owner, String msg) throws InterruptedException
     {
@@ -1124,6 +1124,15 @@ public class stationed_droid extends script.base_script
         markRestoring(ship, droid, raw);
         stop(droid);
         boolean placed = setLocation(droid, spot);
+        // A new pet's AI home is where the owner stands (outside the ship) and the pet setup queues a follow
+        // behaviour towards the owner: either one can warp the droid out of the hull. Home goes on the post now and
+        // the ship keeps the droid still until it is set loose (handleHoldRestoringDroid).
+        aiSetHomeLocation(droid, spot);
+        dictionary hold = new dictionary();
+        hold.put("droid", droid);
+        hold.put("record", raw);
+        hold.put("n", 0);
+        messageTo(ship, "handleHoldRestoringDroid", hold, RESTORE_HOLD_SEC, false);
         dbg(owner, "restore: created droid=" + droid + " for pcd=" + pcd + " on ship=" + ship + " cell=" + r[REC_CELL] + " setLocation=" + placed + " aboard=" + isAboard(droid, ship));
         dictionary d = new dictionary();
         d.put("droid", droid);
@@ -1132,6 +1141,47 @@ public class stationed_droid extends script.base_script
         d.put("tries", 0);
         messageTo(ship, "handleFinishLooseDroid", d, RESTORE_FINISH_DELAY_SEC, false);
         return RESTORE_CREATED;
+    }
+
+    public static final float RESTORE_HOLD_SEC = 0.25f;
+    public static final int RESTORE_HOLD_MAX = 40;   // 10 s
+
+    /**
+     * While a droid is being restored (created, not yet set loose): keep it still, keep its AI home on its post and
+     * put it back on the post when anything moved it. Returns true while it should be called again.
+     */
+    public static boolean holdRestoringDroid(obj_id ship, obj_id droid, String raw) throws InterruptedException
+    {
+        if (!isIdValid(droid) || !exists(droid) || isStationed(droid) || !isIdValid(ship) || !exists(ship))
+        {
+            return false;   // set loose already (or gone): the normal watch takes over
+        }
+        if (isIdValid(getContainedBy(ship)) || isSpaceScene())
+        {
+            return false;
+        }
+        String[] r = decodeRecord(raw);
+        obj_id cell = r == null ? null : getCellId(ship, r[REC_CELL]);
+        location spot = isIdValid(cell) ? readSpot(ship, r, cell) : null;
+        if (spot == null)
+        {
+            return false;
+        }
+        stop(droid);
+        aiSetHomeLocation(droid, spot);
+        if (!isAboard(droid, ship) || !isIdValid(getLocation(droid).cell) || !getLocation(droid).cell.equals(spot.cell))
+        {
+            dbg(getLooseOwnerOrMaster(droid), "restore: hold put droid " + droid + " back on its post (it was at " + getLocation(droid) + ")");
+            setLocation(droid, spot);
+        }
+        return true;
+    }
+
+    /** The owner while a droid is not yet loose: its pet master. */
+    private static obj_id getLooseOwnerOrMaster(obj_id droid) throws InterruptedException
+    {
+        obj_id owner = getLooseOwner(droid);
+        return isIdValid(owner) ? owner : getMaster(droid);
     }
 
     /**
@@ -1161,6 +1211,7 @@ public class stationed_droid extends script.base_script
             // The pet follow behaviour may have moved it towards the owner in the meantime.
             stop(droid);
             setLocation(droid, spot);
+            aiSetHomeLocation(droid, spot);
             if (!isAboard(droid, ship))
             {
                 // Never set a droid loose outside the hull: it would stand on the ground under the ship.
@@ -1435,6 +1486,7 @@ public class stationed_droid extends script.base_script
             dbg(getLooseOwner(droid), msg);
         }
         stop(droid);
+        aiSetHomeLocation(droid, home);
         return setLocation(droid, home);
     }
 
