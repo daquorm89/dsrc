@@ -170,6 +170,10 @@ public class combat_base extends script.base_script
         {
             isAutoAiming = utils.getBooleanScriptVar(objWeapon, "isAutoAimed");
         }
+        if (isGroundTarget)
+        {
+            mountHeavyDiag(self, "action=" + actionName + " params=[" + params + "] target=" + target + " parsedLoc=" + targetLoc + " autoAim=" + isAutoAiming + " locationOk=" + isLocationTargetOk + " special=" + (actionData.commandType == combat.RIGHT_CLICK_SPECIAL));
+        }
         boolean isSpecialAttack = actionData.commandType == combat.RIGHT_CLICK_SPECIAL;
         int hitType = actionData.hitType;
         boolean isDelayedAttack = false;
@@ -258,6 +262,10 @@ public class combat_base extends script.base_script
             obj_id[] defenders = getCombatDefenders(self, combatTarget, weaponData, actionData, isSpecialAttack);
             if (defenders == null || defenders.length == 0)
             {
+                if (isGroundTarget)
+                {
+                    mountHeavyDiag(self, "stopped: no valid targets (defenders=0) at " + actionData.targetLoc);
+                }
                 combat.combatLog(self, target, "combatStandardAction", "Attack Failed - No valid targets");
                 if (weaponData.weaponType == WEAPON_TYPE_DIRECTIONAL && !isEggWeapon)
                 {
@@ -814,6 +822,10 @@ public class combat_base extends script.base_script
         }
         if (!isInAttackRange(attackerData.id, defenderData[0].id, actionData, weaponData, verbose))
         {
+            if (weaponData.weaponType == WEAPON_TYPE_GROUND_TARGETTING)
+            {
+                mountHeavyDiag(attackerData.id, "stopped: isInAttackRange failed (defender " + defenderData[0].id + ")");
+            }
             return false;
         }
         boolean cansee = false;
@@ -849,6 +861,10 @@ public class combat_base extends script.base_script
         }
         if (!cansee)
         {
+            if (weaponData.weaponType == WEAPON_TYPE_GROUND_TARGETTING)
+            {
+                mountHeavyDiag(attackerData.id, "stopped: line of sight to " + actionData.targetLoc + " failed");
+            }
             if (verbose)
             {
                 showFlyTextPrivate(attackerData.id, attackerData.id, new string_id("combat_effects", "cant_see"), 1.5f, colors.MEDIUMTURQUOISE);
@@ -871,6 +887,18 @@ public class combat_base extends script.base_script
             }
         }
         return null;
+    }
+    /**
+     * TEMPORARY diagnostic (mounted free-targeted heavy weapons): chat lines to a MOUNTED player who fires a ground-targeting weapon, saying
+     * what the server received and which gate stopped the shot. Normal weapons and riders on foot stay silent. Set to false once solved.
+     */
+    public static final boolean MOUNT_HEAVY_DEBUG = true;
+    public void mountHeavyDiag(obj_id self, String msg) throws InterruptedException
+    {
+        if (MOUNT_HEAVY_DEBUG && isIdValid(self) && isPlayer(self) && getState(self, STATE_RIDING_MOUNT) > 0)
+        {
+            sendSystemMessageTestingOnly(self, "MOUNTHEAVY: " + msg);
+        }
     }
     public obj_id[] getCombatDefenders(obj_id self, obj_id target, weapon_data weaponData, combat_data actionData, boolean isSpecialAttack) throws InterruptedException
     {
