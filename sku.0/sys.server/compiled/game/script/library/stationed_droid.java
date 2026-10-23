@@ -562,7 +562,7 @@ public class stationed_droid extends script.base_script
     // owner as a system message ("[droid] ..."), so a test needs no log reading. Set to false when stable.
     public static final boolean DEBUG_MESSAGES = true;
     /** Shown in every [droid] message so the chat log proves which build the server runs. Bump on every change. */
-    public static final String BUILD_TAG = "P18.20-1";
+    public static final String BUILD_TAG = "P18.20-2";
 
     public static void dbg(obj_id owner, String msg) throws InterruptedException
     {
@@ -806,7 +806,37 @@ public class stationed_droid extends script.base_script
             obj_id datapad = utils.getPlayerDatapad(owner);
             if (isIdValid(datapad))
             {
-                logCensus(owner, "census in your datapad", getContents(datapad), false);
+                obj_id[] padContents = getContents(datapad);
+                logCensus(owner, "census in your datapad", padContents, false);
+                // Every control device that still points at a called-out creature: where is that creature?
+                int outCount = 0;
+                if (padContents != null)
+                {
+                    for (obj_id pcd : padContents)
+                    {
+                        if (!isIdValid(pcd) || !exists(pcd) || outCount >= 12)
+                        {
+                            continue;
+                        }
+                        obj_id called = callable.getCDCallable(pcd);
+                        if (isIdValid(called))
+                        {
+                            outCount++;
+                            boolean alive = exists(called);
+                            dbg(owner, "census: control device " + pcd + " (" + getTemplateName(pcd) + ") still points at " + called + ", exists=" + alive
+                                + (alive ? ", template " + getTemplateName(called) + ", stationed=" + isStationed(called) + ", " + describeSpot(getLocation(called)) : ""));
+                        }
+                    }
+                }
+                dbg(owner, "census: " + outCount + " control device(s) in your datapad point at a called-out creature");
+            }
+            obj_id[] listed = getOwnedDroids(owner);
+            dbg(owner, "census: " + listed.length + " droid(s) in your loose-droid list");
+            for (int i = 0; i < listed.length && i < 12; i++)
+            {
+                obj_id d = listed[i];
+                boolean alive = isIdValid(d) && exists(d);
+                dbg(owner, "census: listed droid " + d + " exists=" + alive + (alive ? ", " + getTemplateName(d) + ", " + describeSpot(getLocation(d)) + ", post ship " + getPostShip(d) : ""));
             }
             obj_id inventory = utils.getInventoryContainer(owner);
             if (isIdValid(inventory))
