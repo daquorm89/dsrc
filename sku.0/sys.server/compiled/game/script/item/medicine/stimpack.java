@@ -29,7 +29,7 @@ public class stimpack extends script.base_script
                 return SCRIPT_CONTINUE;
             }
         }
-        if (hasObjVar(self, "healing.combat_level_required"))
+        if (!script.library.static_item.NO_LEVEL_REQUIREMENTS && hasObjVar(self, "healing.combat_level_required"))
         {
             names[idx] = "healing_combat_level_required";
             int value = getIntObjVar(self, "healing.combat_level_required");
@@ -71,7 +71,7 @@ public class stimpack extends script.base_script
         {
             int level = getLevel(player);
             int requiredLevel = getIntObjVar(self, "healing.combat_level_required");
-            if (level < requiredLevel)
+            if (!script.library.static_item.NO_LEVEL_REQUIREMENTS && level < requiredLevel)
             {
                 sendSystemMessage(player, SID_ITEM_LEVEL_TOO_LOW);
                 return SCRIPT_OVERRIDE;

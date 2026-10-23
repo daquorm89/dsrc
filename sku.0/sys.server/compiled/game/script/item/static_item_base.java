@@ -174,7 +174,7 @@ public class static_item_base extends script.base_script
             return SCRIPT_CONTINUE;
         }
         int requiredLevelToEquip = itemData.getInt("required_level");
-        if (requiredLevelToEquip != 0 && !hasScript(self, "systems.combat.combat_weapon"))
+        if (!static_item.NO_LEVEL_REQUIREMENTS && requiredLevelToEquip != 0 && !hasScript(self, "systems.combat.combat_weapon"))
         {
             names[free] = utils.packStringId(new string_id("proc/proc", "required_combat_level"));
             attribs[free++] = Integer.toString(requiredLevelToEquip);

@@ -61,7 +61,7 @@ public class dynamic_armor extends script.base_script
             }
             int requiredLevel = getIntObjVar(self, "dynamic_item.intLevelRequired");
             int playerLevel = getLevel(transferer);
-            if (playerLevel < requiredLevel)
+            if (!static_item.NO_LEVEL_REQUIREMENTS && playerLevel < requiredLevel)
             {
                 sendSystemMessage(transferer, SID_ITEM_LEVEL_TOO_LOW);
                 canTransfer = false;
@@ -129,7 +129,7 @@ public class dynamic_armor extends script.base_script
             return SCRIPT_CONTINUE;
         }
         int requiredLevelToEquip = getIntObjVar(self, "dynamic_item.intLevelRequired");
-        if (requiredLevelToEquip != 0)
+        if (!static_item.NO_LEVEL_REQUIREMENTS && requiredLevelToEquip != 0)
         {
             names[free] = utils.packStringId(new string_id("proc/proc", "required_combat_level"));
             attribs[free++] = Integer.toString(requiredLevelToEquip);

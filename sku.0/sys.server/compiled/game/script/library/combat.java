@@ -2551,7 +2551,7 @@ public class combat extends script.base_script
         {
             int levelRequired = getIntObjVar(objWeapon, "dynamic_item.intLevelRequired");
             int playerLevel = getLevel(objPlayer);
-            if (playerLevel < levelRequired)
+            if (!static_item.NO_LEVEL_REQUIREMENTS && playerLevel < levelRequired)
             {
                 hasCert = false;
             }
@@ -2572,7 +2572,7 @@ public class combat extends script.base_script
             }
             int levelRequired = itemData.getInt("required_level");
             int playerLevel = getLevel(objPlayer);
-            if (playerLevel < levelRequired)
+            if (!static_item.NO_LEVEL_REQUIREMENTS && playerLevel < levelRequired)
             {
                 hasCert = false;
             }
