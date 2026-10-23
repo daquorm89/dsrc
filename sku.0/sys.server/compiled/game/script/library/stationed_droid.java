@@ -563,8 +563,14 @@ public class stationed_droid extends script.base_script
     // Owner decision 2026-10-23: chat debug lines OFF for normal play. Set to true and rebuild (utils/build_java_checked.sh) to see
     // the [droid <tag>] lines again (stow/restore steps, recoverIfFallen, hop speed, area scan, object census).
     public static final boolean DEBUG_MESSAGES = false;
+    /**
+     * Routine player notices sent on their own when the ship is stored or called ("... was stowed in your datapad while the ship is
+     * packed", "... is back at its post aboard the ship"). Owner decision 2026-10-23: off for a clean play session. Failure notices
+     * (droid could not be placed back / stowed / set loose) are NOT affected and always shown.
+     */
+    public static final boolean ROUTINE_NOTICES = false;
     /** Shown in every [droid] message so the chat log proves which build the server runs. Bump on every change. */
-    public static final String BUILD_TAG = "P18.21-1";
+    public static final String BUILD_TAG = "P18.21-2";
 
     public static void dbg(obj_id owner, String msg) throws InterruptedException
     {
@@ -765,7 +771,7 @@ public class stationed_droid extends script.base_script
                 if (stowDroid(c, ship))
                 {
                     stowed++;
-                    if (isIdValid(owner) && exists(owner))
+                    if (ROUTINE_NOTICES && isIdValid(owner) && exists(owner))
                     {
                         sendSystemMessageTestingOnly(owner, "Your droid " + name + " was stowed in your datapad while the ship is packed. It returns to its post when the ship is called out.");
                     }
@@ -945,7 +951,7 @@ public class stationed_droid extends script.base_script
                 {
                     stowed++;
                     LOG("stationed_droid", "sweepPackedShip: late stow of droid " + c + " from packed ship " + ship);
-                    if (isIdValid(owner) && exists(owner))
+                    if (ROUTINE_NOTICES && isIdValid(owner) && exists(owner))
                     {
                         sendSystemMessageTestingOnly(owner, "Your droid " + name + " was stowed in your datapad while the ship is packed. It returns to its post when the ship is called out.");
                     }
@@ -1519,7 +1525,10 @@ public class stationed_droid extends script.base_script
         applyMode(droid);
         messageTo(droid, "handleApplyMode", null, 2, false);
         clearRestoringFor(ship, droid);
-        sendSystemMessageTestingOnly(owner, "Your droid " + name + " is back at its post aboard the ship.");
+        if (ROUTINE_NOTICES)
+        {
+            sendSystemMessageTestingOnly(owner, "Your droid " + name + " is back at its post aboard the ship.");
+        }
         return false;
     }
 
