@@ -134,7 +134,7 @@ public class pasture_lib extends script.base_script
     public static final String OBJVAR_MATE_NEXT = "pasture.mate.nextAt";         // PCD: no new birth before this game time
 
     /** Shown in debug messages so a chat log proves which build runs. Bump on every change. */
-    public static final String BUILD_TAG = "PASTURE-4";
+    public static final String BUILD_TAG = "PASTURE-5";
     public static final boolean DEBUG_MESSAGES = false;
 
     public static string_id sid(String key)
@@ -341,9 +341,10 @@ public class pasture_lib extends script.base_script
         {
             return "You cannot do that during combat.";
         }
-        if (isSpaceScene() || isIdValid(space_transition.getContainingShip(player)) || isIdValid(space_transition.getContainingShip(pet)))
+        // Inside a POB ship is fine (see "ships" below); in space it is not.
+        if (isSpaceScene())
         {
-            return "Animals cannot be put out to pasture here.";
+            return "Animals cannot be put out to pasture in space.";
         }
         obj_id inv = utils.getInventoryContainer(pet);
         if (!isIdValid(inv) || !exists(inv))
@@ -449,6 +450,7 @@ public class pasture_lib extends script.base_script
             return false;
         }
         registerAnimal(owner, animal);
+        loadBreedingState(animal, pcd);
         return true;
     }
 
@@ -508,6 +510,7 @@ public class pasture_lib extends script.base_script
             return false;
         }
         pet_lib.savePetInfo(animal, pcd);
+        saveBreedingState(animal, pcd);
         unregisterAnimal(player, animal);
         utils.setScriptVar(animal, "stored", true);
         String name = displayName(animal);
@@ -567,6 +570,578 @@ public class pasture_lib extends script.base_script
         say(owner, "Your pastured " + displayName(animal) + " was returned to your datapad.");
         return true;
     }
+
+    // ---- breeding state that must survive retrieve / stow ------------------------------------
+
+    private static final String STOWED_DUE = "pasture.stowed.due";
+    private static final String STOWED_GENES = "pasture.stowed.genes";
+
+    /** A pregnant female keeps her pregnancy on her PCD while she is in the datapad. */
+    public static void saveBreedingState(obj_id animal, obj_id pcd) throws InterruptedException
+    {
+        if (!isIdValid(animal) || !isIdValid(pcd) || !hasObjVar(animal, OBJVAR_MATE_DUE))
+        {
+            return;
+        }
+        setObjVar(pcd, STOWED_DUE, getIntObjVar(animal, OBJVAR_MATE_DUE));
+        removeObjVar(pcd, STOWED_GENES);
+        moveGenes(animal, OBJVAR_MATE_GENES, pcd, STOWED_GENES);
+    }
+
+    public static void loadBreedingState(obj_id animal, obj_id pcd) throws InterruptedException
+    {
+        if (!isIdValid(animal) || !isIdValid(pcd) || !hasObjVar(pcd, STOWED_DUE))
+        {
+            return;
+        }
+        setObjVar(animal, OBJVAR_MATE_DUE, getIntObjVar(pcd, STOWED_DUE));
+        moveGenes(pcd, STOWED_GENES, animal, OBJVAR_MATE_GENES);
+        removeObjVar(pcd, STOWED_DUE);
+        removeObjVar(pcd, STOWED_GENES);
+    }
+
+    // ---- ships (POB) ------------------------------------------------------------------------
+    //
+    // Same idea as the stationed droids (P18.12-P18.21): an animal cannot stay in a cell while the hull is
+    // packed into its control device. So when the hull is packed every animal pastured aboard is STOWED: its
+    // PCD goes back to its owner's datapad and is locked (OBJVAR_ABOARD_SHIP, calling it by hand is refused),
+    // a record is written on the ship and the creature is destroyed. When the ship is called out again,
+    // ai.pasture_ship_restore recreates each animal from its PCD directly in its recorded room, puts it out
+    // to pasture again with the same mode and removes record and lock. The PCD is in the owner's datapad in
+    // between, so nothing is ever lost.
+    // Difference to the droids: the animal is NOT recreated as a follower pet (no pet call slot, no follow
+    // behaviour towards the owner, which is what warped restored droids out of the hull); it is created in
+    // the cell and parked at once.
+
+    public static final String SCRIPT_SHIP_RESTORE = "ai.pasture_ship_restore";
+    public static final String OBJVAR_ABOARD_SHIP = "pasture.aboardShip";   // PCD: packed ship it belongs to
+    public static final String OBJVAR_SHIP_RECORDS = "pasture.aboard";      // ship: String[] records
+    public static final float RESTORE_RETRY_SEC = 5.0f;
+    public static final int RESTORE_MAX_TRIES = 24;
+    public static final float AREA_SCAN_RANGE = 200.0f;
+    public static final float SHIP_LEASH_SLACK = 3.0f;
+    public static final float SHIP_MAX_RISE = 3.0f;
+
+    private static final int REC_PCD = 0;
+    private static final int REC_OWNER = 1;
+    private static final int REC_CELL = 2;
+    private static final int REC_X = 3;
+    private static final int REC_Y = 4;
+    private static final int REC_Z = 5;
+    private static final int REC_YAW = 6;
+    private static final int REC_MODE = 7;
+    private static final int REC_FIELDS = 8;
+
+    private static String[] decodeRecord(String raw)
+    {
+        if (raw == null)
+        {
+            return null;
+        }
+        String[] f = raw.split("\\|", -1);
+        return f.length == REC_FIELDS ? f : null;
+    }
+
+    private static obj_id parseId(String v)
+    {
+        try
+        {
+            return obj_id.getObjId(Long.parseLong(v));
+        }
+        catch (NumberFormatException e)
+        {
+            return null;
+        }
+    }
+
+    public static String[] getShipRecords(obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !hasObjVar(ship, OBJVAR_SHIP_RECORDS))
+        {
+            return new String[0];
+        }
+        String[] list = getStringArrayObjVar(ship, OBJVAR_SHIP_RECORDS);
+        return list == null ? new String[0] : list;
+    }
+
+    private static void setShipRecordFor(obj_id ship, obj_id pcd, String record) throws InterruptedException
+    {
+        java.util.List<String> list = new java.util.ArrayList<String>();
+        String prefix = pcd.toString() + "|";
+        for (String raw : getShipRecords(ship))
+        {
+            if (!raw.startsWith(prefix))
+            {
+                list.add(raw);
+            }
+        }
+        if (record != null)
+        {
+            list.add(record);
+        }
+        if (list.isEmpty())
+        {
+            removeObjVar(ship, OBJVAR_SHIP_RECORDS);
+        }
+        else
+        {
+            setObjVar(ship, OBJVAR_SHIP_RECORDS, list.toArray(new String[0]));
+        }
+    }
+
+    private static boolean shipHasRecordFor(obj_id ship, obj_id pcd) throws InterruptedException
+    {
+        String prefix = pcd.toString() + "|";
+        for (String raw : getShipRecords(ship))
+        {
+            if (raw.startsWith(prefix))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** True while the PCD's animal is stowed with a packed ship (it comes back with the ship). Self-releasing. */
+    public static boolean isAboardLocked(obj_id pcd) throws InterruptedException
+    {
+        if (!isIdValid(pcd) || !hasObjVar(pcd, OBJVAR_ABOARD_SHIP))
+        {
+            return false;
+        }
+        obj_id ship = getObjIdObjVar(pcd, OBJVAR_ABOARD_SHIP);
+        if (isIdValid(ship) && exists(ship) && shipHasRecordFor(ship, pcd))
+        {
+            return true;
+        }
+        removeObjVar(pcd, OBJVAR_ABOARD_SHIP);
+        return false;
+    }
+
+    private static boolean isCellOfShip(location loc, obj_id ship) throws InterruptedException
+    {
+        if (loc == null || !isIdValid(loc.cell) || !isIdValid(ship))
+        {
+            return false;
+        }
+        return getContainedBy(loc.cell) == ship || getTopMostContainer(loc.cell) == ship;
+    }
+
+    /** Pastured animals in the ship's rooms, plus animals of this ship that left the hull (area scan). */
+    private static java.util.List<obj_id> findAnimalsOfShip(obj_id ship) throws InterruptedException
+    {
+        java.util.List<obj_id> found = new java.util.ArrayList<obj_id>();
+        obj_id[] contents = space_transition.getAllObjectsInPob(ship);
+        if (contents != null)
+        {
+            for (obj_id c : contents)
+            {
+                if (isIdValid(c) && exists(c) && isPastured(c) && !found.contains(c))
+                {
+                    found.add(c);
+                }
+            }
+        }
+        for (obj_id c : areaAnimalsOfShip(ship))
+        {
+            if (!found.contains(c))
+            {
+                found.add(c);
+            }
+        }
+        return found;
+    }
+
+    /** Pastured animals within AREA_SCAN_RANGE of the ship whose pasture spot is inside this ship. */
+    private static java.util.List<obj_id> areaAnimalsOfShip(obj_id ship) throws InterruptedException
+    {
+        java.util.List<obj_id> mine = new java.util.ArrayList<obj_id>();
+        location shipLoc = getLocation(ship);
+        if (shipLoc == null || isIdValid(shipLoc.cell) || isSpaceScene())
+        {
+            return mine;
+        }
+        obj_id[] near = getCreaturesInRange(shipLoc, AREA_SCAN_RANGE);
+        if (near == null)
+        {
+            return mine;
+        }
+        for (obj_id c : near)
+        {
+            if (isIdValid(c) && exists(c) && isPastured(c) && ship.equals(getHomeShip(c)))
+            {
+                mine.add(c);
+            }
+        }
+        return mine;
+    }
+
+    /** Called just before a POB hull is packed. Returns the number of animals stowed. Never throws. */
+    public static int stowAnimalsAboard(obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !exists(ship))
+        {
+            return 0;
+        }
+        int stowed = 0;
+        for (obj_id c : findAnimalsOfShip(ship))
+        {
+            try
+            {
+                if (stowAnimal(c, ship))
+                {
+                    stowed++;
+                }
+                else
+                {
+                    ejectBesideShip(c, ship);
+                }
+            }
+            catch (Exception e)
+            {
+                LOG("pasture", "stowAnimalsAboard: exception on " + c + ": " + e);
+            }
+        }
+        if (stowed > 0)
+        {
+            LOG("pasture", "stowAnimalsAboard: ship=" + ship + " stowed=" + stowed);
+        }
+        return stowed;
+    }
+
+    /** Safety net right after the hull was packed: anything still in a cell is stowed (cannot be ejected any more). */
+    public static int sweepPackedShip(obj_id ship) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !exists(ship))
+        {
+            return 0;
+        }
+        int stowed = 0;
+        for (obj_id c : findAnimalsOfShip(ship))
+        {
+            try
+            {
+                if (stowAnimal(c, ship))
+                {
+                    stowed++;
+                    LOG("pasture", "sweepPackedShip: late stow of " + c + " from packed ship " + ship);
+                }
+                else
+                {
+                    LOG("pasture", "sweepPackedShip: " + c + " left in packed ship " + ship + " (owner not loaded?)");
+                }
+            }
+            catch (Exception e)
+            {
+                LOG("pasture", "sweepPackedShip: exception on " + c + ": " + e);
+            }
+        }
+        return stowed;
+    }
+
+    /** PCD back to the owner's datapad (locked), record on the ship, creature destroyed. Fails before writing anything. */
+    private static boolean stowAnimal(obj_id animal, obj_id ship) throws InterruptedException
+    {
+        obj_id owner = getPastureOwner(animal);
+        obj_id pcd = getParkedPcd(animal);
+        if (!isIdValid(owner) || !exists(owner) || !isIdValid(pcd) || !exists(pcd))
+        {
+            dbg(owner, "stowAnimal: " + animal + " not stowed: owner or PCD not loaded");
+            return false;
+        }
+        obj_id datapad = utils.getPlayerDatapad(owner);
+        if (!isIdValid(datapad) || !exists(datapad))
+        {
+            return false;
+        }
+        location spot = getHome(animal);
+        if (!isCellOfShip(spot, ship))
+        {
+            spot = getLocation(animal);
+        }
+        if (!isCellOfShip(spot, ship))
+        {
+            dbg(owner, "stowAnimal: " + animal + " not stowed: neither its pasture spot nor its position is in ship " + ship);
+            return false;
+        }
+        String cellName = getCellName(spot.cell);
+        if (cellName == null || cellName.length() == 0 || cellName.indexOf('|') >= 0)
+        {
+            return false;
+        }
+        String record = pcd.toString() + "|" + owner.toString() + "|" + cellName + "|" + spot.x + "|" + spot.y + "|" + spot.z + "|" + getYaw(animal) + "|" + getMode(animal);
+        stop(animal);
+        if (!returnPcdToDatapad(animal, pcd, datapad))
+        {
+            return false;
+        }
+        pet_lib.savePetInfo(animal, pcd);
+        saveBreedingState(animal, pcd);
+        setObjVar(pcd, OBJVAR_ABOARD_SHIP, ship);
+        setShipRecordFor(ship, pcd, record);
+        if (!hasScript(ship, SCRIPT_SHIP_RESTORE))
+        {
+            attachScript(ship, SCRIPT_SHIP_RESTORE);
+        }
+        unregisterAnimal(owner, animal);
+        utils.setScriptVar(animal, "stored", true);
+        destroyObject(animal);
+        return true;
+    }
+
+    /** Fallback when an animal cannot be stowed: it goes on the ground beside the ship (its new pasture spot). */
+    private static void ejectBesideShip(obj_id animal, obj_id ship) throws InterruptedException
+    {
+        location shipLoc = getLocation(ship);
+        if (shipLoc == null || isIdValid(shipLoc.cell) || isSpaceScene())
+        {
+            return;
+        }
+        location dest = new location(shipLoc.x + 3.0f, shipLoc.y, shipLoc.z + 3.0f, shipLoc.area);
+        float h = getHeightAtLocation(dest.x, dest.z);
+        if (h == h)
+        {
+            dest.y = h;
+        }
+        stop(animal);
+        if (setLocation(animal, dest))
+        {
+            setObjVar(animal, OBJVAR_HOME, dest);
+            obj_id owner = getPastureOwner(animal);
+            if (isIdValid(owner) && exists(owner))
+            {
+                say(owner, "Your " + displayName(animal) + " could not be stowed with the ship and was put out to pasture beside it.");
+            }
+        }
+    }
+
+    /** True when this ship (out in the world) has animals to bring back. */
+    public static boolean needsRestorePass(obj_id ship) throws InterruptedException
+    {
+        return isIdValid(ship) && hasObjVar(ship, OBJVAR_SHIP_RECORDS);
+    }
+
+    private static void giveUpRestore(obj_id ship, obj_id pcd, obj_id owner, String why) throws InterruptedException
+    {
+        setShipRecordFor(ship, pcd, null);
+        if (isIdValid(pcd) && exists(pcd))
+        {
+            removeObjVar(pcd, OBJVAR_ABOARD_SHIP);
+            say(owner, "A pastured animal could not be returned aboard the ship (" + why + "). It is in your datapad: call it and pasture it again.");
+        }
+    }
+
+    /**
+     * One restore pass over a ship that is out on a planet: every record whose owner is on this server is
+     * turned back into a pastured animal in its room. Returns true when another pass should follow.
+     */
+    public static boolean restoreAnimalsAboard(obj_id ship, int attempt) throws InterruptedException
+    {
+        if (!isIdValid(ship) || !exists(ship) || isIdValid(getContainedBy(ship)) || isSpaceScene())
+        {
+            return false;   // packed, gone or in space: records stay for a later unpack
+        }
+        if (attempt == 0)
+        {
+            recoverFallenAnimals(ship);
+        }
+        boolean retry = false;
+        boolean lastTry = attempt >= RESTORE_MAX_TRIES - 1;
+        for (String raw : getShipRecords(ship))
+        {
+            String[] r = decodeRecord(raw);
+            obj_id pcd = r == null ? null : parseId(r[REC_PCD]);
+            obj_id owner = r == null ? null : parseId(r[REC_OWNER]);
+            if (!isIdValid(pcd) || !isIdValid(owner))
+            {
+                LOG("pasture", "restore: dropping malformed record on ship " + ship + ": " + raw);
+                java.util.List<String> keep = new java.util.ArrayList<String>(java.util.Arrays.asList(getShipRecords(ship)));
+                keep.remove(raw);
+                if (keep.isEmpty())
+                {
+                    removeObjVar(ship, OBJVAR_SHIP_RECORDS);
+                }
+                else
+                {
+                    setObjVar(ship, OBJVAR_SHIP_RECORDS, keep.toArray(new String[0]));
+                }
+                continue;
+            }
+            if (!exists(owner))
+            {
+                continue;   // owner not on this server: wait for a later unpack
+            }
+            if (!exists(pcd) || !hasObjVar(pcd, OBJVAR_ABOARD_SHIP) || !ship.equals(getObjIdObjVar(pcd, OBJVAR_ABOARD_SHIP)))
+            {
+                setShipRecordFor(ship, pcd, null);   // PCD gone or released: nothing to restore
+                continue;
+            }
+            obj_id datapad = utils.getPlayerDatapad(owner);
+            if (!isIdValid(datapad) || getContainedBy(pcd) != datapad)
+            {
+                giveUpRestore(ship, pcd, owner, "its control device is not in your datapad");
+                continue;
+            }
+            obj_id cell = getCellId(ship, r[REC_CELL]);
+            location spot = null;
+            float yaw = 0.0f;
+            int mode = MODE_ROAM;
+            try
+            {
+                if (isIdValid(cell))
+                {
+                    location shipLoc = getLocation(ship);
+                    spot = new location(Float.parseFloat(r[REC_X]), Float.parseFloat(r[REC_Y]), Float.parseFloat(r[REC_Z]), shipLoc.area, cell);
+                }
+                yaw = Float.parseFloat(r[REC_YAW]);
+                mode = Integer.parseInt(r[REC_MODE]);
+            }
+            catch (NumberFormatException e)
+            {
+                spot = null;
+            }
+            if (spot == null)
+            {
+                giveUpRestore(ship, pcd, owner, "its spot no longer exists");
+                continue;
+            }
+            obj_id animal = materializeFromPcd(pcd, owner, spot, mode == MODE_STAY ? MODE_STAY : MODE_ROAM, yaw);
+            if (isIdValid(animal))
+            {
+                setShipRecordFor(ship, pcd, null);
+                removeObjVar(pcd, OBJVAR_ABOARD_SHIP);
+                dbg(owner, "restore: " + animal + " back aboard ship " + ship + " in " + r[REC_CELL]);
+            }
+            else if (lastTry)
+            {
+                giveUpRestore(ship, pcd, owner, "it could not be created");
+            }
+            else
+            {
+                retry = true;
+            }
+        }
+        return retry;
+    }
+
+    /**
+     * Creates the animal of a stored PCD (PCD in the owner's datapad) directly at spot and puts it out to
+     * pasture. Never goes through the pet call path. Returns the animal, or null (the PCD then stays
+     * usable in the datapad).
+     */
+    public static obj_id materializeFromPcd(obj_id pcd, obj_id owner, location spot, int mode, float yaw) throws InterruptedException
+    {
+        String species = getStringObjVar(pcd, "pet.creatureName");
+        if (species == null || species.length() == 0)
+        {
+            return null;
+        }
+        obj_id animal = create.object(species, spot, true, true);
+        if (!isIdValid(animal))
+        {
+            return null;
+        }
+        stop(animal);
+        location at = getLocation(animal);
+        if (at == null || (isIdValid(spot.cell) && !spot.cell.equals(at.cell)))
+        {
+            setLocation(animal, spot);
+        }
+        aiSetHomeLocation(animal, spot);
+        callable.setCallableCD(animal, pcd);
+        callable.setCDCallable(pcd, animal);
+        applyPcdLook(animal, pcd);
+        if (hasObjVar(pcd, "pet.mountName"))
+        {
+            setName(animal, getStringObjVar(pcd, "pet.mountName"));
+        }
+        else if (hasObjVar(pcd, "pet.petName"))
+        {
+            setName(animal, getStringObjVar(pcd, "pet.petName"));
+        }
+        else
+        {
+            String name = getAssignedName(pcd);
+            if (name != null && name.length() > 0)
+            {
+                setName(animal, name);
+            }
+        }
+        setMaster(animal, owner);
+        if (!parkIntoPasture(animal, owner, pcd, spot))
+        {
+            callable.setCDCallable(pcd, null);
+            utils.setScriptVar(animal, "stored", true);
+            destroyObject(animal);
+            return null;
+        }
+        setObjVar(animal, OBJVAR_MODE, mode);
+        setYaw(animal, yaw);
+        finishPasture(animal);
+        return animal;
+    }
+
+    /** True when an animal pastured aboard stands where it belongs: a room of its ship, near its spot. */
+    public static boolean isHeldInShip(obj_id animal, location home) throws InterruptedException
+    {
+        location cur = getLocation(animal);
+        if (cur == null || home == null || !isIdValid(cur.cell))
+        {
+            return false;
+        }
+        if (!cur.cell.equals(home.cell))
+        {
+            obj_id homeShip = space_transition.getContainingShip(home.cell);
+            return isIdValid(homeShip) && space_transition.getContainingShip(cur.cell) == homeShip;
+        }
+        float dx = cur.x - home.x;
+        float dz = cur.z - home.z;
+        float max = getRoamRange(animal) + SHIP_LEASH_SLACK + (ai_lib.isInCombat(animal) ? 10.0f : 0.0f);
+        return dx * dx + dz * dz <= max * max && Math.abs(cur.y - home.y) <= SHIP_MAX_RISE;
+    }
+
+    /**
+     * An animal whose pasture spot is in a ship that is out in the world, but which is not held there (walked
+     * out through a door or wall, or warped): put back on its spot. The spot is never rewritten. Returns true
+     * when it was moved.
+     */
+    public static boolean recoverIfOutOfShip(obj_id animal) throws InterruptedException
+    {
+        if (isSpaceScene())
+        {
+            return false;
+        }
+        obj_id ship = getHomeShip(animal);
+        if (!isIdValid(ship) || !exists(ship) || isIdValid(getContainedBy(ship)))
+        {
+            return false;
+        }
+        location home = getLocationObjVar(animal, OBJVAR_HOME);
+        if (isHeldInShip(animal, home))
+        {
+            return false;
+        }
+        LOG("pasture", "recoverIfOutOfShip: " + animal + " at " + getLocation(animal) + " put back on " + home);
+        stop(animal);
+        clearFollowState(animal);
+        aiSetHomeLocation(animal, home);
+        return setLocation(animal, home);
+    }
+
+    public static int recoverFallenAnimals(obj_id ship) throws InterruptedException
+    {
+        int n = 0;
+        for (obj_id c : areaAnimalsOfShip(ship))
+        {
+            if (recoverIfOutOfShip(c))
+            {
+                messageTo(c, "handleApplyMode", null, 1, false);
+                n++;
+            }
+        }
+        return n;
+    }
+
 
     // ---- orders ------------------------------------------------------------------------
 
@@ -1024,7 +1599,10 @@ public class pasture_lib extends script.base_script
             {
                 obj_var ov = pal.getObjVar(i);
                 setObjVar(to, toPrefix + ".palvar." + ov.getName(), ov.getIntData());
-                hue.setColor(to, ov.getName(), ov.getIntData());
+                if (isMob(to))
+                {
+                    hue.setColor(to, ov.getName(), ov.getIntData());
+                }
             }
         }
     }

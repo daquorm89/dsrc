@@ -647,6 +647,18 @@ public class space_transition extends script.base_script
         {
             LOG("space_transition", "stowLooseDroidsAboard failed for ship=" + ship + ": " + e);
         }
+        // Pastured animals aboard (script.library.pasture_lib) are stowed the same way.
+        try
+        {
+            if (isIdValid(ship) && space_utils.isShipWithInterior(ship))
+            {
+                pasture_lib.stowAnimalsAboard(ship);
+            }
+        }
+        catch (Exception e)
+        {
+            LOG("space_transition", "pasture stowAnimalsAboard failed for ship=" + ship + ": " + e);
+        }
     }
     /**
      * Counterpart of stowLooseDroidsAboard: called when a ship has been taken out of its control device.
@@ -673,6 +685,23 @@ public class space_transition extends script.base_script
         {
             LOG("space_transition", "restoreLooseDroidsAboard failed for ship=" + ship + ": " + e);
         }
+        try
+        {
+            if (isIdValid(ship) && pasture_lib.needsRestorePass(ship))
+            {
+                if (!hasScript(ship, pasture_lib.SCRIPT_SHIP_RESTORE))
+                {
+                    attachScript(ship, pasture_lib.SCRIPT_SHIP_RESTORE);
+                }
+                dictionary pastureParams = new dictionary();
+                pastureParams.put("attempt", 0);
+                messageTo(ship, "handleRestorePasture", pastureParams, 3.0f, false);
+            }
+        }
+        catch (Exception e)
+        {
+            LOG("space_transition", "pasture restore failed for ship=" + ship + ": " + e);
+        }
     }
     /**
      * Safety net after the hull went into its control device: a droid that was still standing in a cell
@@ -692,6 +721,17 @@ public class space_transition extends script.base_script
         catch (Exception e)
         {
             LOG("space_transition", "sweepPackedShipDroids failed for ship=" + ship + ": " + e);
+        }
+        try
+        {
+            if (isIdValid(ship) && space_utils.isShipWithInterior(ship))
+            {
+                pasture_lib.sweepPackedShip(ship);
+            }
+        }
+        catch (Exception e)
+        {
+            LOG("space_transition", "pasture sweepPackedShip failed for ship=" + ship + ": " + e);
         }
     }
     public static obj_id[] getAllObjectsInPob(obj_id pob) throws InterruptedException

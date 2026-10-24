@@ -18,6 +18,8 @@ public class pasture extends script.base_script
     public static final String SCRIPTVAR_ROAM_TICK = "pasture.roamTick";
     public static final String SCRIPTVAR_MOVING = "pasture.moving";
     public static final String SCRIPTVAR_PASTURE_TICK = "pasture.tick";
+    public static final String SCRIPTVAR_SHIP_WATCH = "pasture.shipWatch";
+    public static final float SHIP_WATCH_SEC = 2.0f;
     public static final float MAX_MENU_DISTANCE = 15.0f;
     public static final float TURN_FIRST_MIN_DEG = 25.0f;
     public static final float TURN_DEG_PER_SEC = 150.0f;
@@ -112,6 +114,7 @@ public class pasture extends script.base_script
         removeTriggerVolume(ai_lib.AGGRO_VOLUME_NAME);
         pasture_lib.applyMode(self);
         startPastureTick(self);
+        startShipWatch(self);
         utils.removeScriptVar(self, SCRIPTVAR_MOVING);
         if (pasture_lib.getMode(self) == pasture_lib.MODE_ROAM)
         {
@@ -122,6 +125,40 @@ public class pasture extends script.base_script
             // Bump the chain id so a pending roam message stops itself.
             utils.setScriptVar(self, SCRIPTVAR_ROAM_TICK, utils.getIntScriptVar(self, SCRIPTVAR_ROAM_TICK) + 1);
         }
+        return SCRIPT_CONTINUE;
+    }
+
+    // ---- ships: an animal pastured aboard a POB is kept inside the hull ----------------------
+
+    private void startShipWatch(obj_id self) throws InterruptedException
+    {
+        int tick = utils.getIntScriptVar(self, SCRIPTVAR_SHIP_WATCH) + 1;
+        utils.setScriptVar(self, SCRIPTVAR_SHIP_WATCH, tick);
+        if (!isIdValid(pasture_lib.getHomeShip(self)))
+        {
+            return;
+        }
+        pasture_lib.recoverIfOutOfShip(self);
+        dictionary d = new dictionary();
+        d.put("tick", tick);
+        messageTo(self, "handleShipWatch", d, SHIP_WATCH_SEC, false);
+    }
+
+    public int handleShipWatch(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (params == null || params.getInt("tick") != utils.getIntScriptVar(self, SCRIPTVAR_SHIP_WATCH) || !pasture_lib.isPastured(self) || !isIdValid(pasture_lib.getHomeShip(self)))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (pasture_lib.recoverIfOutOfShip(self))
+        {
+            utils.removeScriptVar(self, SCRIPTVAR_MOVING);
+            if (pasture_lib.getMode(self) == pasture_lib.MODE_ROAM)
+            {
+                scheduleRoam(self, 2.0f);
+            }
+        }
+        messageTo(self, "handleShipWatch", params, SHIP_WATCH_SEC, false);
         return SCRIPT_CONTINUE;
     }
 
@@ -212,6 +249,12 @@ public class pasture extends script.base_script
         }
         if (!sameCell(cur.cell, home.cell))
         {
+            if (isIdValid(pasture_lib.getHomeShip(self)))
+            {
+                // Aboard a ship: never walk through the hull; a misplaced animal is put back on its spot.
+                pasture_lib.recoverIfOutOfShip(self);
+                return null;
+            }
             // Wandered into another room or out of a building: walk back towards the pasture spot.
             return home;
         }
@@ -370,6 +413,7 @@ public class pasture extends script.base_script
         }
         stop(self);
         utils.removeScriptVar(self, SCRIPTVAR_MOVING);
+        pasture_lib.recoverIfOutOfShip(self);
         if (pasture_lib.getMode(self) == pasture_lib.MODE_ROAM)
         {
             scheduleRoam(self, quickRetry());
