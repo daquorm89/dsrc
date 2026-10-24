@@ -333,6 +333,8 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
         }
 //        sendSystemMessageTestingOnly(master, "TAMEDEBUG: SUCCESS petControlDevice=" + petControlDevice);
         setUpPetControlDevice(petControlDevice, pet);
+        // A wild baby born in a pasture carries its parents' genes (script.library.pasture_lib).
+        pasture_lib.applyWildGenesOnTame(pet, petControlDevice);
         if (hasObjVar(pet, "ai.petAbility.wildAbility"))
         {
             String wildAbility = getStringObjVar(pet, "ai.petAbility.wildAbility");

@@ -214,6 +214,12 @@ public class pet_control_device extends script.base_script
         }
         if (item == menu_info_types.PET_CALL)
         {
+            if (script.library.pasture_lib.isAboardLocked(self))
+            {
+                // Pastured animal stowed with a packed ship: it comes back by itself when the ship is called out.
+                sendSystemMessageTestingOnly(player, "This animal is out to pasture aboard your ship. It returns when the ship is called out.");
+                return SCRIPT_CONTINUE;
+            }
             if (script.library.stationed_droid.isAboardLocked(self))
             {
                 // Loose droid stowed with a packed ship: it comes back by itself when the ship is called out.

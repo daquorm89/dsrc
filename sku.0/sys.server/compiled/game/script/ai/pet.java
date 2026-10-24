@@ -1516,6 +1516,10 @@ public class pet extends script.base_script
                 if (!pet_lib.isMountedOnCreatureQueried(self, player))
                 {
                     mi.addRootMenu(menu_info_types.PET_STORE, new string_id(MENU_FILE, "menu_store"));
+                    if (pasture_lib.canOfferPasture(self, player))
+                    {
+                        mi.addRootMenu(menu_info_types.SERVER_MENU8, new string_id(MENU_FILE, "pasture_set"));
+                    }
                 }
             }
         }
@@ -1612,6 +1616,12 @@ public class pet extends script.base_script
         {
             // Fully qualified: script.ai.stationed_droid (the behaviour script) shadows the library.
             script.library.stationed_droid.setLoose(self, player);
+            return SCRIPT_CONTINUE;
+        }
+        if (item == menu_info_types.SERVER_MENU8 && !pet_lib.isDroidPet(self))
+        {
+            // Creature pets: put out to pasture (script.library.pasture_lib).
+            pasture_lib.setPasture(self, player);
             return SCRIPT_CONTINUE;
         }
         if (item == menu_info_types.ITEM_ACTIVATE)
