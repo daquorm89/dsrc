@@ -899,7 +899,7 @@ public class combat_base extends script.base_script
      * playback. A MOUNTED rider who aims at the ground (or next to a creature) has no defender, so the damage lands but no impact is shown. For those
      * shots the server plays the weapon's impact effect at the aimed point. Riders on foot are not touched. Add weapons in getGroundImpactEffect.
      */
-    public static final boolean GROUND_IMPACT_EFFECTS = true;
+    public static final boolean GROUND_IMPACT_EFFECTS = false;   // stopgap, wrong asset; superseded by the client local-playback fix. Re-enable if that is not enough.
     public String getGroundImpactEffect(String actionName)
     {
         if ("fireLightningBeam".equals(actionName))

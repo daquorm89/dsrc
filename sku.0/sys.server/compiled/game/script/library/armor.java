@@ -711,7 +711,7 @@ public class armor extends script.base_script
             CustomerServiceLog("armor", "WARNING: could not determine armor type for armor " + armorPiece);
             return false;
         }
-        return hasCommand(player, "wear_all_armor");
+        return static_item.NO_ARMOR_SKILL_REQUIREMENTS || hasCommand(player, "wear_all_armor");
     }
     public static float convertArmorData(float value, int fromRow, int toRow, String column) throws InterruptedException
     {
