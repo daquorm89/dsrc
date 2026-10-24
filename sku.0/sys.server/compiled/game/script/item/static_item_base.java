@@ -59,7 +59,8 @@ public class static_item_base extends script.base_script
                 sendSystemMessage(transferer, SID_ITEM_LEVEL_TOO_LOW);
                 canTransfer = false;
             }
-            if (requiredSkill != null && !requiredSkill.equals(""))
+            boolean skipArmorSkill = static_item.NO_ARMOR_SKILL_REQUIREMENTS && isGameObjectTypeOf(getGameObjectType(self), GOT_armor);
+            if (!skipArmorSkill && requiredSkill != null && !requiredSkill.equals(""))
             {
                 String classTemplate = getSkillTemplate(transferer);
                 if (classTemplate != null && !classTemplate.equals(""))
@@ -71,7 +72,7 @@ public class static_item_base extends script.base_script
                     }
                 }
             }
-            if (hasObjVar(self, "armor.fake_armor"))
+            if (!skipArmorSkill && hasObjVar(self, "armor.fake_armor"))
             {
                 int ohMyGOT = getGameObjectType(self);
                 if (!hasCommand(transferer, "wear_all_armor") && isGameObjectTypeOf(ohMyGOT, GOT_armor))

@@ -67,7 +67,7 @@ public class dynamic_armor extends script.base_script
                 canTransfer = false;
             }
             String requiredSkill = getStringObjVar(self, "dynamic_item.required_skill");
-            if (requiredSkill != null && !requiredSkill.equals(""))
+            if (!static_item.NO_ARMOR_SKILL_REQUIREMENTS && requiredSkill != null && !requiredSkill.equals(""))
             {
                 String classTemplate = getSkillTemplate(transferer);
                 if (classTemplate != null && !classTemplate.equals(""))
@@ -79,7 +79,7 @@ public class dynamic_armor extends script.base_script
                     }
                 }
             }
-            if (hasObjVar(self, "armor.fake_armor"))
+            if (!static_item.NO_ARMOR_SKILL_REQUIREMENTS && hasObjVar(self, "armor.fake_armor"))
             {
                 int ohMyGOT = getGameObjectType(self);
                 if (!hasCommand(transferer, "wear_all_armor") && isGameObjectTypeOf(ohMyGOT, GOT_armor))

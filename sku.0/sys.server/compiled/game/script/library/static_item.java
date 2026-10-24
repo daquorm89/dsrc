@@ -32,6 +32,13 @@ public class static_item extends script.base_script
      * Note: javac inlines this constant into every script that uses it; after changing it rebuild all scripts that mention it.
      */
     public static final boolean NO_LEVEL_REQUIREMENTS = true;
+    /**
+     * Pre-CU: armor is not blocked by skill requirements. true = the class-skill check ("required_skill" / "dynamic_item.required_skill") and the
+     * armor certification check (command "wear_all_armor", also for "armor.fake_armor" items) no longer refuse an armor item with
+     * "you lack the required skill to use this" (base_player:not_correct_skill / spam:armor_no_cert). Species restrictions, faction restrictions and
+     * mando armor are NOT affected. Javac inlines this constant: rebuild static_item, armor, dynamic_armor, static_item_base when it changes.
+     */
+    public static final boolean NO_ARMOR_SKILL_REQUIREMENTS = true;
     public static final string_id SID_UNIQUE_NO_CREATE = new string_id("base_player", "unique_failed_create");
     public static final string_id SID_ITEM_NOT_ENOUGH_SKILL = new string_id("base_player", "not_correct_skill");
     public static final String STATIC_ITEM_NAME = "static_item_n";
