@@ -170,10 +170,6 @@ public class combat_base extends script.base_script
         {
             isAutoAiming = utils.getBooleanScriptVar(objWeapon, "isAutoAimed");
         }
-        if (isGroundTarget)
-        {
-            mountHeavyDiag(self, "action=" + actionName + " params=[" + params + "] target=" + target + " parsedLoc=" + targetLoc + " autoAim=" + isAutoAiming + " locationOk=" + isLocationTargetOk + " special=" + (actionData.commandType == combat.RIGHT_CLICK_SPECIAL));
-        }
         boolean isSpecialAttack = actionData.commandType == combat.RIGHT_CLICK_SPECIAL;
         int hitType = actionData.hitType;
         boolean isDelayedAttack = false;
@@ -262,10 +258,6 @@ public class combat_base extends script.base_script
             obj_id[] defenders = getCombatDefenders(self, combatTarget, weaponData, actionData, isSpecialAttack);
             if (defenders == null || defenders.length == 0)
             {
-                if (isGroundTarget)
-                {
-                    mountHeavyDiag(self, "stopped: no valid targets (defenders=0) at " + actionData.targetLoc);
-                }
                 combat.combatLog(self, target, "combatStandardAction", "Attack Failed - No valid targets");
                 if (weaponData.weaponType == WEAPON_TYPE_DIRECTIONAL && !isEggWeapon)
                 {
@@ -485,7 +477,6 @@ public class combat_base extends script.base_script
             atkRslt.endPosture = (combat.isMeleeWeapon(weaponData.id) || combat.isLightsaberWeapon(weaponData.id)) ? POSTURE_UPRIGHT : getPosture(self);
             String anim = actionData.animDefault;
             doCombatResults(anim, atkRslt, dfndRslt);
-            playGroundImpactEffect(self, actionName, combatTarget, targetLoc);
         }
         if ((isDelayedAttack) && (!isTangibleAttacking))
         {
@@ -823,10 +814,6 @@ public class combat_base extends script.base_script
         }
         if (!isInAttackRange(attackerData.id, defenderData[0].id, actionData, weaponData, verbose))
         {
-            if (weaponData.weaponType == WEAPON_TYPE_GROUND_TARGETTING)
-            {
-                mountHeavyDiag(attackerData.id, "stopped: isInAttackRange failed (defender " + defenderData[0].id + ")");
-            }
             return false;
         }
         boolean cansee = false;
@@ -862,10 +849,6 @@ public class combat_base extends script.base_script
         }
         if (!cansee)
         {
-            if (weaponData.weaponType == WEAPON_TYPE_GROUND_TARGETTING)
-            {
-                mountHeavyDiag(attackerData.id, "stopped: line of sight to " + actionData.targetLoc + " failed");
-            }
             if (verbose)
             {
                 showFlyTextPrivate(attackerData.id, attackerData.id, new string_id("combat_effects", "cant_see"), 1.5f, colors.MEDIUMTURQUOISE);
@@ -888,60 +871,6 @@ public class combat_base extends script.base_script
             }
         }
         return null;
-    }
-    /**
-     * TEMPORARY diagnostic (mounted free-targeted heavy weapons): chat lines to a MOUNTED player who fires a ground-targeting weapon, saying
-     * what the server received and which gate stopped the shot. Normal weapons and riders on foot stay silent. Set to false once solved.
-     */
-    public static final boolean MOUNT_HEAVY_DEBUG = true;
-    /**
-     * The client draws the impact visual of a heavy weapon (e.g. the lightning sphere of the lightning rifle) on the DEFENDER of the shooter's own
-     * playback. A MOUNTED rider who aims at the ground (or next to a creature) has no defender, so the damage lands but no impact is shown. For those
-     * shots the server plays the weapon's impact effect at the aimed point. Riders on foot are not touched. Add weapons in getGroundImpactEffect.
-     */
-    public static final boolean GROUND_IMPACT_EFFECTS = false;   // stopgap, wrong asset; superseded by the client local-playback fix. Re-enable if that is not enough.
-    public String getGroundImpactEffect(String actionName)
-    {
-        if ("fireLightningBeam".equals(actionName))
-        {
-            return "clienteffect/combat_lightning_rifle_hit.cef";
-        }
-        return null;
-    }
-    public void playGroundImpactEffect(obj_id self, String actionName, obj_id combatTarget, location targetLoc) throws InterruptedException
-    {
-        if (!GROUND_IMPACT_EFFECTS || targetLoc == null || !isIdValid(self) || !isPlayer(self) || getState(self, STATE_RIDING_MOUNT) <= 0)
-        {
-            return;
-        }
-        String effect = getGroundImpactEffect(actionName);
-        if (effect == null)
-        {
-            return;
-        }
-        // The client already shows the impact on the target when the aimed point is on it.
-        if (isIdValid(combatTarget) && exists(combatTarget))
-        {
-            location targetPosition = getLocation(combatTarget);
-            if (targetPosition != null && getDistance(targetLoc, targetPosition) <= 3.0f)
-            {
-                return;
-            }
-        }
-        obj_id[] viewers = getPlayerCreaturesInRange(targetLoc, 100.0f);
-        if (viewers == null || viewers.length == 0)
-        {
-            viewers = new obj_id[]{self};
-        }
-        playClientEffectLoc(viewers, effect, targetLoc, 0.0f);
-        mountHeavyDiag(self, "ground impact effect " + effect + " played at " + targetLoc + " for " + viewers.length + " viewer(s)");
-    }
-    public void mountHeavyDiag(obj_id self, String msg) throws InterruptedException
-    {
-        if (MOUNT_HEAVY_DEBUG && isIdValid(self) && isPlayer(self) && getState(self, STATE_RIDING_MOUNT) > 0)
-        {
-            sendSystemMessageTestingOnly(self, "MOUNTHEAVY: " + msg);
-        }
     }
     public obj_id[] getCombatDefenders(obj_id self, obj_id target, weapon_data weaponData, combat_data actionData, boolean isSpecialAttack) throws InterruptedException
     {
