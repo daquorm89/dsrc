@@ -94,6 +94,29 @@ public class pasture_lib extends script.base_script
     /** Interval of the pasture tick (growth + mating), see ai.pasture.handlePastureTick. */
     public static final float PASTURE_TICK_SEC = 300.0f;
 
+    // ---- inheritance (breeding to improve) -------------------------------------------------
+    // A baby inherits from BOTH parents: each inherited value is the average of the two parents times
+    // (1 + a random modifier between BREED_MUTATION_MIN and BREED_MUTATION_MAX, plus up to
+    // BREED_HANDLER_BONUS for the female owner's creature training skill). The modifier leans upward, so
+    // pairing the best animals each generation improves the line. Works for tamed AND bio-engineered pets:
+    // a parent without stored stats (a normal tamed pet) counts with the natural values of its species
+    // at its level. Inherited: level, armour, crit chance, crit save, state resist, aggro bonus, size
+    // (each mutated), colours, special attacks and ranged attack (taken from one parent at random).
+    // Health, to-hit, defence and damage are written to match the inherited level, because on this server
+    // pet_lib.setCraftedPetStatsByGrowth derives those four from the level (stat_balance) anyway.
+    public static final float BREED_MUTATION_MIN = -0.05f;
+    public static final float BREED_MUTATION_MAX = 0.10f;
+    public static final float BREED_HANDLER_BONUS = 0.05f;          // at private_creature_training 100
+    public static final int BREED_MAX_LEVEL = 90;
+    public static final String SKILLMOD_BREEDING = "private_creature_training";
+    public static final String OBJVAR_GENERATION = "pasture.generation";         // PCD: 0 = tamed / crafted, n = bred
+    public static final String OBJVAR_MATE_GENES = "pasture.mate.genes";         // female: genes fixed at conception
+    public static final String OBJVAR_WILD_GENES = "pasture.genes";              // wild baby: applied when it is tamed
+    private static final String[] GENE_MUTATE_INT = { "level", "general_protection" };
+    private static final String[] GENE_MUTATE_FLOAT = { "critChance", "critSave", "stateResist", "aggroBonus" };
+    private static final String[] GENE_PICK_INT = { "hue", "specialAttack1", "specialAttack2" };
+    private static final String[] GENE_PICK_STRING = { "rangedWeapon" };
+
     // ---- mating (part 2) ------------------------------------------------------------------
     // A pastured adult female with a pastured adult male of the same species within MATE_RANGE
     // collects "mating time" on every PASTURE_TICK_SEC tick; when MATE_TIME_SEC is reached she gives
@@ -111,7 +134,7 @@ public class pasture_lib extends script.base_script
     public static final String OBJVAR_MATE_NEXT = "pasture.mate.nextAt";         // PCD: no new birth before this game time
 
     /** Shown in debug messages so a chat log proves which build runs. Bump on every change. */
-    public static final String BUILD_TAG = "PASTURE-3";
+    public static final String BUILD_TAG = "PASTURE-4";
     public static final boolean DEBUG_MESSAGES = false;
 
     public static string_id sid(String key)
@@ -632,6 +655,8 @@ public class pasture_lib extends script.base_script
         obj_id pcd = getParkedPcd(animal);
         int stage = getGrowthStage(pcd);
         String text = displayName(animal) + ": " + genderName(getPastureGender(pcd)) + ", " + (stage >= 10 ? "adult" : "young (growth " + stage + "/10" + nextStageText(pcd) + ")") + ", " + (getMode(animal) == MODE_STAY ? "staying put" : "roaming") + ".";
+        int gen = isIdValid(pcd) ? getIntObjVar(pcd, OBJVAR_GENERATION) : 0;
+        text += " Level " + parentLevel(pcd, getPastureSpecies(animal)) + (gen > 0 ? ", bred generation " + gen : "") + ".";
         return text + describeMating(animal);
     }
 
@@ -744,6 +769,284 @@ public class pasture_lib extends script.base_script
             int newPts = (int)((getLevel(animal) + 55) / 8.0f + 0.5f);
             setObjVar(pcd, "ai.petAbility.trainingPts", getIntObjVar(pcd, "ai.petAbility.trainingPts") + newPts);
         }
+    }
+
+    // ---- genetics -----------------------------------------------------------------------
+
+    private static dictionary statRow(int level) throws InterruptedException
+    {
+        return dataTableGetRow(pet_lib.TBL_MOB_STAT_BALANCE, Math.max(1, Math.min(BREED_MAX_LEVEL, level)) - 1);
+    }
+
+    /** A parent's level: stored (bio-engineered / bred) or the natural level of its species. */
+    private static int parentLevel(obj_id pcd, String species) throws InterruptedException
+    {
+        if (isIdValid(pcd) && hasObjVar(pcd, "creature_attribs.level"))
+        {
+            int l = getIntObjVar(pcd, "creature_attribs.level");
+            if (l > 0)
+            {
+                return l;
+            }
+        }
+        return Math.max(1, create.calcCreatureLevel(species));
+    }
+
+    /** A parent's integer stat: stored, or the natural value (stat_balance at its level). */
+    private static float parentInt(obj_id pcd, String key, int level) throws InterruptedException
+    {
+        if (isIdValid(pcd) && hasObjVar(pcd, "creature_attribs." + key))
+        {
+            return getIntObjVar(pcd, "creature_attribs." + key);
+        }
+        if (key.equals("level"))
+        {
+            return level;
+        }
+        dictionary row = statRow(level);
+        if (row != null && key.equals("general_protection"))
+        {
+            return row.getInt("Armor");
+        }
+        return 0.0f;
+    }
+
+    private static float parentFloat(obj_id pcd, String key) throws InterruptedException
+    {
+        return (isIdValid(pcd) && hasObjVar(pcd, "creature_attribs." + key)) ? getFloatObjVar(pcd, "creature_attribs." + key) : 0.0f;
+    }
+
+    private static float parentScale(obj_id pcd, dictionary creatureDict) throws InterruptedException
+    {
+        if (isIdValid(pcd) && hasObjVar(pcd, "creature_attribs.scale"))
+        {
+            return getFloatObjVar(pcd, "creature_attribs.scale");
+        }
+        return creatureDict == null ? 1.0f : (creatureDict.getFloat("minScale") + creatureDict.getFloat("maxScale")) / 2.0f;
+    }
+
+    private static float mutation(float handlerBonus)
+    {
+        return 1.0f + BREED_MUTATION_MIN + rand() * (BREED_MUTATION_MAX - BREED_MUTATION_MIN) + handlerBonus;
+    }
+
+    /**
+     * Fixes the baby's genes at conception (stored on the female under OBJVAR_MATE_GENES), so the birth does
+     * not depend on the father still being there. owner = the female's owner (for the handler bonus).
+     */
+    public static void conceive(obj_id female, obj_id male) throws InterruptedException
+    {
+        removeObjVar(female, OBJVAR_MATE_GENES);
+        obj_id mPcd = getParkedPcd(female);
+        obj_id fPcd = getParkedPcd(male);
+        String species = getPastureSpecies(female);
+        dictionary creatureDict = utils.dataTableGetRow(create.CREATURE_TABLE, species);
+        obj_id owner = getPastureOwner(female);
+        float bonus = 0.0f;
+        if (isIdValid(owner) && owner.isLoaded() && exists(owner))
+        {
+            bonus = Math.min(100, Math.max(0, getSkillStatisticModifier(owner, SKILLMOD_BREEDING))) / 100.0f * BREED_HANDLER_BONUS;
+        }
+        String g = OBJVAR_MATE_GENES + ".";
+        int mLevel = parentLevel(mPcd, species);
+        int fLevel = parentLevel(fPcd, species);
+        int level = Math.round((mLevel + fLevel) / 2.0f * mutation(bonus));
+        level = Math.max(1, Math.min(BREED_MAX_LEVEL, level));
+        setObjVar(female, g + "level", level);
+        for (String key : GENE_MUTATE_INT)
+        {
+            if (key.equals("level"))
+            {
+                continue;
+            }
+            float v = (parentInt(mPcd, key, mLevel) + parentInt(fPcd, key, fLevel)) / 2.0f * mutation(bonus);
+            setObjVar(female, g + key, Math.max(0, Math.min(10000, Math.round(v))));
+        }
+        for (String key : GENE_MUTATE_FLOAT)
+        {
+            float a = parentFloat(mPcd, key);
+            float b = parentFloat(fPcd, key);
+            if (a <= 0.0f && b <= 0.0f)
+            {
+                continue;
+            }
+            setObjVar(female, g + key, Math.max(0.0f, Math.min(100.0f, (a + b) / 2.0f * mutation(bonus))));
+        }
+        float attackSpeed = (parentFloat(mPcd, "attackSpeed") + parentFloat(fPcd, "attackSpeed")) / 2.0f;
+        if (attackSpeed > 0.0f)
+        {
+            setObjVar(female, g + "attackSpeed", attackSpeed);
+        }
+        // Size: small random drift around the parents' average, kept within the species' range.
+        float scale = (parentScale(mPcd, creatureDict) + parentScale(fPcd, creatureDict)) / 2.0f * (1.0f + (rand() * 0.1f - 0.05f));
+        if (creatureDict != null)
+        {
+            scale = Math.max(creatureDict.getFloat("minScale") * 0.8f, Math.min(creatureDict.getFloat("maxScale") * 1.2f, scale));
+        }
+        setObjVar(female, g + "scale", scale);
+        // Traits taken whole from one parent.
+        obj_id[] parents = { mPcd, fPcd };
+        for (String key : GENE_PICK_INT)
+        {
+            obj_id from = parents[rand(0, 1)];
+            if (!hasObjVar(from, "creature_attribs." + key))
+            {
+                from = parents[0] == from ? parents[1] : parents[0];
+            }
+            if (isIdValid(from) && hasObjVar(from, "creature_attribs." + key))
+            {
+                setObjVar(female, g + key, getIntObjVar(from, "creature_attribs." + key));
+            }
+        }
+        for (String key : GENE_PICK_STRING)
+        {
+            obj_id from = parents[rand(0, 1)];
+            String v = isIdValid(from) ? getStringObjVar(from, "creature_attribs." + key) : null;
+            if (v != null && v.length() > 0)
+            {
+                setObjVar(female, g + key, v);
+            }
+        }
+        // Colours: the whole palette of one parent.
+        obj_id colourFrom = parents[rand(0, 1)];
+        obj_var_list ovl = isIdValid(colourFrom) ? getObjVarList(colourFrom, pet_lib.VAR_PALVAR_VARS) : null;
+        if (ovl != null)
+        {
+            for (int i = 0; i < ovl.getNumItems(); i++)
+            {
+                obj_var ov = ovl.getObjVar(i);
+                setObjVar(female, g + "palvar." + ov.getName(), ov.getIntData());
+            }
+        }
+        int gen = Math.max(getIntObjVar(mPcd, OBJVAR_GENERATION), getIntObjVar(fPcd, OBJVAR_GENERATION)) + 1;
+        setObjVar(female, g + "generation", gen);
+        dbg(owner, "conceive: " + female + " x " + male + " level " + mLevel + "/" + fLevel + " -> " + level + " gen " + gen);
+    }
+
+    /** Copies genes stored under prefix on holder into the PCD (creature_attribs.*, palette, generation). */
+    public static void applyGenes(obj_id holder, String prefix, obj_id pcd) throws InterruptedException
+    {
+        String g = prefix + ".";
+        if (!isIdValid(holder) || !isIdValid(pcd) || !hasObjVar(holder, g + "level"))
+        {
+            return;
+        }
+        int level = getIntObjVar(holder, g + "level");
+        setObjVar(pcd, "creature_attribs.level", level);
+        // Stats the server derives from the level anyway: keep them consistent with it.
+        dictionary row = statRow(level);
+        if (row != null)
+        {
+            float dps = row.getFloat("damagePerSecond");
+            setObjVar(pcd, "creature_attribs." + create.MAXATTRIBNAMES[HEALTH], row.getInt("HP"));
+            setObjVar(pcd, "creature_attribs." + create.MAXATTRIBNAMES[CONSTITUTION], row.getInt("HealthRegen"));
+            setObjVar(pcd, "creature_attribs.toHitChance", row.getInt("ToHit"));
+            setObjVar(pcd, "creature_attribs.defenseValue", row.getInt("Def"));
+            setObjVar(pcd, "creature_attribs.minDamage", (int)dps);
+            setObjVar(pcd, "creature_attribs.maxDamage", (int)dps * 3);
+        }
+        for (String key : GENE_MUTATE_INT)
+        {
+            if (!key.equals("level") && hasObjVar(holder, g + key))
+            {
+                setObjVar(pcd, "creature_attribs." + key, getIntObjVar(holder, g + key));
+            }
+        }
+        for (String key : GENE_MUTATE_FLOAT)
+        {
+            setObjVar(pcd, "creature_attribs." + key, hasObjVar(holder, g + key) ? getFloatObjVar(holder, g + key) : 0.0f);
+        }
+        String[] floats = { "attackSpeed", "scale" };
+        for (String key : floats)
+        {
+            if (hasObjVar(holder, g + key))
+            {
+                setObjVar(pcd, "creature_attribs." + key, getFloatObjVar(holder, g + key));
+            }
+        }
+        for (String key : GENE_PICK_INT)
+        {
+            if (hasObjVar(holder, g + key))
+            {
+                setObjVar(pcd, "creature_attribs." + key, getIntObjVar(holder, g + key));
+            }
+        }
+        for (String key : GENE_PICK_STRING)
+        {
+            if (hasObjVar(holder, g + key))
+            {
+                setObjVar(pcd, "creature_attribs." + key, getStringObjVar(holder, g + key));
+            }
+        }
+        obj_var_list ovl = getObjVarList(holder, g + "palvar");
+        if (ovl != null && ovl.getNumItems() > 0)
+        {
+            removeObjVar(pcd, pet_lib.VAR_PALVAR_BASE);
+            for (int i = 0; i < ovl.getNumItems(); i++)
+            {
+                obj_var ov = ovl.getObjVar(i);
+                setObjVar(pcd, pet_lib.VAR_PALVAR_VARS + "." + ov.getName(), ov.getIntData());
+            }
+        }
+        setObjVar(pcd, OBJVAR_GENERATION, getIntObjVar(holder, g + "generation"));
+    }
+
+    /** Moves genes from one holder to another (female at birth -> wild baby, applied later when it is tamed). */
+    public static void moveGenes(obj_id from, String fromPrefix, obj_id to, String toPrefix) throws InterruptedException
+    {
+        obj_var_list ovl = getObjVarList(from, fromPrefix);
+        if (ovl == null)
+        {
+            return;
+        }
+        for (int i = 0; i < ovl.getNumItems(); i++)
+        {
+            obj_var ov = ovl.getObjVar(i);
+            Object data = ov.getData();
+            String name = toPrefix + "." + ov.getName();
+            if (data instanceof Integer)
+            {
+                setObjVar(to, name, ((Integer)data).intValue());
+            }
+            else if (data instanceof Float)
+            {
+                setObjVar(to, name, ((Float)data).floatValue());
+            }
+            else if (data instanceof String)
+            {
+                setObjVar(to, name, (String)data);
+            }
+        }
+        obj_var_list pal = getObjVarList(from, fromPrefix + ".palvar");
+        if (pal != null)
+        {
+            for (int i = 0; i < pal.getNumItems(); i++)
+            {
+                obj_var ov = pal.getObjVar(i);
+                setObjVar(to, toPrefix + ".palvar." + ov.getName(), ov.getIntData());
+                hue.setColor(to, ov.getName(), ov.getIntData());
+            }
+        }
+    }
+
+    /**
+     * Hook for pet_lib.makeControlDevice: a wild baby born in a pasture carries its parents' genes until it
+     * is tamed; they go onto its new control device.
+     */
+    public static void applyWildGenesOnTame(obj_id pet, obj_id pcd) throws InterruptedException
+    {
+        if (isIdValid(pet) && hasObjVar(pet, OBJVAR_WILD_GENES + ".level"))
+        {
+            applyGenes(pet, OBJVAR_WILD_GENES, pcd);
+            removeObjVar(pet, OBJVAR_WILD_GENES);
+        }
+    }
+
+    /** Re-applies stats, size and colours from the PCD while it is still in the owner's datapad. */
+    public static void applyPcdLook(obj_id animal, obj_id pcd) throws InterruptedException
+    {
+        pet_lib.restoreCustomization(animal, pcd);
+        pet_lib.setCraftedPetStatsByGrowth(pcd, animal, getGrowthStage(pcd));
     }
 
     // ---- mating ---------------------------------------------------------------------------
@@ -860,6 +1163,7 @@ public class pasture_lib extends script.base_script
             return false;
         }
         removeObjVar(female, OBJVAR_MATE_PROGRESS);
+        conceive(female, male);
         setObjVar(female, OBJVAR_MATE_DUE, now);
         return giveBirth(female, false);
     }
@@ -920,14 +1224,15 @@ public class pasture_lib extends script.base_script
         boolean owned = false;
         if (!forceWild && canReceiveOwnedBaby(owner))
         {
-            baby = createOwnedBaby(species, spot, owner);
+            baby = createOwnedBaby(female, species, spot, owner);
             owned = isIdValid(baby);
         }
         if (!owned)
         {
-            baby = createWildBaby(species, spot);
+            baby = createWildBaby(female, species, spot);
         }
         removeObjVar(female, OBJVAR_MATE_DUE);
+        removeObjVar(female, OBJVAR_MATE_GENES);
         obj_id pcd = getParkedPcd(female);
         if (isIdValid(pcd) && exists(pcd))
         {
@@ -958,7 +1263,7 @@ public class pasture_lib extends script.base_script
      * owner's datapad (growth stage 1, like a freshly tamed baby), parked in the baby at once.
      * Returns null when that is not possible; nothing is left behind in that case.
      */
-    public static obj_id createOwnedBaby(String species, location spot, obj_id owner) throws InterruptedException
+    public static obj_id createOwnedBaby(obj_id mother, String species, location spot, obj_id owner) throws InterruptedException
     {
         obj_id baby = create.object(species, spot, true, true);
         if (!isIdValid(baby))
@@ -979,6 +1284,9 @@ public class pasture_lib extends script.base_script
         }
         setObjVar(pcd, OBJVAR_GENDER, rand(0, 1) == 0 ? GENDER_MALE : GENDER_FEMALE);
         setObjVar(pcd, "pasture.bornAt", getGameTime());
+        // Inherited stats, size and colours (fixed at conception), applied while the PCD is in the datapad.
+        applyGenes(mother, OBJVAR_MATE_GENES, pcd);
+        applyPcdLook(baby, pcd);
         setMaster(baby, owner);
         pet_lib.savePetInfo(baby, pcd);
         if (!parkIntoPasture(baby, owner, pcd, spot))
@@ -995,7 +1303,7 @@ public class pasture_lib extends script.base_script
     }
 
     /** A wild baby of the species (tameable through the normal Tame option). */
-    public static obj_id createWildBaby(String species, location spot) throws InterruptedException
+    public static obj_id createWildBaby(obj_id mother, String species, location spot) throws InterruptedException
     {
         obj_id baby = create.object(species, spot, true, false);
         if (!isIdValid(baby))
@@ -1016,6 +1324,11 @@ public class pasture_lib extends script.base_script
                 setName(baby, getString(getNameStringId(baby)) + " (baby)");
             }
             setScale(baby, getScale(baby) * 0.4f);
+        }
+        // Genes travel with the wild baby and go onto its control device when it is tamed.
+        if (isIdValid(mother) && hasObjVar(mother, OBJVAR_MATE_GENES + ".level"))
+        {
+            moveGenes(mother, OBJVAR_MATE_GENES, baby, OBJVAR_WILD_GENES);
         }
         return baby;
     }
