@@ -77,8 +77,25 @@ public class pasture_lib extends script.base_script
     public static final float ROAM_RETRY_MIN_SEC = 3.0f;
     public static final float ROAM_RETRY_MAX_SEC = 6.0f;
 
+    // ---- mating (part 2) ------------------------------------------------------------------
+    // A pastured adult female with a pastured adult male of the same species within MATE_RANGE
+    // collects "mating time" on every MATE_TICK_SEC tick; when MATE_TIME_SEC is reached she gives
+    // birth to one baby. The baby is pastured for the FEMALE's owner when possible (owner loaded on
+    // this server, below the pasture cap, datapad accepts a new control device); otherwise it is a
+    // wild baby that must be tamed. Males may belong to anyone.
+    public static final boolean MATING_ENABLED = true;
+    public static final float MATE_RANGE = 20.0f;
+    public static final float MATE_TICK_SEC = 300.0f;            // 5 min
+    public static final int MATE_TIME_SEC = 3600;                 // 1 h near a male
+    public static final int MATE_COOLDOWN_SEC = 86400;            // 24 h between births per female
+    public static final int OWNER_WAIT_SEC = 21600;               // a due birth waits up to 6 h for the owner, then the baby is wild
+    public static final String OBJVAR_MATE_PROGRESS = "pasture.mate.progress";   // animal: seconds collected
+    public static final String OBJVAR_MATE_LAST = "pasture.mate.last";           // animal: game time of the last tick
+    public static final String OBJVAR_MATE_DUE = "pasture.mate.due";             // animal: birth due since (waiting for the owner)
+    public static final String OBJVAR_MATE_NEXT = "pasture.mate.nextAt";         // PCD: no new birth before this game time
+
     /** Shown in debug messages so a chat log proves which build runs. Bump on every change. */
-    public static final String BUILD_TAG = "PASTURE-1";
+    public static final String BUILD_TAG = "PASTURE-2";
     public static final boolean DEBUG_MESSAGES = false;
 
     public static string_id sid(String key)
@@ -589,7 +606,313 @@ public class pasture_lib extends script.base_script
         obj_id pcd = getParkedPcd(animal);
         int stage = getGrowthStage(pcd);
         String text = displayName(animal) + ": " + genderName(getPastureGender(pcd)) + ", " + (stage >= 10 ? "adult" : "young (growth " + stage + "/10)") + ", " + (getMode(animal) == MODE_STAY ? "staying put" : "roaming") + ".";
-        return text;
+        return text + describeMating(animal);
+    }
+
+    // ---- mating ---------------------------------------------------------------------------
+
+    public static boolean isFemale(obj_id animal) throws InterruptedException
+    {
+        return getPastureGender(getParkedPcd(animal)) == GENDER_FEMALE;
+    }
+
+    public static String getPastureSpecies(obj_id animal) throws InterruptedException
+    {
+        obj_id pcd = getParkedPcd(animal);
+        if (isIdValid(pcd) && exists(pcd) && hasObjVar(pcd, "pet.creatureName"))
+        {
+            return getStringObjVar(pcd, "pet.creatureName");
+        }
+        return getCreatureName(animal);
+    }
+
+    /** True when this pastured animal can take part in mating at all (adult, same-cell rules apply later). */
+    public static boolean canBreed(obj_id animal) throws InterruptedException
+    {
+        if (!MATING_ENABLED || !isPastured(animal))
+        {
+            return false;
+        }
+        obj_id pcd = getParkedPcd(animal);
+        String species = getPastureSpecies(animal);
+        return isIdValid(pcd) && exists(pcd) && isAdult(pcd) && species != null && species.length() > 0;
+    }
+
+    /** Seconds until this female may give birth again (0 = ready). */
+    public static int getCooldownLeft(obj_id female) throws InterruptedException
+    {
+        obj_id pcd = getParkedPcd(female);
+        if (!isIdValid(pcd) || !exists(pcd) || !hasObjVar(pcd, OBJVAR_MATE_NEXT))
+        {
+            return 0;
+        }
+        int left = getIntObjVar(pcd, OBJVAR_MATE_NEXT) - getGameTime();
+        return left > 0 ? left : 0;
+    }
+
+    /** A pastured adult male of the same species near the female (same cell), or null. */
+    public static obj_id findMate(obj_id female) throws InterruptedException
+    {
+        String species = getPastureSpecies(female);
+        location here = getLocation(female);
+        obj_id[] near = getCreaturesInRange(female, MATE_RANGE);
+        if (near == null || species == null || here == null)
+        {
+            return null;
+        }
+        for (obj_id other : near)
+        {
+            if (!isIdValid(other) || other == female || !isPastured(other) || !canBreed(other) || isFemale(other))
+            {
+                continue;
+            }
+            if (!species.equals(getPastureSpecies(other)))
+            {
+                continue;
+            }
+            location there = getLocation(other);
+            if (there == null || (isIdValid(here.cell) != isIdValid(there.cell)) || (isIdValid(here.cell) && !here.cell.equals(there.cell)))
+            {
+                continue;
+            }
+            return other;
+        }
+        return null;
+    }
+
+    /**
+     * One mating tick for a pastured female (called by ai.pasture every MATE_TICK_SEC).
+     * Returns true when a baby was born.
+     */
+    public static boolean mateTick(obj_id female) throws InterruptedException
+    {
+        if (!canBreed(female) || !isFemale(female))
+        {
+            return false;
+        }
+        int now = getGameTime();
+        obj_id owner = getPastureOwner(female);
+        if (hasObjVar(female, OBJVAR_MATE_DUE))
+        {
+            // Birth is due but the owner was not around: try again, after OWNER_WAIT_SEC the baby is born wild.
+            boolean forceWild = now - getIntObjVar(female, OBJVAR_MATE_DUE) >= OWNER_WAIT_SEC;
+            return giveBirth(female, forceWild);
+        }
+        if (getCooldownLeft(female) > 0)
+        {
+            removeObjVar(female, OBJVAR_MATE_PROGRESS);
+            setObjVar(female, OBJVAR_MATE_LAST, now);
+            return false;
+        }
+        int last = hasObjVar(female, OBJVAR_MATE_LAST) ? getIntObjVar(female, OBJVAR_MATE_LAST) : now;
+        setObjVar(female, OBJVAR_MATE_LAST, now);
+        obj_id male = findMate(female);
+        if (!isIdValid(male))
+        {
+            if (hasObjVar(female, OBJVAR_MATE_PROGRESS))
+            {
+                removeObjVar(female, OBJVAR_MATE_PROGRESS);
+                dbg(owner, "mate: " + female + " has no male nearby, progress reset");
+            }
+            return false;
+        }
+        // Count the real time since the last tick, but never more than two ticks (server restarts, lag).
+        int step = now - last;
+        int maxStep = (int)(MATE_TICK_SEC * 2.0f);
+        if (step < 0 || step > maxStep)
+        {
+            step = (int)MATE_TICK_SEC;
+        }
+        int progress = (hasObjVar(female, OBJVAR_MATE_PROGRESS) ? getIntObjVar(female, OBJVAR_MATE_PROGRESS) : 0) + step;
+        setObjVar(female, OBJVAR_MATE_PROGRESS, progress);
+        dbg(owner, "mate: " + female + " with male " + male + " progress " + progress + "/" + MATE_TIME_SEC);
+        if (progress < MATE_TIME_SEC)
+        {
+            return false;
+        }
+        removeObjVar(female, OBJVAR_MATE_PROGRESS);
+        setObjVar(female, OBJVAR_MATE_DUE, now);
+        return giveBirth(female, false);
+    }
+
+    /** True when the owner is loaded on this server with a usable datapad and room in the pasture cap. */
+    public static boolean canReceiveOwnedBaby(obj_id owner) throws InterruptedException
+    {
+        if (!isIdValid(owner) || !owner.isLoaded() || !exists(owner))
+        {
+            return false;
+        }
+        obj_id datapad = utils.getPlayerDatapad(owner);
+        return isIdValid(datapad) && exists(datapad) && countPastured(owner) < MAX_PASTURED_PER_PLAYER;
+    }
+
+    /** Spot for the newborn: about 1.5 m beside the mother, same cell, on the ground outdoors. */
+    public static location getBirthSpot(obj_id female) throws InterruptedException
+    {
+        location here = getLocation(female);
+        double ang = rand() * 6.2831853d;
+        float x = here.x + (float)Math.sin(ang) * 1.5f;
+        float z = here.z + (float)Math.cos(ang) * 1.5f;
+        float y = here.y;
+        if (!isIdValid(here.cell))
+        {
+            float ground = getHeightAtLocation(x, z);
+            if (ground == ground && Math.abs(ground - here.y) < 3.0f)
+            {
+                y = ground;
+            }
+            else
+            {
+                x = here.x;
+                z = here.z;
+            }
+        }
+        return new location(x, y, z, here.area, here.cell);
+    }
+
+    /**
+     * Gives birth next to the female. Pastured for her owner when possible, otherwise wild (only once
+     * the owner has had OWNER_WAIT_SEC to come by, or when forceWild / the owner cannot take it).
+     * Returns true when a baby exists afterwards.
+     */
+    public static boolean giveBirth(obj_id female, boolean forceWild) throws InterruptedException
+    {
+        obj_id owner = getPastureOwner(female);
+        String species = getPastureSpecies(female);
+        String mother = displayName(female);
+        boolean ownerHere = isIdValid(owner) && owner.isLoaded() && exists(owner);
+        if (!forceWild && !ownerHere)
+        {
+            dbg(owner, "birth: " + female + " is due, owner not on this server, waiting");
+            return false;   // keep OBJVAR_MATE_DUE, retried on the next tick
+        }
+        location spot = getBirthSpot(female);
+        obj_id baby = null;
+        boolean owned = false;
+        if (!forceWild && canReceiveOwnedBaby(owner))
+        {
+            baby = createOwnedBaby(species, spot, owner);
+            owned = isIdValid(baby);
+        }
+        if (!owned)
+        {
+            baby = createWildBaby(species, spot);
+        }
+        removeObjVar(female, OBJVAR_MATE_DUE);
+        obj_id pcd = getParkedPcd(female);
+        if (isIdValid(pcd) && exists(pcd))
+        {
+            setObjVar(pcd, OBJVAR_MATE_NEXT, getGameTime() + MATE_COOLDOWN_SEC);
+        }
+        if (!isIdValid(baby))
+        {
+            dbg(owner, "birth: " + female + " could not create a baby of " + species);
+            return false;
+        }
+        if (ownerHere)
+        {
+            if (owned)
+            {
+                say(owner, "Your " + mother + " has given birth! The " + genderName(getPastureGender(getParkedPcd(baby))) + " baby is out to pasture next to her.");
+            }
+            else
+            {
+                say(owner, "Your " + mother + " has given birth, but you cannot keep more animals right now: the baby is wild and must be tamed.");
+            }
+        }
+        LOG("pasture", "birth: mother " + female + " (" + species + ") owner " + owner + " baby " + baby + (owned ? " pastured" : " wild"));
+        return true;
+    }
+
+    /**
+     * Creates a baby and puts it straight out to pasture for the owner: a new control device in the
+     * owner's datapad (growth stage 1, like a freshly tamed baby), parked in the baby at once.
+     * Returns null when that is not possible; nothing is left behind in that case.
+     */
+    public static obj_id createOwnedBaby(String species, location spot, obj_id owner) throws InterruptedException
+    {
+        obj_id baby = create.object(species, spot, true, true);
+        if (!isIdValid(baby))
+        {
+            return null;
+        }
+        obj_id pcd = pet_lib.makeControlDevice(owner, baby);
+        if (!isIdValid(pcd) || !exists(pcd))
+        {
+            destroyObject(baby);
+            return null;
+        }
+        // makeControlDevice starts creature pets at growth stage 1; make sure a baby is a baby.
+        if (!hasObjVar(pcd, "ai.petAdvance.growthStage"))
+        {
+            setObjVar(pcd, "ai.petAdvance.growthStage", 1);
+            pet_lib.setPetStatsByGrowth(baby, 1);
+        }
+        setObjVar(pcd, OBJVAR_GENDER, rand(0, 1) == 0 ? GENDER_MALE : GENDER_FEMALE);
+        setObjVar(pcd, "pasture.bornAt", getGameTime());
+        setMaster(baby, owner);
+        pet_lib.savePetInfo(baby, pcd);
+        if (!parkIntoPasture(baby, owner, pcd, spot))
+        {
+            // Keep the baby anyway, as a normal stored pet in the datapad.
+            callable.setCDCallable(pcd, null);
+            setObjVar(pcd, "pet.timeStored", getGameTime());
+            destroyObject(baby);
+            say(owner, "A newborn could not be put out to pasture; it is waiting in your datapad.");
+            return null;
+        }
+        finishPasture(baby);
+        return baby;
+    }
+
+    /** A wild baby of the species (tameable through the normal Tame option). */
+    public static obj_id createWildBaby(String species, location spot) throws InterruptedException
+    {
+        obj_id baby = create.object(species, spot, true, false);
+        if (!isIdValid(baby))
+        {
+            return null;
+        }
+        if (!hasScript(baby, "ai.pet_advance"))
+        {
+            // Same as create.maybeMakeBaby, without the random chance.
+            attachScript(baby, "ai.pet_advance");
+            String name = getAssignedName(baby);
+            if (name != null && !name.equals("") && !name.equals("null"))
+            {
+                setName(baby, name + " (baby)");
+            }
+            else
+            {
+                setName(baby, getString(getNameStringId(baby)) + " (baby)");
+            }
+            setScale(baby, getScale(baby) * 0.4f);
+        }
+        return baby;
+    }
+
+    /** Mating part of "Pasture Info" (empty for males and the young). */
+    public static String describeMating(obj_id animal) throws InterruptedException
+    {
+        if (!MATING_ENABLED || !canBreed(animal) || !isFemale(animal))
+        {
+            return "";
+        }
+        if (hasObjVar(animal, OBJVAR_MATE_DUE))
+        {
+            return " She is about to give birth.";
+        }
+        int left = getCooldownLeft(animal);
+        if (left > 0)
+        {
+            return " She can have another baby in about " + ((left + 3599) / 3600) + " hour(s).";
+        }
+        int progress = hasObjVar(animal, OBJVAR_MATE_PROGRESS) ? getIntObjVar(animal, OBJVAR_MATE_PROGRESS) : 0;
+        if (progress > 0)
+        {
+            return " Mating: " + Math.min(99, progress * 100 / MATE_TIME_SEC) + "% (a male stays within " + (int)MATE_RANGE + " m).";
+        }
+        return " She needs an adult male of her kind out to pasture within " + (int)MATE_RANGE + " m.";
     }
 
     /** Range the animal may roam from its pasture spot. */
