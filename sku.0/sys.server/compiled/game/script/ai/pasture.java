@@ -17,7 +17,7 @@ public class pasture extends script.base_script
     }
     public static final String SCRIPTVAR_ROAM_TICK = "pasture.roamTick";
     public static final String SCRIPTVAR_MOVING = "pasture.moving";
-    public static final String SCRIPTVAR_MATE_TICK = "pasture.mateTick";
+    public static final String SCRIPTVAR_PASTURE_TICK = "pasture.tick";
     public static final float MAX_MENU_DISTANCE = 15.0f;
     public static final float TURN_FIRST_MIN_DEG = 25.0f;
     public static final float TURN_DEG_PER_SEC = 150.0f;
@@ -111,7 +111,7 @@ public class pasture extends script.base_script
         removeTriggerVolume(ai_lib.ALERT_VOLUME_NAME);
         removeTriggerVolume(ai_lib.AGGRO_VOLUME_NAME);
         pasture_lib.applyMode(self);
-        startMateChain(self);
+        startPastureTick(self);
         utils.removeScriptVar(self, SCRIPTVAR_MOVING);
         if (pasture_lib.getMode(self) == pasture_lib.MODE_ROAM)
         {
@@ -125,26 +125,30 @@ public class pasture extends script.base_script
         return SCRIPT_CONTINUE;
     }
 
-    // ---- mating (pasture_lib.mateTick does the work; only adult females collect progress) ----
+    // ---- pasture tick: growth of the young (pasture_lib.growthTick) and mating (pasture_lib.mateTick) ----
 
-    private void startMateChain(obj_id self) throws InterruptedException
+    private void startPastureTick(obj_id self) throws InterruptedException
     {
-        if (!pasture_lib.MATING_ENABLED)
-        {
-            return;
-        }
-        int tick = utils.getIntScriptVar(self, SCRIPTVAR_MATE_TICK) + 1;
-        utils.setScriptVar(self, SCRIPTVAR_MATE_TICK, tick);
+        int tick = utils.getIntScriptVar(self, SCRIPTVAR_PASTURE_TICK) + 1;
+        utils.setScriptVar(self, SCRIPTVAR_PASTURE_TICK, tick);
         dictionary d = new dictionary();
         d.put("tick", tick);
-        messageTo(self, "handleMateTick", d, pasture_lib.MATE_TICK_SEC, false);
+        messageTo(self, "handlePastureTick", d, pasture_lib.PASTURE_TICK_SEC, false);
     }
 
-    public int handleMateTick(obj_id self, dictionary params) throws InterruptedException
+    public int handlePastureTick(obj_id self, dictionary params) throws InterruptedException
     {
-        if (params == null || params.getInt("tick") != utils.getIntScriptVar(self, SCRIPTVAR_MATE_TICK) || !pasture_lib.isPastured(self))
+        if (params == null || params.getInt("tick") != utils.getIntScriptVar(self, SCRIPTVAR_PASTURE_TICK) || !pasture_lib.isPastured(self))
         {
             return SCRIPT_CONTINUE;
+        }
+        try
+        {
+            pasture_lib.growthTick(self);
+        }
+        catch (Throwable t)
+        {
+            LOG("pasture", "handlePastureTick: growth of " + self + " failed: " + t);
         }
         try
         {
@@ -152,9 +156,9 @@ public class pasture extends script.base_script
         }
         catch (Throwable t)
         {
-            LOG("pasture", "handleMateTick: " + self + " failed: " + t);
+            LOG("pasture", "handlePastureTick: mating of " + self + " failed: " + t);
         }
-        messageTo(self, "handleMateTick", params, pasture_lib.MATE_TICK_SEC, false);
+        messageTo(self, "handlePastureTick", params, pasture_lib.PASTURE_TICK_SEC, false);
         return SCRIPT_CONTINUE;
     }
 

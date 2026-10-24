@@ -83,15 +83,25 @@ public class pasture_lib extends script.base_script
     public static final float ROAM_RETRY_MIN_SEC = 3.0f;
     public static final float ROAM_RETRY_MAX_SEC = 6.0f;
 
+    // ---- growth while pastured -------------------------------------------------------------
+    // A young animal (growth stage < 10) grows one stage every GROWTH_STEP_SEC it spends out to pasture, as an
+    // alternative to taking it along to earn growth XP in combat. Progress is kept on the PCD (survives retrieve).
+    // Combat growth (pet_lib.grantPetGrowthXp) is unchanged and still works when the pet is called out.
+    public static final boolean GROWTH_ENABLED = true;
+    public static final int GROWTH_STEP_SEC = 14400;              // 4 h per stage: baby (1) to adult (10) in 36 h
+    public static final String OBJVAR_GROWTH_PROGRESS = "pasture.growth.progress";   // PCD: seconds towards the next stage
+    public static final String OBJVAR_GROWTH_LAST = "pasture.growth.last";           // animal: game time of the last tick
+    /** Interval of the pasture tick (growth + mating), see ai.pasture.handlePastureTick. */
+    public static final float PASTURE_TICK_SEC = 300.0f;
+
     // ---- mating (part 2) ------------------------------------------------------------------
     // A pastured adult female with a pastured adult male of the same species within MATE_RANGE
-    // collects "mating time" on every MATE_TICK_SEC tick; when MATE_TIME_SEC is reached she gives
+    // collects "mating time" on every PASTURE_TICK_SEC tick; when MATE_TIME_SEC is reached she gives
     // birth to one baby. The baby is pastured for the FEMALE's owner when possible (owner loaded on
     // this server, below the pasture cap, datapad accepts a new control device); otherwise it is a
     // wild baby that must be tamed. Males may belong to anyone.
     public static final boolean MATING_ENABLED = true;
     public static final float MATE_RANGE = 20.0f;
-    public static final float MATE_TICK_SEC = 300.0f;            // 5 min
     public static final int MATE_TIME_SEC = 3600;                 // 1 h near a male
     public static final int MATE_COOLDOWN_SEC = 86400;            // 24 h between births per female
     public static final int OWNER_WAIT_SEC = 21600;               // a due birth waits up to 6 h for the owner, then the baby is wild
@@ -101,7 +111,7 @@ public class pasture_lib extends script.base_script
     public static final String OBJVAR_MATE_NEXT = "pasture.mate.nextAt";         // PCD: no new birth before this game time
 
     /** Shown in debug messages so a chat log proves which build runs. Bump on every change. */
-    public static final String BUILD_TAG = "PASTURE-2";
+    public static final String BUILD_TAG = "PASTURE-3";
     public static final boolean DEBUG_MESSAGES = false;
 
     public static string_id sid(String key)
@@ -606,13 +616,134 @@ public class pasture_lib extends script.base_script
         return getGrowthStage(pcd) >= 10;
     }
 
+    private static String nextStageText(obj_id pcd) throws InterruptedException
+    {
+        if (!GROWTH_ENABLED || !isIdValid(pcd))
+        {
+            return "";
+        }
+        int left = GROWTH_STEP_SEC - (hasObjVar(pcd, OBJVAR_GROWTH_PROGRESS) ? getIntObjVar(pcd, OBJVAR_GROWTH_PROGRESS) : 0);
+        return ", next stage in about " + Math.max(1, (left + 1799) / 3600) + " h";
+    }
+
     /** One-line status for the owner's "Pasture Info" radial entry. */
     public static String describe(obj_id animal) throws InterruptedException
     {
         obj_id pcd = getParkedPcd(animal);
         int stage = getGrowthStage(pcd);
-        String text = displayName(animal) + ": " + genderName(getPastureGender(pcd)) + ", " + (stage >= 10 ? "adult" : "young (growth " + stage + "/10)") + ", " + (getMode(animal) == MODE_STAY ? "staying put" : "roaming") + ".";
+        String text = displayName(animal) + ": " + genderName(getPastureGender(pcd)) + ", " + (stage >= 10 ? "adult" : "young (growth " + stage + "/10" + nextStageText(pcd) + ")") + ", " + (getMode(animal) == MODE_STAY ? "staying put" : "roaming") + ".";
         return text + describeMating(animal);
+    }
+
+    // ---- growth -------------------------------------------------------------------------
+
+    /** Seconds of a tick to count: the real time since the last one, never more than two ticks (restarts, lag). */
+    private static int tickStep(obj_id animal, String lastVar) throws InterruptedException
+    {
+        int now = getGameTime();
+        int last = hasObjVar(animal, lastVar) ? getIntObjVar(animal, lastVar) : now;
+        setObjVar(animal, lastVar, now);
+        int step = now - last;
+        if (step <= 0)
+        {
+            return 0;
+        }
+        int maxStep = (int)(PASTURE_TICK_SEC * 2.0f);
+        return step > maxStep ? (int)PASTURE_TICK_SEC : step;
+    }
+
+    /**
+     * One growth tick for a pastured animal. Returns true when it grew a stage. Only the PCD and the
+     * creature's size change: on this server a pet's combat stats come from its level, not its growth
+     * stage (pet_lib.setCraftedPetStatsByGrowth), and that function must not run while the PCD is
+     * parked (it would read the PCD as if no player owned it).
+     */
+    public static boolean growthTick(obj_id animal) throws InterruptedException
+    {
+        obj_id pcd = getParkedPcd(animal);
+        if (!GROWTH_ENABLED || !isPastured(animal) || !isIdValid(pcd) || !exists(pcd))
+        {
+            return false;
+        }
+        int step = tickStep(animal, OBJVAR_GROWTH_LAST);
+        int stage = getGrowthStage(pcd);
+        if (stage >= 10 || step <= 0 || isIncapacitated(animal))
+        {
+            return false;
+        }
+        int progress = (hasObjVar(pcd, OBJVAR_GROWTH_PROGRESS) ? getIntObjVar(pcd, OBJVAR_GROWTH_PROGRESS) : 0) + step;
+        if (progress < GROWTH_STEP_SEC)
+        {
+            setObjVar(pcd, OBJVAR_GROWTH_PROGRESS, progress);
+            return false;
+        }
+        stage++;
+        if (stage >= 10)
+        {
+            stage = 10;
+            removeObjVar(pcd, "ai.petAdvance.growthStage");
+            removeObjVar(pcd, OBJVAR_GROWTH_PROGRESS);
+        }
+        else
+        {
+            setObjVar(pcd, "ai.petAdvance.growthStage", stage);
+            setObjVar(pcd, OBJVAR_GROWTH_PROGRESS, progress - GROWTH_STEP_SEC);
+        }
+        applyGrowthScale(animal, pcd, stage);
+        earnGrowthRewards(animal, pcd, stage);
+        obj_id owner = getPastureOwner(animal);
+        if (isIdValid(owner) && owner.isLoaded())
+        {
+            say(owner, stage >= 10 ? "Your pastured " + displayName(animal) + " is now fully grown." : "Your pastured " + displayName(animal) + " has grown (growth " + stage + "/10).");
+        }
+        return true;
+    }
+
+    /** Same size formula as pet_lib.setCraftedPetStatsByGrowth (30 % at stage 0, full size at stage 10). */
+    public static void applyGrowthScale(obj_id animal, obj_id pcd, int stage) throws InterruptedException
+    {
+        dictionary creatureDict = utils.dataTableGetRow(create.CREATURE_TABLE, getCreatureName(animal));
+        float baseScale = utils.hasScriptVar(animal, "ai.baseScale") ? utils.getFloatScriptVar(animal, "ai.baseScale") : 1.0f;
+        float maxScale = 9999.0f;
+        float scaleAdjust = 1.0f;
+        if (hasObjVar(pcd, "creature_attribs.scale"))
+        {
+            scaleAdjust = getFloatObjVar(pcd, "creature_attribs.scale");
+        }
+        else if (creatureDict != null)
+        {
+            maxScale = creatureDict.getFloat("maxScale");
+            scaleAdjust = (creatureDict.getFloat("minScale") + maxScale) / 2.0f;
+        }
+        float realScale = baseScale * scaleAdjust;
+        float babyScale = realScale * 0.3f;
+        float finalScale = babyScale + ((realScale - babyScale) / 10.0f) * Math.max(1, Math.min(10, stage));
+        if (finalScale > maxScale)
+        {
+            finalScale = maxScale;
+        }
+        if (finalScale > 0.0f)
+        {
+            setScale(animal, finalScale);
+        }
+    }
+
+    /** The training rewards pet_lib.grantPetGrowthXp gives per stage, written to the PCD only. */
+    private static void earnGrowthRewards(obj_id animal, obj_id pcd, int stage) throws InterruptedException
+    {
+        int toBeEarned = getIntObjVar(pcd, "ai.petAbility.toBeEarned");
+        int available = getIntObjVar(pcd, "ai.petAbility.available");
+        if (toBeEarned > 0 && rand(0, 100) < stage * 10)
+        {
+            setObjVar(pcd, "ai.petAbility.toBeEarned", toBeEarned - 1);
+            setObjVar(pcd, "ai.petAbility.available", ++available);
+            toBeEarned--;
+        }
+        if (available > 0 || toBeEarned > 0)
+        {
+            int newPts = (int)((getLevel(animal) + 55) / 8.0f + 0.5f);
+            setObjVar(pcd, "ai.petAbility.trainingPts", getIntObjVar(pcd, "ai.petAbility.trainingPts") + newPts);
+        }
     }
 
     // ---- mating ---------------------------------------------------------------------------
@@ -687,7 +818,7 @@ public class pasture_lib extends script.base_script
     }
 
     /**
-     * One mating tick for a pastured female (called by ai.pasture every MATE_TICK_SEC).
+     * One mating tick for a pastured female (called by ai.pasture every PASTURE_TICK_SEC).
      * Returns true when a baby was born.
      */
     public static boolean mateTick(obj_id female) throws InterruptedException
@@ -710,8 +841,7 @@ public class pasture_lib extends script.base_script
             setObjVar(female, OBJVAR_MATE_LAST, now);
             return false;
         }
-        int last = hasObjVar(female, OBJVAR_MATE_LAST) ? getIntObjVar(female, OBJVAR_MATE_LAST) : now;
-        setObjVar(female, OBJVAR_MATE_LAST, now);
+        int step = tickStep(female, OBJVAR_MATE_LAST);
         obj_id male = findMate(female);
         if (!isIdValid(male))
         {
@@ -721,13 +851,6 @@ public class pasture_lib extends script.base_script
                 dbg(owner, "mate: " + female + " has no male nearby, progress reset");
             }
             return false;
-        }
-        // Count the real time since the last tick, but never more than two ticks (server restarts, lag).
-        int step = now - last;
-        int maxStep = (int)(MATE_TICK_SEC * 2.0f);
-        if (step < 0 || step > maxStep)
-        {
-            step = (int)MATE_TICK_SEC;
         }
         int progress = (hasObjVar(female, OBJVAR_MATE_PROGRESS) ? getIntObjVar(female, OBJVAR_MATE_PROGRESS) : 0) + step;
         setObjVar(female, OBJVAR_MATE_PROGRESS, progress);
