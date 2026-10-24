@@ -1454,6 +1454,11 @@ public class pet extends script.base_script
         npcEndConversation(player);
         return SCRIPT_CONTINUE;
     }
+    public int handlePetAbilityTrainSelect(obj_id self, dictionary params) throws InterruptedException
+    {
+        pet_training_lib.onTrainingSelected(self, params);
+        return SCRIPT_CONTINUE;
+    }
     public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
     {
         if (isDead(self) || ai_lib.aiIsDead(player))
@@ -1526,6 +1531,11 @@ public class pet extends script.base_script
         if (isIncapacitated(self) && !ai_lib.isInCombat(player))
         {
             mi.addRootMenu(menu_info_types.ITEM_ACTIVATE, new string_id(MENU_FILE, "awaken"));
+        }
+        if (!ai_lib.isInCombat(player) && !ai_lib.isAiDead(self) && pet_training_lib.canOfferTraining(self, player))
+        {
+            // Spend earned ability slots / training points (script.library.pet_training_lib).
+            mi.addRootMenu(menu_info_types.SERVER_MENU9, new string_id(pet_training_lib.STF, "training_title"));
         }
         if (ai_lib.isAiDead(self))
         {
@@ -1616,6 +1626,11 @@ public class pet extends script.base_script
         {
             // Fully qualified: script.ai.stationed_droid (the behaviour script) shadows the library.
             script.library.stationed_droid.setLoose(self, player);
+            return SCRIPT_CONTINUE;
+        }
+        if (item == menu_info_types.SERVER_MENU9 && !pet_lib.isDroidPet(self))
+        {
+            pet_training_lib.openTrainingWindow(self, player);
             return SCRIPT_CONTINUE;
         }
         if (item == menu_info_types.SERVER_MENU8 && !pet_lib.isDroidPet(self))
