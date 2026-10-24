@@ -485,6 +485,7 @@ public class combat_base extends script.base_script
             atkRslt.endPosture = (combat.isMeleeWeapon(weaponData.id) || combat.isLightsaberWeapon(weaponData.id)) ? POSTURE_UPRIGHT : getPosture(self);
             String anim = actionData.animDefault;
             doCombatResults(anim, atkRslt, dfndRslt);
+            playGroundImpactEffect(self, actionName, combatTarget, targetLoc);
         }
         if ((isDelayedAttack) && (!isTangibleAttacking))
         {
@@ -893,6 +894,48 @@ public class combat_base extends script.base_script
      * what the server received and which gate stopped the shot. Normal weapons and riders on foot stay silent. Set to false once solved.
      */
     public static final boolean MOUNT_HEAVY_DEBUG = true;
+    /**
+     * The client draws the impact visual of a heavy weapon (e.g. the lightning sphere of the lightning rifle) on the DEFENDER of the shooter's own
+     * playback. A MOUNTED rider who aims at the ground (or next to a creature) has no defender, so the damage lands but no impact is shown. For those
+     * shots the server plays the weapon's impact effect at the aimed point. Riders on foot are not touched. Add weapons in getGroundImpactEffect.
+     */
+    public static final boolean GROUND_IMPACT_EFFECTS = true;
+    public String getGroundImpactEffect(String actionName)
+    {
+        if ("fireLightningBeam".equals(actionName))
+        {
+            return "clienteffect/combat_lightning_rifle_hit.cef";
+        }
+        return null;
+    }
+    public void playGroundImpactEffect(obj_id self, String actionName, obj_id combatTarget, location targetLoc) throws InterruptedException
+    {
+        if (!GROUND_IMPACT_EFFECTS || targetLoc == null || !isIdValid(self) || !isPlayer(self) || getState(self, STATE_RIDING_MOUNT) <= 0)
+        {
+            return;
+        }
+        String effect = getGroundImpactEffect(actionName);
+        if (effect == null)
+        {
+            return;
+        }
+        // The client already shows the impact on the target when the aimed point is on it.
+        if (isIdValid(combatTarget) && exists(combatTarget))
+        {
+            location targetPosition = getLocation(combatTarget);
+            if (targetPosition != null && getDistance(targetLoc, targetPosition) <= 3.0f)
+            {
+                return;
+            }
+        }
+        obj_id[] viewers = getPlayerCreaturesInRange(targetLoc, 100.0f);
+        if (viewers == null || viewers.length == 0)
+        {
+            viewers = new obj_id[]{self};
+        }
+        playClientEffectLoc(viewers, effect, targetLoc, 0.0f);
+        mountHeavyDiag(self, "ground impact effect " + effect + " played at " + targetLoc + " for " + viewers.length + " viewer(s)");
+    }
     public void mountHeavyDiag(obj_id self, String msg) throws InterruptedException
     {
         if (MOUNT_HEAVY_DEBUG && isIdValid(self) && isPlayer(self) && getState(self, STATE_RIDING_MOUNT) > 0)
