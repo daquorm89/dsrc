@@ -1828,7 +1828,14 @@ public class combat extends script.base_script
                     }
                     if (utils.hasScriptVar(attacker, "ai.combat.aggroReduction"))
                     {
-                        totalHateDamage -= totalHateDamage * utils.getFloatScriptVar(attacker, "ai.combat.aggroReduction");
+                        // pet_ability.tab stores tauntReduction as a percentage (10/20/30); a raw factor
+                        // of 10 made hate go far negative. Values above 1 are percentages.
+                        float aggroReduction = utils.getFloatScriptVar(attacker, "ai.combat.aggroReduction");
+                        if (aggroReduction > 1.0f)
+                        {
+                            aggroReduction /= 100.0f;
+                        }
+                        totalHateDamage -= totalHateDamage * Math.min(aggroReduction, 1.0f);
                     }
                     if (buff.hasBuff(attacker, BUFF_HATE_XFER))
                     {
