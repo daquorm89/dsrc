@@ -15,8 +15,9 @@ import script.*;
  * is PARKED inside the animal's own inventory container with ai.pet_control_device detached
  * (that script destroys the linked creature whenever the PCD moves).
  *
- * Pastured animals are invulnerable (PASTURE_INVULNERABLE): they never fight, never die and never
- * get aggro trigger volumes, so no PCD can be lost to a kill and no pasture attacks passers-by.
+ * Pastured animals never start a fight (aggro / alert trigger volumes are removed), but they can be
+ * attacked and defend themselves; at 0 health they are downed, never killed, and recover after
+ * INCAP_RECOVER_SEC, so no PCD can be lost to a kill.
  *
  * Animal-side objvars (persisted):
  *   pasture.owner        obj_id   owning player (also kept as the engine master)
@@ -55,8 +56,13 @@ public class pasture_lib extends script.base_script
     public static final String[] PET_SCRIPTS = { "ai.pet_ping", "ai.pet" };
 
     public static final int MAX_PASTURED_PER_PLAYER = 25;
-    /** Pastured animals cannot be hurt (no combat, no death, no aggro volumes). */
-    public static final boolean PASTURE_INVULNERABLE = true;
+    /**
+     * false (owner decision 2026-10-24): pastured animals can be attacked and fight back, but like loose droids
+     * they are only downed, never killed (ai.ai.OnIncapacitated skips pastured animals) and stand up again
+     * after INCAP_RECOVER_SEC. They still never START a fight (aggro / alert volumes are removed).
+     */
+    public static final boolean PASTURE_INVULNERABLE = false;
+    public static final float INCAP_RECOVER_SEC = 45.0f;
 
     // ---- roaming (driven by ai.pasture, not by the engine loiter) -------------------------
     public static final float ROAM_RANGE = 15.0f;          // max distance from the pasture spot
@@ -913,6 +919,37 @@ public class pasture_lib extends script.base_script
             return " Mating: " + Math.min(99, progress * 100 / MATE_TIME_SEC) + "% (a male stays within " + (int)MATE_RANGE + " m).";
         }
         return " She needs an adult male of her kind out to pasture within " + (int)MATE_RANGE + " m.";
+    }
+
+    /** The ship whose cell holds this animal's pasture spot, or null when the spot is not inside a ship. */
+    public static obj_id getHomeShip(obj_id animal) throws InterruptedException
+    {
+        if (!isPastured(animal) || !hasObjVar(animal, OBJVAR_HOME))
+        {
+            return null;
+        }
+        location home = getLocationObjVar(animal, OBJVAR_HOME);
+        if (home == null || !isIdValid(home.cell))
+        {
+            return null;
+        }
+        obj_id ship = getContainedBy(home.cell);
+        if (!isIdValid(ship) || space_transition.getContainingShip(home.cell) != ship)
+        {
+            return null;
+        }
+        return ship;
+    }
+
+    /** An animal pastured inside a ship only fights things aboard the same ship (never chases out through the hull). */
+    public static boolean mayEngage(obj_id animal, obj_id target) throws InterruptedException
+    {
+        obj_id ship = getHomeShip(animal);
+        if (!isIdValid(ship))
+        {
+            return true;
+        }
+        return isIdValid(target) && space_transition.getContainingShip(target) == ship;
     }
 
     /** Range the animal may roam from its pasture spot. */

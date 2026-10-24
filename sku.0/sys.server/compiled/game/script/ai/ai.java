@@ -951,7 +951,8 @@ public class ai extends script.base_script
         ai_lib.barkString(self, "death");
         // Loose (stationed) droids are downed, never killed: ai.stationed_droid revives them.
         // Without this guard the kill below also empties the inventory holding the parked PCD.
-        if (!pet_lib.isPet(self) && !beast_lib.isBeast(self) && !utils.hasScriptVar(self, "petBeingInitialized") && !script.library.stationed_droid.isStationed(self))
+        // Pastured animals (script.library.pasture_lib) likewise: ai.pasture revives them.
+        if (!pet_lib.isPet(self) && !beast_lib.isBeast(self) && !utils.hasScriptVar(self, "petBeingInitialized") && !script.library.stationed_droid.isStationed(self) && !script.library.pasture_lib.isPastured(self))
         {
             obj_id weapon = getCurrentWeapon(self);
             if (isIdValid(weapon) && !isDefaultWeapon(weapon))

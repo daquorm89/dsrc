@@ -103,12 +103,13 @@ public class pasture extends script.base_script
         }
         if (pasture_lib.PASTURE_INVULNERABLE)
         {
-            // Invulnerable creatures never get new aggro volumes (ai_lib.resetCombatTriggerVolumes),
-            // but volumes made while it was a pet stay until removed here (removeTriggerVolume acts on self).
             setInvulnerable(self, true);
-            removeTriggerVolume(ai_lib.ALERT_VOLUME_NAME);
-            removeTriggerVolume(ai_lib.AGGRO_VOLUME_NAME);
         }
+        // No aggro / alert volumes: a pastured animal never starts a fight with passers-by. ai.ai re-creates
+        // them on (re)initialisation and after combat (resetAi), so they are removed on every mode apply
+        // (removeTriggerVolume acts on self).
+        removeTriggerVolume(ai_lib.ALERT_VOLUME_NAME);
+        removeTriggerVolume(ai_lib.AGGRO_VOLUME_NAME);
         pasture_lib.applyMode(self);
         startMateChain(self);
         utils.removeScriptVar(self, SCRIPTVAR_MOVING);
@@ -372,7 +373,7 @@ public class pasture extends script.base_script
         return SCRIPT_OVERRIDE;
     }
 
-    // ---- no fighting -----------------------------------------------------------------
+    // ---- fighting: only in self-defence, downed but never killed ----------------------
 
     public int OnSawAttack(obj_id self, obj_id defender, obj_id[] attackers) throws InterruptedException
     {
@@ -380,9 +381,41 @@ public class pasture extends script.base_script
         return SCRIPT_OVERRIDE;
     }
 
+    /** A pastured animal fights back when it is attacked (it never starts a fight itself). */
+    public int OnDefenderCombatAction(obj_id self, obj_id attacker, obj_id weapon, int combatResult) throws InterruptedException
+    {
+        if (isIdValid(attacker) && exists(attacker) && attacker != self && attacker != pasture_lib.getPastureOwner(self) && !ai_lib.isInCombat(self) && !ai_lib.isAiDead(self) && !isIncapacitated(self) && pvpCanAttack(self, attacker) && pasture_lib.mayEngage(self, attacker))
+        {
+            utils.setScriptVar(self, SCRIPTVAR_ROAM_TICK, utils.getIntScriptVar(self, SCRIPTVAR_ROAM_TICK) + 1);
+            utils.removeScriptVar(self, SCRIPTVAR_MOVING);
+            setMovementRun(self);
+            startCombat(self, attacker);
+        }
+        return SCRIPT_CONTINUE;
+    }
+
     public int OnExitedCombat(obj_id self) throws InterruptedException
     {
         messageTo(self, "handleApplyMode", null, 3, false);
+        return SCRIPT_CONTINUE;
+    }
+
+    public int OnIncapacitated(obj_id self, obj_id attacker) throws InterruptedException
+    {
+        stop(self);
+        utils.setScriptVar(self, SCRIPTVAR_ROAM_TICK, utils.getIntScriptVar(self, SCRIPTVAR_ROAM_TICK) + 1);
+        messageTo(self, "handleRecover", null, pasture_lib.INCAP_RECOVER_SEC, false);
+        return SCRIPT_CONTINUE;
+    }
+
+    public int handleRecover(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (isIncapacitated(self) && !isDead(self))
+        {
+            int health = getMaxAttrib(self, HEALTH) / 4;
+            setAttrib(self, HEALTH, health < 1 ? 1 : health);
+        }
+        messageTo(self, "handleApplyMode", null, 2, false);
         return SCRIPT_CONTINUE;
     }
 
