@@ -568,6 +568,30 @@ public class pasture_lib extends script.base_script
         }
     }
 
+    /** Growth stage from the PCD (10 = adult; tamed creatures start at 1). */
+    public static int getGrowthStage(obj_id pcd) throws InterruptedException
+    {
+        if (!isIdValid(pcd) || !exists(pcd) || !hasObjVar(pcd, "ai.petAdvance.growthStage"))
+        {
+            return 10;
+        }
+        return getIntObjVar(pcd, "ai.petAdvance.growthStage");
+    }
+
+    public static boolean isAdult(obj_id pcd) throws InterruptedException
+    {
+        return getGrowthStage(pcd) >= 10;
+    }
+
+    /** One-line status for the owner's "Pasture Info" radial entry. */
+    public static String describe(obj_id animal) throws InterruptedException
+    {
+        obj_id pcd = getParkedPcd(animal);
+        int stage = getGrowthStage(pcd);
+        String text = displayName(animal) + ": " + genderName(getPastureGender(pcd)) + ", " + (stage >= 10 ? "adult" : "young (growth " + stage + "/10)") + ", " + (getMode(animal) == MODE_STAY ? "staying put" : "roaming") + ".";
+        return text;
+    }
+
     /** Range the animal may roam from its pasture spot. */
     public static float getRoamRange(obj_id animal) throws InterruptedException
     {
