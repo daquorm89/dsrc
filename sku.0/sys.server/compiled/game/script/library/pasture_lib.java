@@ -134,7 +134,7 @@ public class pasture_lib extends script.base_script
     public static final String OBJVAR_MATE_NEXT = "pasture.mate.nextAt";         // PCD: no new birth before this game time
 
     /** Shown in debug messages so a chat log proves which build runs. Bump on every change. */
-    public static final String BUILD_TAG = "PASTURE-5";
+    public static final String BUILD_TAG = "PASTURE-6";
     public static final boolean DEBUG_MESSAGES = false;
 
     public static string_id sid(String key)
@@ -1713,7 +1713,8 @@ public class pasture_lib extends script.base_script
         if (hasObjVar(female, OBJVAR_MATE_DUE))
         {
             // Birth is due but the owner was not around: try again, after OWNER_WAIT_SEC the baby is born wild.
-            boolean forceWild = now - getIntObjVar(female, OBJVAR_MATE_DUE) >= OWNER_WAIT_SEC;
+            boolean ownerHere = isIdValid(owner) && owner.isLoaded() && exists(owner);
+            boolean forceWild = !ownerHere && now - getIntObjVar(female, OBJVAR_MATE_DUE) >= OWNER_WAIT_SEC;
             return giveBirth(female, forceWild);
         }
         if (getCooldownLeft(female) > 0)
@@ -1807,6 +1808,16 @@ public class pasture_lib extends script.base_script
         }
         if (!owned)
         {
+            // A wild baby is not stowed with a ship's hull: born aboard, it is put on the ground beside the ship.
+            obj_id ship = getHomeShip(female);
+            location shipLoc = isIdValid(ship) ? getLocation(ship) : null;
+            if (shipLoc != null && !isIdValid(shipLoc.cell))
+            {
+                float gx = shipLoc.x + 4.0f;
+                float gz = shipLoc.z + 4.0f;
+                float gy = getHeightAtLocation(gx, gz);
+                spot = new location(gx, gy == gy ? gy : shipLoc.y, gz, shipLoc.area);
+            }
             baby = createWildBaby(female, species, spot);
         }
         removeObjVar(female, OBJVAR_MATE_DUE);
