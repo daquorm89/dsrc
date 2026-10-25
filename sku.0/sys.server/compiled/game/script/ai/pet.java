@@ -1459,6 +1459,11 @@ public class pet extends script.base_script
         pet_training_lib.onTrainingSelected(self, params);
         return SCRIPT_CONTINUE;
     }
+    public int handlePetAbilityTrainConfirm(obj_id self, dictionary params) throws InterruptedException
+    {
+        pet_training_lib.onDetailsClosed(self, params);
+        return SCRIPT_CONTINUE;
+    }
     public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
     {
         if (isDead(self) || ai_lib.aiIsDead(player))

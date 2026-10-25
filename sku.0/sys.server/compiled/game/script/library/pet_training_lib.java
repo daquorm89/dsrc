@@ -33,6 +33,10 @@ public class pet_training_lib extends script.base_script
     public static final String HANDLER = "handlePetAbilityTrainSelect";
     public static final String SCRIPTVAR_LIST = "petTrain.list";
     public static final String SCRIPTVAR_PLAYER = "petTrain.player";
+    public static final String CONFIRM_HANDLER = "handlePetAbilityTrainConfirm";
+    public static final String SCRIPTVAR_PENDING = "petTrain.pending";
+    /** movement.tab petRunSpeed_1..3 permaboost values (runSpeedBoost uses buffs petRunSpeed_N). */
+    public static final int[] RUN_SPEED_BOOST = { 25, 50, 75 };
     public static final String[] TRAINABLE_FAMILIES = {
         "healthBoost", "regenBoost", "armorBoost", "tauntBoost", "tauntReduction",
         "damageBoost", "attackSpeedBoost", "runSpeedBoost"
@@ -86,6 +90,75 @@ public class pet_training_lib extends script.base_script
         String s = getString(new string_id(STF, key));
         return (s == null || s.length() == 0) ? fallback : s;
     }
+
+    private static String pct(float f)
+    {
+        float v = f * 100.0f;
+        return (v == (int)v) ? String.valueOf((int)v) : String.valueOf(Math.round(v * 10.0f) / 10.0f);
+    }
+
+    /** Short effect of one rank, built from the pet_ability.tab row (shown on the list line). */
+    public static String effectText(dictionary row)
+    {
+        String name = row.getString("abilityName");
+        String fam = family(name);
+        float sv = row.getFloat("scriptVarVal");
+        int statVal = row.getInt("statModVal");
+        float statPct = row.getFloat("statModPct");
+        switch (fam)
+        {
+            case "healthBoost":
+                return "+" + pct(statPct) + "% +" + statVal + " max health";
+            case "regenBoost":
+                return "+" + pct(statPct) + "% +" + statVal + " health regeneration";
+            case "armorBoost":
+                return "+" + (int)sv + " armor";
+            case "damageBoost":
+                return "+" + pct(sv) + "% damage";
+            case "attackSpeedBoost":
+                return pct(sv) + "% faster attacks";
+            case "runSpeedBoost":
+            {
+                int r = Math.max(1, Math.min(RUN_SPEED_BOOST.length, rank(name)));
+                return "+" + RUN_SPEED_BOOST[r - 1] + "% movement speed";
+            }
+            case "tauntBoost":
+                return "+" + (int)sv + " threat per hit";
+            case "tauntReduction":
+                return "-" + (int)sv + "% threat";
+        }
+        return "";
+    }
+
+    /** What the ability family is for (shown on the details screen). */
+    public static String familyDescription(String fam)
+    {
+        switch (fam)
+        {
+            case "healthBoost":
+                return "Raises your pet's maximum health, so it survives longer in a fight. Good for a pet that tanks for you.";
+            case "regenBoost":
+                return "Raises your pet's health regeneration, so it heals up faster between fights.";
+            case "armorBoost":
+                return "Adds armor to your pet, so every hit against it does less damage. Good for a pet that tanks for you.";
+            case "damageBoost":
+                return "Every attack of your pet does more damage. Good for a pet that deals damage while you hold the enemy's attention.";
+            case "attackSpeedBoost":
+                return "Shortens the time between your pet's attacks, so it attacks more often. Stacks well with Marring Storm (damage).";
+            case "runSpeedBoost":
+                return "Your pet moves faster, also when you ride it as a mount. Mostly useful on mounts.";
+            case "tauntBoost":
+                return "Each hit of your pet adds extra threat, so enemies prefer to attack the pet instead of you. Use it on a tanking pet. Works against Hunted Withdrawal: do not train both.";
+            case "tauntReduction":
+                return "Your pet causes less threat, so enemies keep attacking you instead of the pet. Use it on a damage pet when you tank. Works against Aggression: do not train both.";
+        }
+        return "";
+    }
+
+    public static final String GUIDE =
+        "Tank pet: Vigorous Health, Thick Skin, Aggression.\n"
+        + "Damage pet (you tank): Marring Storm, Frenzied Blitz, Hunted Withdrawal.\n"
+        + "Aggression and Hunted Withdrawal work against each other. Fleet Footed is for mounts.";
 
     /** True when the radial entry should be offered on this called-out pet. */
     public static boolean canOfferTraining(obj_id pet, obj_id player) throws InterruptedException
@@ -171,7 +244,8 @@ public class pet_training_lib extends script.base_script
                 continue;
             }
             int cost = row.getInt("trainingCost");
-            String line = abilityLabel(name) + "  -  " + cost + " points";
+            String effect = effectText(row);
+            String line = abilityLabel(name) + (effect.length() > 0 ? ":  " + effect : "") + "  -  " + cost + " points";
             if (cost > points)
             {
                 line += "  (need " + (cost - points) + " more)";
@@ -197,7 +271,8 @@ public class pet_training_lib extends script.base_script
             + "\n\nFree ability slots: " + slots + (toEarn > 0 ? " (" + toEarn + " more to earn as it levels)" : "")
             + "\nTraining points: " + points
             + "\nKnown: " + (knownText.length() > 0 ? knownText.toString() : "none")
-            + "\n\nA higher rank replaces the lower one and uses a slot as well. A new ability takes effect the next time you call your pet.";
+            + "\n\n" + GUIDE
+            + "\n\nSelect an ability and press OK to see the details before training it. A higher rank replaces the lower one and uses a slot as well.";
         int[] crcArray = new int[crcs.size()];
         for (int i = 0; i < crcArray.length; i++)
         {
@@ -233,9 +308,74 @@ public class pet_training_lib extends script.base_script
         {
             return;
         }
+        openDetails(pet, player, crcs[idx]);
+    }
+
+    /** Details screen for one ability: what it does, what it costs, Train / Cancel. */
+    public static void openDetails(obj_id pet, obj_id player, int crc) throws InterruptedException
+    {
+        int r = dataTableSearchColumnForInt(crc, "abilityCrc", pet_lib.PET_ABILITY_TABLE);
+        dictionary row = r >= 0 ? dataTableGetRow(pet_lib.PET_ABILITY_TABLE, r) : null;
+        if (row == null)
+        {
+            return;
+        }
+        obj_id pcd = callable.getCallableCD(pet);
+        String name = row.getString("abilityName");
+        int cost = row.getInt("trainingCost");
+        int points = getIntObjVar(pcd, "ai.petAbility.trainingPts");
+        int slots = getIntObjVar(pcd, "ai.petAbility.available");
+        String prereq = row.getString("prereq");
+        StringBuilder text = new StringBuilder();
+        text.append(abilityLabel(name)).append("\n\n");
+        text.append("Effect: ").append(effectText(row)).append("\n\n");
+        text.append(familyDescription(family(name))).append("\n\n");
+        if (prereq != null && prereq.length() > 0)
+        {
+            text.append("Replaces ").append(abilityLabel(prereq)).append(" (the numbers above are the new total, not added on top).\n\n");
+        }
+        text.append("Cost: ").append(cost).append(" training points and 1 ability slot.\n");
+        text.append("You have: ").append(points).append(" points, ").append(slots).append(" free slot(s).\n\n");
+        if (points < cost)
+        {
+            text.append("Your pet does not have enough training points yet. It earns more as it levels.");
+        }
+        else if (slots < 1)
+        {
+            text.append("Your pet has no free ability slot yet. It earns more as it levels.");
+        }
+        else
+        {
+            text.append("Press OK to train it. It takes effect the next time you call your pet.");
+        }
+        utils.setScriptVar(pet, SCRIPTVAR_PENDING, crc);
+        utils.setScriptVar(pet, SCRIPTVAR_PLAYER, player);
+        sui.msgbox(pet, player, text.toString(), sui.OK_CANCEL, localized("training_title", "Train Pet Ability"), CONFIRM_HANDLER);
+    }
+
+    /** Details screen result: OK trains, Cancel goes back to the list. Called from ai.pet. */
+    public static void onDetailsClosed(obj_id pet, dictionary params) throws InterruptedException
+    {
+        obj_id player = sui.getPlayerId(params);
+        if (!isIdValid(player) || !utils.hasScriptVar(pet, SCRIPTVAR_PENDING) || utils.getObjIdScriptVar(pet, SCRIPTVAR_PLAYER) != player)
+        {
+            return;
+        }
+        int crc = utils.getIntScriptVar(pet, SCRIPTVAR_PENDING);
+        utils.removeScriptVar(pet, SCRIPTVAR_PENDING);
+        utils.removeScriptVar(pet, SCRIPTVAR_PLAYER);
+        if (!canOfferTraining(pet, player))
+        {
+            return;
+        }
+        if (sui.getIntButtonPressed(params) == sui.BP_CANCEL)
+        {
+            openTrainingWindow(pet, player);
+            return;
+        }
         obj_id pcd = callable.getCallableCD(pet);
         int before = getIntObjVar(pcd, "ai.petAbility.available");
-        pet_lib.trainPetAbility(pet, crcs[idx]);
+        pet_lib.trainPetAbility(pet, crc);
         if (getIntObjVar(pcd, "ai.petAbility.available") < before)
         {
             sendSystemMessage(player, "Store and call your pet again to activate the new ability.", null);
