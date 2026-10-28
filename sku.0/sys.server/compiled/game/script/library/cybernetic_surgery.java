@@ -19,7 +19,9 @@ import java.util.Vector;
  * Success installs the part exactly like the hospital engineer does (equip -> cybernetic_item
  * script applies all mods). Failure damages the part (10-25 % of max condition) and hurts the
  * patient. One roll (1..10000) decides success AND, on failure, how badly it failed:
- * severity f = position of the roll in the failure range, 0 = barely missed, 1 = worst roll.
+ * severity f = position of the roll in the failure range, 0 = barely missed, 1 = worst roll,
+ * then weighted by skill: f^m with m = SEVERITY_EXP_BASE + skill * SEVERITY_EXP_PER_SKILL
+ * (novice ~0.77 pushes failures toward bad, master ~3.9 toward narrow misses; f = 1 stays 1).
  * The worst FAIL_KNOCKOUT_CHANCE[size] % of the failure range knocks the patient out (normal
  * incapacitation); below that the patient loses 20 + 79 * g^k % health (g = f rescaled over the
  * non-knockout part), so every part can do severe damage but the exponent k keeps small parts
@@ -39,7 +41,7 @@ public class cybernetic_surgery extends script.base_script
     {
     }
 
-    public static final String BUILD_TAG = "[cybersurgery P24-5]";
+    public static final String BUILD_TAG = "[cybersurgery P24-6]";
     public static final String SCRIPT_NAME = "cybernetic.cybernetic_surgery";
     public static final String STF = "cybernetic_surgery";
     public static final string_id SID_RADIAL_IMPLANT = new string_id(STF, "radial_implant");
@@ -75,6 +77,9 @@ public class cybernetic_surgery extends script.base_script
     public static final int[] FAIL_KNOCKOUT_CHANCE = {0, 5, 10, 15, 25, 35};
     public static final String BUFF_INCAP_WEAKEN = "incapWeaken";
     public static final int SELF_PENALTY = 0;
+    // skill weighting of failure severity: severity = f^m, m = BASE + skill * PER_SKILL
+    public static final double SEVERITY_EXP_BASE = 0.6;
+    public static final double SEVERITY_EXP_PER_SKILL = 1.0 / 30.0;
     public static final int XP_PER_SIZE = 150;
 
     // scriptvars on the surgeon
@@ -527,7 +532,10 @@ public class cybernetic_surgery extends script.base_script
         }
         else
         {
-            double severity = (double)(roll - threshold) / (double)(10000 - threshold);
+            double f = (double)(roll - threshold) / (double)(10000 - threshold);
+            double m = SEVERITY_EXP_BASE + getSurgerySkill(surgeon) * SEVERITY_EXP_PER_SKILL;
+            double severity = Math.pow(Math.max(0.0, Math.min(1.0, f)), m);
+            CustomerServiceLog("cyborg", BUILD_TAG + " failure position " + Math.round(f * 100) + "%, skill exponent " + Math.round(m * 100) / 100.0 + " -> severity " + Math.round(severity * 100) + "%");
             fail(surgeon, patient, item, label, severity);
         }
     }
