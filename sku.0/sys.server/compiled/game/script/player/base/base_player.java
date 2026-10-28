@@ -1255,7 +1255,7 @@ public class base_player extends script.base_script
         {
             mid.setServerNotify(true);
         }
-        if (player != self && isPlayer(player) && !isDead(self) && !isIncapacitated(self) && cybernetic_surgery.isSurgeon(player) && cybernetic_surgery.getImplantableParts(self).length > 0)
+        if (isPlayer(player) && !isDead(self) && !isIncapacitated(self) && cybernetic_surgery.isSurgeon(player) && cybernetic_surgery.getImplantableParts(self).length > 0)
         {
             mi.addRootMenu(menu_info_types.SERVER_MENU7, cybernetic_surgery.SID_RADIAL_IMPLANT);
         }
