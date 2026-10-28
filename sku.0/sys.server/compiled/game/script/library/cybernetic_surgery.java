@@ -433,7 +433,7 @@ public class cybernetic_surgery extends script.base_script
         utils.setScriptVar(surgeon, SV_SURGEON + ".item", item);
         int size = getPartSize(item);
         String who = (surgeon == patient) ? "You are about to implant in yourself: " : getPlayerName(patient) + " asks you to implant: ";
-        String prompt = who + getItemLabel(item) + ".\n\nSuccess chance: " + chance + "%.\nOn failure the part loses " + FAIL_DAMAGE_MIN_PCT + "-" + FAIL_DAMAGE_MAX_PCT + "% condition and the patient loses  + FAIL_HEALTH_MIN_PCT + "-" + FAIL_HEALTH_MAX_PCT + "% health (" + (size <= 2 ? "usually at the low end for a part this small" : size >= 4 ? "often severe for a part this large" : "often moderate") + "), with a " + FAIL_KNOCKOUT_CHANCE[size] + "% risk of being knocked out.";
+        String prompt = who + getItemLabel(item) + ".\n\nSuccess chance: " + chance + "%.\nOn failure the part loses " + FAIL_DAMAGE_MIN_PCT + "-" + FAIL_DAMAGE_MAX_PCT + "% condition and the patient loses " + FAIL_HEALTH_MIN_PCT + "-" + FAIL_HEALTH_MAX_PCT + "% health (" + (size <= 2 ? "usually at the low end for a part this small" : size >= 4 ? "often severe for a part this large" : "often moderate") + "), with a " + FAIL_KNOCKOUT_CHANCE[size] + "% risk of being knocked out.";
         if (isWeakened(patient))
         {
             prompt += "\n\n" + WARN_WEAKENED;
