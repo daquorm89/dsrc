@@ -31,7 +31,10 @@ public class cybernetic_surgery extends script.base_script
         int idx = sui.getListboxSelectedRow(params);
         if (bp != sui.BP_OK || idx < 0 || idx >= parts.length)
         {
-            script.library.cybernetic_surgery.msg(surgeon, getPlayerName(self) + " declined the cybernetic surgery.");
+            if (surgeon != self)
+            {
+                script.library.cybernetic_surgery.msg(surgeon, getPlayerName(self) + " declined the cybernetic surgery.");
+            }
             return SCRIPT_CONTINUE;
         }
         script.library.cybernetic_surgery.patientChose(self, surgeon, parts[idx]);
@@ -50,7 +53,7 @@ public class cybernetic_surgery extends script.base_script
             {
                 utils.removeScriptVarTree(self, sv);
             }
-            if (isIdValid(patient))
+            if (isIdValid(patient) && patient != self)
             {
                 script.library.cybernetic_surgery.msg(patient, getPlayerName(self) + " decided not to perform the surgery.");
             }
