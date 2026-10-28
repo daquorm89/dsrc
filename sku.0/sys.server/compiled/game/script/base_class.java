@@ -7358,6 +7358,23 @@ public class base_class
     {
         return _getTotalVolume(getLongWithNull(container));
     }
+    /** @brief P25: set a persistent capacity on a volume container (crafted containers).
+     *  Stored in objvar container.capacity, re-applied by the server on load and sent to clients.
+     *  Returns false if the object has no limited volume container, is not authoritative here,
+     *  or the server binary does not have this function yet.
+     */
+    private static native boolean _setContainerCapacity(long container, int capacity);
+    public static boolean setContainerCapacity(obj_id container, int capacity)
+    {
+        try
+        {
+            return _setContainerCapacity(getLongWithNull(container), capacity);
+        }
+        catch (UnsatisfiedLinkError err)
+        {
+            return false;
+        }
+    }
     /** @brief Get the total volume free in the container.
          *
          *      This method returns the total free volume in the container.  It must be a volume container.
