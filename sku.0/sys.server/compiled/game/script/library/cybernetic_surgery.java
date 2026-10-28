@@ -442,7 +442,7 @@ public class cybernetic_surgery extends script.base_script
         utils.setScriptVar(surgeon, SV_SURGEON + ".item", item);
         int size = getPartSize(item);
         String who = (surgeon == patient) ? "You are about to implant in yourself: " : getPlayerName(patient) + " asks you to implant: ";
-        String prompt = who + getItemLabel(item) + ".\n\nSuccess chance: " + chance + "%.\nOn failure the part loses " + FAIL_DAMAGE_MIN_PCT + "-" + FAIL_DAMAGE_MAX_PCT + "% condition and the patient loses " + FAIL_HEALTH_MIN_PCT + "-" + FAIL_HEALTH_MAX_PCT + "% health (" + (size <= 2 ? "usually at the low end for a part this small" : size >= 4 ? "often severe for a part this large" : "often moderate") + "), with a " + FAIL_KNOCKOUT_CHANCE[size] + "% risk of being knocked out.";
+        String prompt = who + getItemLabel(item) + ".\n\nSuccess chance: " + chance + "%.\nOn failure the part loses " + FAIL_DAMAGE_MIN_PCT + "-" + FAIL_DAMAGE_MAX_PCT + "% condition and the patient loses " + FAIL_HEALTH_MIN_PCT + "-" + FAIL_HEALTH_MAX_PCT + "% health (" + (size <= 2 ? "usually at the low end for a part this small" : size >= 4 ? "often severe for a part this large" : "often moderate") + ").\nRisk that this surgery knocks the patient out: " + formatPct(getKnockoutRisk(surgeon, item, chance)) + ".";
         if (isWeakened(patient))
         {
             prompt += "\n\n" + WARN_WEAKENED;
@@ -625,6 +625,26 @@ public class cybernetic_surgery extends script.base_script
             msg(patient, how + ". Your " + label + " was damaged and you were " + outcome + ". A Cybernetic Specialist can repair the part.");
         }
         CustomerServiceLog("cyborg", BUILD_TAG + " failure: item " + item + " damaged, patient " + patient + " " + outcome + " (size " + size + ", severity " + Math.round(severity * 100) + "%, knockout " + knockout + ", weakened " + weakened + ")");
+    }
+
+    /** Overall knockout risk of one surgery in percent: P(fail) * P(skill-weighted severity lands in the knockout band). */
+    public static double getKnockoutRisk(obj_id surgeon, obj_id item, int chance) throws InterruptedException
+    {
+        int size = Math.max(1, Math.min(5, getPartSize(item)));
+        double koFrom = 1.0 - FAIL_KNOCKOUT_CHANCE[size] / 100.0;
+        double m = SEVERITY_EXP_BASE + getSurgerySkill(surgeon) * SEVERITY_EXP_PER_SKILL;
+        // severity = f^m > koFrom  <=>  f > koFrom^(1/m), f uniform over the failure range
+        double perFailure = 1.0 - Math.pow(koFrom, 1.0 / m);
+        return (100 - chance) * perFailure;
+    }
+
+    public static String formatPct(double pct) throws InterruptedException
+    {
+        if (pct > 0 && pct < 1.0)
+        {
+            return "under 1%";
+        }
+        return Math.round(pct) + "%";
     }
 
     /** 20..99 for g = 0..1 (how bad the non-knockout failure was), skewed by part size (see FAIL_HEALTH_SKEW). */
