@@ -19,7 +19,8 @@ import java.util.Vector;
  * Success installs the part exactly like the hospital engineer does (equip -> cybernetic_item
  * script applies all mods). Failure damages the part (10-25 % of max condition) and hurts the
  * patient: a knockout (normal incapacitation) with a chance that grows with part size, otherwise
- * a random 20 % .. size-dependent maximum of health. A knockout of a patient who still has the
+ * 20-99 % of health, rolled as 20 + 79 * u^k: every part can do severe damage, but the exponent k
+ * keeps small parts mostly at the low end (hand median ~21 %, torso ~59 %). A knockout of a patient who still has the
  * incapWeaken buff kills them (base_player.OnIncapacitated -> pclib.killPlayer); owner decision
  * 2026-10-28: they knew the risk. Both players get a warning before committing.
  *
@@ -34,7 +35,7 @@ public class cybernetic_surgery extends script.base_script
     {
     }
 
-    public static final String BUILD_TAG = "[cybersurgery P24-3]";
+    public static final String BUILD_TAG = "[cybersurgery P24-4]";
     public static final String SCRIPT_NAME = "cybernetic.cybernetic_surgery";
     public static final String STF = "cybernetic_surgery";
     public static final string_id SID_RADIAL_IMPLANT = new string_id(STF, "radial_implant");
@@ -64,7 +65,9 @@ public class cybernetic_surgery extends script.base_script
     public static final int FAIL_DAMAGE_MAX_PCT = 25;
     // failure damage to the patient, index = part size (0 unused, 1 hand .. 5 torso)
     public static final int FAIL_HEALTH_MIN_PCT = 20;
-    public static final int[] FAIL_HEALTH_MAX_PCT = {0, 40, 50, 60, 75, 90};
+    public static final int FAIL_HEALTH_MAX_PCT = 99;
+    // skew exponent k: damage = MIN + (MAX - MIN) * u^k, u uniform 0..1; higher k = mostly low damage
+    public static final double[] FAIL_HEALTH_SKEW = {1.0, 6.0, 4.0, 2.5, 1.6, 1.0};
     public static final int[] FAIL_KNOCKOUT_CHANCE = {0, 5, 10, 15, 25, 35};
     public static final String BUFF_INCAP_WEAKEN = "incapWeaken";
     public static final int SELF_PENALTY = 0;
@@ -430,7 +433,7 @@ public class cybernetic_surgery extends script.base_script
         utils.setScriptVar(surgeon, SV_SURGEON + ".item", item);
         int size = getPartSize(item);
         String who = (surgeon == patient) ? "You are about to implant in yourself: " : getPlayerName(patient) + " asks you to implant: ";
-        String prompt = who + getItemLabel(item) + ".\n\nSuccess chance: " + chance + "%.\nOn failure the part loses " + FAIL_DAMAGE_MIN_PCT + "-" + FAIL_DAMAGE_MAX_PCT + "% condition and the patient loses " + FAIL_HEALTH_MIN_PCT + "-" + FAIL_HEALTH_MAX_PCT[size] + "% health, with a " + FAIL_KNOCKOUT_CHANCE[size] + "% risk of being knocked out.";
+        String prompt = who + getItemLabel(item) + ".\n\nSuccess chance: " + chance + "%.\nOn failure the part loses " + FAIL_DAMAGE_MIN_PCT + "-" + FAIL_DAMAGE_MAX_PCT + "% condition and the patient loses  + FAIL_HEALTH_MIN_PCT + "-" + FAIL_HEALTH_MAX_PCT + "% health (" + (size <= 2 ? "usually at the low end for a part this small" : size >= 4 ? "often severe for a part this large" : "often moderate") + "), with a " + FAIL_KNOCKOUT_CHANCE[size] + "% risk of being knocked out.";
         if (isWeakened(patient))
         {
             prompt += "\n\n" + WARN_WEAKENED;
@@ -586,7 +589,7 @@ public class cybernetic_surgery extends script.base_script
         }
         else
         {
-            int pct = rand(FAIL_HEALTH_MIN_PCT, FAIL_HEALTH_MAX_PCT[size]);
+            int pct = rollHealthLossPct(size);
             int hurt = Math.max(1, maxHealth * pct / 100);
             setAttrib(patient, HEALTH, Math.max(1, health - hurt));
             doAnimationAction(patient, "wince");
@@ -602,6 +605,15 @@ public class cybernetic_surgery extends script.base_script
             msg(patient, "The surgery failed. Your " + label + " was damaged and you were " + outcome + ". A Cybernetic Specialist can repair the part.");
         }
         CustomerServiceLog("cyborg", BUILD_TAG + " failure: item " + item + " damaged, patient " + patient + " " + outcome + " (size " + size + ", knockoutRoll " + knockout + ", weakened " + weakened + ")");
+    }
+
+    /** 20..99, skewed by part size (see FAIL_HEALTH_SKEW). */
+    public static int rollHealthLossPct(int size) throws InterruptedException
+    {
+        double u = rand(0, 100000) / 100000.0;
+        double k = FAIL_HEALTH_SKEW[Math.max(1, Math.min(5, size))];
+        int pct = FAIL_HEALTH_MIN_PCT + (int)((FAIL_HEALTH_MAX_PCT - FAIL_HEALTH_MIN_PCT) * Math.pow(u, k));
+        return Math.max(FAIL_HEALTH_MIN_PCT, Math.min(FAIL_HEALTH_MAX_PCT, pct));
     }
 
     public static String getItemLabel(obj_id item) throws InterruptedException
