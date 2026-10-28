@@ -19,8 +19,9 @@ import java.util.Vector;
  * Success installs the part exactly like the hospital engineer does (equip -> cybernetic_item
  * script applies all mods). Failure damages the part (10-25 % of max condition) and hurts the
  * patient: a knockout (normal incapacitation) with a chance that grows with part size, otherwise
- * a random 20 % .. size-dependent maximum of health. Never lethal: a patient who already has the
- * incapWeaken buff (a second incap would kill) is left at 1 health instead of being knocked out.
+ * a random 20 % .. size-dependent maximum of health. A knockout of a patient who still has the
+ * incapWeaken buff kills them (base_player.OnIncapacitated -> pclib.killPlayer); owner decision
+ * 2026-10-28: they knew the risk. Both players get a warning before committing.
  *
  * Self-surgery is allowed (surgeon == patient), with SELF_PENALTY on the chance (default 0).
  *
@@ -33,7 +34,7 @@ public class cybernetic_surgery extends script.base_script
     {
     }
 
-    public static final String BUILD_TAG = "[cybersurgery P24-2]";
+    public static final String BUILD_TAG = "[cybersurgery P24-3]";
     public static final String SCRIPT_NAME = "cybernetic.cybernetic_surgery";
     public static final String STF = "cybernetic_surgery";
     public static final string_id SID_RADIAL_IMPLANT = new string_id(STF, "radial_implant");
@@ -171,6 +172,13 @@ public class cybernetic_surgery extends script.base_script
         parts.toArray(ret);
         return ret;
     }
+
+    public static boolean isWeakened(obj_id patient) throws InterruptedException
+    {
+        return buff.hasBuff(patient, BUFF_INCAP_WEAKEN);
+    }
+
+    public static final String WARN_WEAKENED = "WARNING: the patient is still weakened from an earlier incapacitation. If the surgery fails and knocks them out, they will die.";
 
     public static boolean isInInventory(obj_id item, obj_id patient) throws InterruptedException
     {
@@ -371,6 +379,10 @@ public class cybernetic_surgery extends script.base_script
         utils.setScriptVar(patient, SV_PATIENT + ".parts", parts);
         String risk = "The surgery is invasive: if it fails, the part is damaged and the patient is badly hurt or knocked out. Larger parts carry more risk.";
         String prompt = self ? "Choose the cybernetic part to implant in yourself. " + risk : getPlayerName(surgeon) + " offers to implant a cybernetic part. Choose the part from your inventory. " + risk;
+        if (isWeakened(patient))
+        {
+            prompt += "\n\n" + WARN_WEAKENED;
+        }
         int pid = sui.listbox(patient, patient, prompt, sui.OK_CANCEL, "Cybernetic Surgery", names, "handleCyberSurgeryPatientChoice", true, false);
         sui.setPid(patient, pid, SV_PATIENT);
         if (!self)
@@ -418,7 +430,12 @@ public class cybernetic_surgery extends script.base_script
         utils.setScriptVar(surgeon, SV_SURGEON + ".item", item);
         int size = getPartSize(item);
         String who = (surgeon == patient) ? "You are about to implant in yourself: " : getPlayerName(patient) + " asks you to implant: ";
-        String prompt = who + getItemLabel(item) + ".\n\nSuccess chance: " + chance + "%.\nOn failure the part loses " + FAIL_DAMAGE_MIN_PCT + "-" + FAIL_DAMAGE_MAX_PCT + "% condition and the patient loses " + FAIL_HEALTH_MIN_PCT + "-" + FAIL_HEALTH_MAX_PCT[size] + "% health, with a " + FAIL_KNOCKOUT_CHANCE[size] + "% risk of being knocked out.\n\nStart the surgery?";
+        String prompt = who + getItemLabel(item) + ".\n\nSuccess chance: " + chance + "%.\nOn failure the part loses " + FAIL_DAMAGE_MIN_PCT + "-" + FAIL_DAMAGE_MAX_PCT + "% condition and the patient loses " + FAIL_HEALTH_MIN_PCT + "-" + FAIL_HEALTH_MAX_PCT[size] + "% health, with a " + FAIL_KNOCKOUT_CHANCE[size] + "% risk of being knocked out.";
+        if (isWeakened(patient))
+        {
+            prompt += "\n\n" + WARN_WEAKENED;
+        }
+        prompt += "\n\nStart the surgery?";
         int pid = sui.msgbox(surgeon, surgeon, prompt, sui.OK_CANCEL, "Cybernetic Surgery", sui.MSG_QUESTION, "handleCyberSurgeryConfirm");
         sui.setPid(surgeon, pid, SV_SURGEON);
         if (surgeon != patient)
@@ -558,26 +575,22 @@ public class cybernetic_surgery extends script.base_script
         int health = getAttrib(patient, HEALTH);
         int maxHealth = getWoundedMaxAttrib(patient, HEALTH);
         boolean knockout = rand(1, 100) <= FAIL_KNOCKOUT_CHANCE[size];
-        boolean weakened = buff.hasBuff(patient, BUFF_INCAP_WEAKEN);
+        boolean weakened = isWeakened(patient);
         String outcome;
-        if (knockout && !weakened)
+        if (knockout)
         {
-            // normal incapacitation (engine testIncapacitation -> base_player.OnIncapacitated -> recapacitation timer)
+            // normal incapacitation (engine testIncapacitation -> base_player.OnIncapacitated); a patient
+            // who still has incapWeaken is killed there (pclib.killPlayer), by owner decision
+            outcome = weakened ? "knocked out while still weakened" : "knocked out";
             setAttrib(patient, HEALTH, 0);
-            outcome = "knocked out";
         }
         else
         {
             int pct = rand(FAIL_HEALTH_MIN_PCT, FAIL_HEALTH_MAX_PCT[size]);
             int hurt = Math.max(1, maxHealth * pct / 100);
-            if (knockout)
-            {
-                // already weakened: a second incap would kill, so leave the patient at 1 health
-                hurt = health;
-            }
             setAttrib(patient, HEALTH, Math.max(1, health - hurt));
             doAnimationAction(patient, "wince");
-            outcome = knockout ? "left at the brink of collapse" : "hurt (" + pct + "% health)";
+            outcome = "hurt (" + pct + "% health)";
         }
         if (surgeon == patient)
         {
