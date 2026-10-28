@@ -18,9 +18,13 @@ import java.util.Vector;
  *
  * Success installs the part exactly like the hospital engineer does (equip -> cybernetic_item
  * script applies all mods). Failure damages the part (10-25 % of max condition) and hurts the
- * patient: a knockout (normal incapacitation) with a chance that grows with part size, otherwise
- * 20-99 % of health, rolled as 20 + 79 * u^k: every part can do severe damage, but the exponent k
- * keeps small parts mostly at the low end (hand median ~21 %, torso ~59 %). A knockout of a patient who still has the
+ * patient. One roll (1..10000) decides success AND, on failure, how badly it failed:
+ * severity f = position of the roll in the failure range, 0 = barely missed, 1 = worst roll.
+ * The worst FAIL_KNOCKOUT_CHANCE[size] % of the failure range knocks the patient out (normal
+ * incapacitation); below that the patient loses 20 + 79 * g^k % health (g = f rescaled over the
+ * non-knockout part), so every part can do severe damage but the exponent k keeps small parts
+ * mostly at the low end (hand median ~21 %, torso ~59 %). Part condition loss also scales with f.
+ * A knockout of a patient who still has the
  * incapWeaken buff kills them (base_player.OnIncapacitated -> pclib.killPlayer); owner decision
  * 2026-10-28: they knew the risk. Both players get a warning before committing.
  *
@@ -35,7 +39,7 @@ public class cybernetic_surgery extends script.base_script
     {
     }
 
-    public static final String BUILD_TAG = "[cybersurgery P24-4]";
+    public static final String BUILD_TAG = "[cybersurgery P24-5]";
     public static final String SCRIPT_NAME = "cybernetic.cybernetic_surgery";
     public static final String STF = "cybernetic_surgery";
     public static final string_id SID_RADIAL_IMPLANT = new string_id(STF, "radial_implant");
@@ -512,16 +516,19 @@ public class cybernetic_surgery extends script.base_script
         }
         int bonus = getLocationBonus(surgeon, false);
         int chance = getChance(surgeon, patient, item, bonus);
-        int roll = rand(1, 100);
+        // fine-grained roll so the failure severity is not limited to a few steps at high chances
+        int threshold = chance * 100;
+        int roll = rand(1, 10000);
         String label = getItemLabel(item);
-        CustomerServiceLog("cyborg", BUILD_TAG + " surgeon " + surgeon + " patient " + patient + " item " + item + " (" + getTemplateName(item) + ") chance " + chance + " roll " + roll);
-        if (roll <= chance)
+        CustomerServiceLog("cyborg", BUILD_TAG + " surgeon " + surgeon + " patient " + patient + " item " + item + " (" + getTemplateName(item) + ") chance " + chance + " roll " + roll + "/10000");
+        if (roll <= threshold)
         {
             succeed(surgeon, patient, item, label);
         }
         else
         {
-            fail(surgeon, patient, item, label);
+            double severity = (double)(roll - threshold) / (double)(10000 - threshold);
+            fail(surgeon, patient, item, label, severity);
         }
     }
 
@@ -565,19 +572,23 @@ public class cybernetic_surgery extends script.base_script
         CustomerServiceLog("cyborg", BUILD_TAG + " success: item " + item + " installed on " + patient + " by " + surgeon);
     }
 
-    public static void fail(obj_id surgeon, obj_id patient, obj_id item, String label) throws InterruptedException
+    /** severity: 0 (barely missed) .. 1 (worst possible roll). */
+    public static void fail(obj_id surgeon, obj_id patient, obj_id item, String label, double severity) throws InterruptedException
     {
+        severity = Math.max(0.0, Math.min(1.0, severity));
         int maxHp = getMaxHitpoints(item);
         int hp = getHitpoints(item);
         if (maxHp > 0)
         {
-            int dmg = Math.max(1, maxHp * rand(FAIL_DAMAGE_MIN_PCT, FAIL_DAMAGE_MAX_PCT) / 100);
+            int partPct = FAIL_DAMAGE_MIN_PCT + (int)Math.round((FAIL_DAMAGE_MAX_PCT - FAIL_DAMAGE_MIN_PCT) * severity);
+            int dmg = Math.max(1, maxHp * partPct / 100);
             setHitpoints(item, Math.max(1, hp - dmg));
         }
         int size = Math.max(1, Math.min(5, getPartSize(item)));
         int health = getAttrib(patient, HEALTH);
         int maxHealth = getWoundedMaxAttrib(patient, HEALTH);
-        boolean knockout = rand(1, 100) <= FAIL_KNOCKOUT_CHANCE[size];
+        double koFrom = 1.0 - FAIL_KNOCKOUT_CHANCE[size] / 100.0;
+        boolean knockout = severity > koFrom;
         boolean weakened = isWeakened(patient);
         String outcome;
         if (knockout)
@@ -589,28 +600,29 @@ public class cybernetic_surgery extends script.base_script
         }
         else
         {
-            int pct = rollHealthLossPct(size);
+            int pct = healthLossPct(size, koFrom > 0 ? severity / koFrom : severity);
             int hurt = Math.max(1, maxHealth * pct / 100);
             setAttrib(patient, HEALTH, Math.max(1, health - hurt));
             doAnimationAction(patient, "wince");
             outcome = "hurt (" + pct + "% health)";
         }
+        String how = knockout ? "The surgery was botched" : severity < 0.34 ? "The surgery narrowly failed" : severity < 0.67 ? "The surgery failed" : "The surgery failed badly";
         if (surgeon == patient)
         {
-            msg(patient, "The surgery failed. Your " + label + " was damaged and you were " + outcome + ". A Cybernetic Specialist can repair the part.");
+            msg(patient, how + ". Your " + label + " was damaged and you were " + outcome + ". A Cybernetic Specialist can repair the part.");
         }
         else
         {
-            msg(surgeon, "The surgery failed. The " + label + " was damaged and " + getPlayerName(patient) + " was " + outcome + ".");
-            msg(patient, "The surgery failed. Your " + label + " was damaged and you were " + outcome + ". A Cybernetic Specialist can repair the part.");
+            msg(surgeon, how + ". The " + label + " was damaged and " + getPlayerName(patient) + " was " + outcome + ".");
+            msg(patient, how + ". Your " + label + " was damaged and you were " + outcome + ". A Cybernetic Specialist can repair the part.");
         }
-        CustomerServiceLog("cyborg", BUILD_TAG + " failure: item " + item + " damaged, patient " + patient + " " + outcome + " (size " + size + ", knockoutRoll " + knockout + ", weakened " + weakened + ")");
+        CustomerServiceLog("cyborg", BUILD_TAG + " failure: item " + item + " damaged, patient " + patient + " " + outcome + " (size " + size + ", severity " + Math.round(severity * 100) + "%, knockout " + knockout + ", weakened " + weakened + ")");
     }
 
-    /** 20..99, skewed by part size (see FAIL_HEALTH_SKEW). */
-    public static int rollHealthLossPct(int size) throws InterruptedException
+    /** 20..99 for g = 0..1 (how bad the non-knockout failure was), skewed by part size (see FAIL_HEALTH_SKEW). */
+    public static int healthLossPct(int size, double g) throws InterruptedException
     {
-        double u = rand(0, 100000) / 100000.0;
+        double u = Math.max(0.0, Math.min(1.0, g));
         double k = FAIL_HEALTH_SKEW[Math.max(1, Math.min(5, size))];
         int pct = FAIL_HEALTH_MIN_PCT + (int)((FAIL_HEALTH_MAX_PCT - FAIL_HEALTH_MIN_PCT) * Math.pow(u, k));
         return Math.max(FAIL_HEALTH_MIN_PCT, Math.min(FAIL_HEALTH_MAX_PCT, pct));
