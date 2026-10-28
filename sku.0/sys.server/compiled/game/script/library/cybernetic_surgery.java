@@ -18,7 +18,11 @@ import java.util.Vector;
  *
  * Success installs the part exactly like the hospital engineer does (equip -> cybernetic_item
  * script applies all mods). Failure damages the part (10-25 % of max condition) and hurts the
- * patient (never below 1 health).
+ * patient: a knockout (normal incapacitation) with a chance that grows with part size, otherwise
+ * a random 20 % .. size-dependent maximum of health. Never lethal: a patient who already has the
+ * incapWeaken buff (a second incap would kill) is left at 1 health instead of being knocked out.
+ *
+ * Self-surgery is allowed (surgeon == patient), with SELF_PENALTY on the chance (default 0).
  *
  * Scripts: radial entry in player.base.base_player (SERVER_MENU7); SUI and timer handlers in
  * cybernetic.cybernetic_surgery (attached on demand to surgeon and patient).
@@ -29,7 +33,7 @@ public class cybernetic_surgery extends script.base_script
     {
     }
 
-    public static final String BUILD_TAG = "[cybersurgery P24-1]";
+    public static final String BUILD_TAG = "[cybersurgery P24-2]";
     public static final String SCRIPT_NAME = "cybernetic.cybernetic_surgery";
     public static final String STF = "cybernetic_surgery";
     public static final string_id SID_RADIAL_IMPLANT = new string_id(STF, "radial_implant");
@@ -57,7 +61,12 @@ public class cybernetic_surgery extends script.base_script
 
     public static final int FAIL_DAMAGE_MIN_PCT = 10;
     public static final int FAIL_DAMAGE_MAX_PCT = 25;
-    public static final int FAIL_HEALTH_PCT = 20;
+    // failure damage to the patient, index = part size (0 unused, 1 hand .. 5 torso)
+    public static final int FAIL_HEALTH_MIN_PCT = 20;
+    public static final int[] FAIL_HEALTH_MAX_PCT = {0, 40, 50, 60, 75, 90};
+    public static final int[] FAIL_KNOCKOUT_CHANCE = {0, 5, 10, 15, 25, 35};
+    public static final String BUFF_INCAP_WEAKEN = "incapWeaken";
+    public static final int SELF_PENALTY = 0;
     public static final int XP_PER_SIZE = 150;
 
     // scriptvars on the surgeon
@@ -254,9 +263,13 @@ public class cybernetic_surgery extends script.base_script
         return false;
     }
 
-    public static int getChance(obj_id surgeon, obj_id item, int locationBonus) throws InterruptedException
+    public static int getChance(obj_id surgeon, obj_id patient, obj_id item, int locationBonus) throws InterruptedException
     {
         int chance = BASE_CHANCE + Math.round(SKILL_FACTOR * getSurgerySkill(surgeon)) + locationBonus - getPartDifficulty(item);
+        if (surgeon == patient)
+        {
+            chance -= SELF_PENALTY;
+        }
         return Math.max(MIN_CHANCE, Math.min(MAX_CHANCE, chance));
     }
 
@@ -282,7 +295,7 @@ public class cybernetic_surgery extends script.base_script
         {
             return false;
         }
-        if (surgeon == patient || !isPlayer(patient))
+        if (!isPlayer(patient))
         {
             return false;
         }
@@ -310,7 +323,7 @@ public class cybernetic_surgery extends script.base_script
             }
             return false;
         }
-        if (getDistance(surgeon, patient) > MAX_RANGE)
+        if (surgeon != patient && getDistance(surgeon, patient) > MAX_RANGE)
         {
             if (verbose)
             {
@@ -334,9 +347,10 @@ public class cybernetic_surgery extends script.base_script
             return;
         }
         obj_id[] parts = getImplantableParts(patient);
+        boolean self = (surgeon == patient);
         if (parts.length == 0)
         {
-            msg(surgeon, getPlayerName(patient) + " is not carrying a cybernetic part to implant.");
+            msg(surgeon, self ? "You are not carrying a cybernetic part to implant." : getPlayerName(patient) + " is not carrying a cybernetic part to implant.");
             return;
         }
         String[] names = new String[parts.length];
@@ -355,10 +369,14 @@ public class cybernetic_surgery extends script.base_script
         utils.removeScriptVarTree(patient, SV_PATIENT);
         utils.setScriptVar(patient, SV_PATIENT + ".surgeon", surgeon);
         utils.setScriptVar(patient, SV_PATIENT + ".parts", parts);
-        String prompt = getPlayerName(surgeon) + " offers to implant a cybernetic part. Choose the part from your inventory. The surgery can fail, which damages the part and hurts you.";
+        String risk = "The surgery is invasive: if it fails, the part is damaged and the patient is badly hurt or knocked out. Larger parts carry more risk.";
+        String prompt = self ? "Choose the cybernetic part to implant in yourself. " + risk : getPlayerName(surgeon) + " offers to implant a cybernetic part. Choose the part from your inventory. " + risk;
         int pid = sui.listbox(patient, patient, prompt, sui.OK_CANCEL, "Cybernetic Surgery", names, "handleCyberSurgeryPatientChoice", true, false);
         sui.setPid(patient, pid, SV_PATIENT);
-        msg(surgeon, "Waiting for " + getPlayerName(patient) + " to choose a cybernetic part.");
+        if (!self)
+        {
+            msg(surgeon, "Waiting for " + getPlayerName(patient) + " to choose a cybernetic part.");
+        }
         CustomerServiceLog("cyborg", BUILD_TAG + " surgeon " + surgeon + " offered surgery to " + patient + " (" + parts.length + " parts)");
     }
 
@@ -387,7 +405,7 @@ public class cybernetic_surgery extends script.base_script
             return;
         }
         int bonus = getLocationBonus(surgeon, false);
-        int chance = getChance(surgeon, item, bonus);
+        int chance = getChance(surgeon, patient, item, bonus);
         if (!hasScript(surgeon, SCRIPT_NAME))
         {
             attachScript(surgeon, SCRIPT_NAME);
@@ -398,10 +416,15 @@ public class cybernetic_surgery extends script.base_script
         }
         utils.setScriptVar(surgeon, SV_SURGEON + ".patient", patient);
         utils.setScriptVar(surgeon, SV_SURGEON + ".item", item);
-        String prompt = getPlayerName(patient) + " asks you to implant: " + getItemLabel(item) + ".\n\nSuccess chance: " + chance + "%.\nOn failure the part loses " + FAIL_DAMAGE_MIN_PCT + "-" + FAIL_DAMAGE_MAX_PCT + "% condition and the patient is hurt.\n\nStart the surgery?";
+        int size = getPartSize(item);
+        String who = (surgeon == patient) ? "You are about to implant in yourself: " : getPlayerName(patient) + " asks you to implant: ";
+        String prompt = who + getItemLabel(item) + ".\n\nSuccess chance: " + chance + "%.\nOn failure the part loses " + FAIL_DAMAGE_MIN_PCT + "-" + FAIL_DAMAGE_MAX_PCT + "% condition and the patient loses " + FAIL_HEALTH_MIN_PCT + "-" + FAIL_HEALTH_MAX_PCT[size] + "% health, with a " + FAIL_KNOCKOUT_CHANCE[size] + "% risk of being knocked out.\n\nStart the surgery?";
         int pid = sui.msgbox(surgeon, surgeon, prompt, sui.OK_CANCEL, "Cybernetic Surgery", sui.MSG_QUESTION, "handleCyberSurgeryConfirm");
         sui.setPid(surgeon, pid, SV_SURGEON);
-        msg(patient, "Waiting for " + getPlayerName(surgeon) + " to begin the surgery.");
+        if (surgeon != patient)
+        {
+            msg(patient, "Waiting for " + getPlayerName(surgeon) + " to begin the surgery.");
+        }
     }
 
     /** Stage 3 (surgeon confirmed). Starts the timer. */
@@ -422,10 +445,18 @@ public class cybernetic_surgery extends script.base_script
         }
         int started = getGameTime();
         utils.setScriptVar(surgeon, SV_SURGEON + ".started", started);
-        faceTo(surgeon, patient);
-        doAnimationAction(surgeon, "heal_other");
-        msg(surgeon, "You begin the cybernetic surgery on " + getPlayerName(patient) + ". Stay close and out of combat.");
-        msg(patient, getPlayerName(surgeon) + " begins the cybernetic surgery. Hold still.");
+        if (surgeon == patient)
+        {
+            doAnimationAction(surgeon, "heal_self");
+            msg(surgeon, "You begin the cybernetic surgery on yourself. Stay out of combat.");
+        }
+        else
+        {
+            faceTo(surgeon, patient);
+            doAnimationAction(surgeon, "heal_other");
+            msg(surgeon, "You begin the cybernetic surgery on " + getPlayerName(patient) + ". Stay close and out of combat.");
+            msg(patient, getPlayerName(surgeon) + " begins the cybernetic surgery. Hold still.");
+        }
         dictionary params = new dictionary();
         params.put("patient", patient);
         params.put("item", item);
@@ -444,7 +475,7 @@ public class cybernetic_surgery extends script.base_script
         if (!canOperate(surgeon, patient, true))
         {
             msg(surgeon, "The surgery was interrupted. Nothing happened to the part.");
-            if (isIdValid(patient) && exists(patient))
+            if (isIdValid(patient) && exists(patient) && patient != surgeon)
             {
                 msg(patient, "The surgery was interrupted. Nothing happened to the part.");
             }
@@ -453,11 +484,14 @@ public class cybernetic_surgery extends script.base_script
         if (!isImplantablePart(item) || !isInInventory(item, patient))
         {
             msg(surgeon, "The part is no longer in the patient's inventory. The surgery was cancelled.");
-            msg(patient, "The part is no longer in your inventory. The surgery was cancelled.");
+            if (patient != surgeon)
+            {
+                msg(patient, "The part is no longer in your inventory. The surgery was cancelled.");
+            }
             return;
         }
         int bonus = getLocationBonus(surgeon, false);
-        int chance = getChance(surgeon, item, bonus);
+        int chance = getChance(surgeon, patient, item, bonus);
         int roll = rand(1, 100);
         String label = getItemLabel(item);
         CustomerServiceLog("cyborg", BUILD_TAG + " surgeon " + surgeon + " patient " + patient + " item " + item + " (" + getTemplateName(item) + ") chance " + chance + " roll " + roll);
@@ -494,8 +528,15 @@ public class cybernetic_surgery extends script.base_script
             setBioLink(item, patient);
         }
         playClientEffectObj(patient, "clienteffect/cyborg_itm_installed.cef", patient, "");
-        msg(surgeon, "Surgery successful: " + label + " implanted in " + getPlayerName(patient) + ".");
-        msg(patient, "Surgery successful: " + getPlayerName(surgeon) + " implanted your " + label + ".");
+        if (surgeon == patient)
+        {
+            msg(patient, "Surgery successful: you implanted your " + label + ".");
+        }
+        else
+        {
+            msg(surgeon, "Surgery successful: " + label + " implanted in " + getPlayerName(patient) + ".");
+            msg(patient, "Surgery successful: " + getPlayerName(surgeon) + " implanted your " + label + ".");
+        }
         int xpAmount = XP_PER_SIZE * getPartSize(item);
         if (xpAmount > 0)
         {
@@ -513,14 +554,41 @@ public class cybernetic_surgery extends script.base_script
             int dmg = Math.max(1, maxHp * rand(FAIL_DAMAGE_MIN_PCT, FAIL_DAMAGE_MAX_PCT) / 100);
             setHitpoints(item, Math.max(1, hp - dmg));
         }
+        int size = Math.max(1, Math.min(5, getPartSize(item)));
         int health = getAttrib(patient, HEALTH);
         int maxHealth = getWoundedMaxAttrib(patient, HEALTH);
-        int hurt = Math.max(1, maxHealth * FAIL_HEALTH_PCT / 100);
-        setAttrib(patient, HEALTH, Math.max(1, health - hurt));
-        doAnimationAction(patient, "wince");
-        msg(surgeon, "The surgery failed. The " + label + " was damaged and " + getPlayerName(patient) + " was hurt.");
-        msg(patient, "The surgery failed. Your " + label + " was damaged and you were hurt. A Cybernetic Specialist can repair the part.");
-        CustomerServiceLog("cyborg", BUILD_TAG + " failure: item " + item + " damaged, patient " + patient + " hurt " + hurt);
+        boolean knockout = rand(1, 100) <= FAIL_KNOCKOUT_CHANCE[size];
+        boolean weakened = buff.hasBuff(patient, BUFF_INCAP_WEAKEN);
+        String outcome;
+        if (knockout && !weakened)
+        {
+            // normal incapacitation (engine testIncapacitation -> base_player.OnIncapacitated -> recapacitation timer)
+            setAttrib(patient, HEALTH, 0);
+            outcome = "knocked out";
+        }
+        else
+        {
+            int pct = rand(FAIL_HEALTH_MIN_PCT, FAIL_HEALTH_MAX_PCT[size]);
+            int hurt = Math.max(1, maxHealth * pct / 100);
+            if (knockout)
+            {
+                // already weakened: a second incap would kill, so leave the patient at 1 health
+                hurt = health;
+            }
+            setAttrib(patient, HEALTH, Math.max(1, health - hurt));
+            doAnimationAction(patient, "wince");
+            outcome = knockout ? "left at the brink of collapse" : "hurt (" + pct + "% health)";
+        }
+        if (surgeon == patient)
+        {
+            msg(patient, "The surgery failed. Your " + label + " was damaged and you were " + outcome + ". A Cybernetic Specialist can repair the part.");
+        }
+        else
+        {
+            msg(surgeon, "The surgery failed. The " + label + " was damaged and " + getPlayerName(patient) + " was " + outcome + ".");
+            msg(patient, "The surgery failed. Your " + label + " was damaged and you were " + outcome + ". A Cybernetic Specialist can repair the part.");
+        }
+        CustomerServiceLog("cyborg", BUILD_TAG + " failure: item " + item + " damaged, patient " + patient + " " + outcome + " (size " + size + ", knockoutRoll " + knockout + ", weakened " + weakened + ")");
     }
 
     public static String getItemLabel(obj_id item) throws InterruptedException
