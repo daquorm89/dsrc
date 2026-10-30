@@ -83,7 +83,7 @@ public class objective_terminal_security extends script.faction_perk.hq.objectiv
         }
         if (item == menu_info_types.ITEM_USE)
         {
-            if (!hasSkill(player, "class_smuggler_phase1_novice"))
+            if (!slicing.canSlice(player, "hq_security"))
             {
                 sendSystemMessage(player, ONLY_A_SMUGGLER);
                 return SCRIPT_CONTINUE;
@@ -183,6 +183,12 @@ public class objective_terminal_security extends script.faction_perk.hq.objectiv
         else if (hasSkill(player, "class_smuggler_phase2_novice"))
         {
             max = 2;
+        }
+        int preCuLevel = slicing.getPreCuSlicingLevel(player);
+        int preCuMax = preCuLevel >= 6 ? 4 : preCuLevel >= 5 ? 3 : preCuLevel >= 3 ? 2 : 1;
+        if (preCuMax > max)
+        {
+            max = preCuMax;
         }
         cnt -= rand(1, max);
         if (cnt < 0)
