@@ -41,11 +41,13 @@ public class cybernetic_surgery extends script.base_script
     {
     }
 
-    public static final String BUILD_TAG = "[cybersurgery P24-7]";
+    public static final String BUILD_TAG = "[cybersurgery P24-8]";
     public static final String SCRIPT_NAME = "cybernetic.cybernetic_surgery";
     public static final String STF = "cybernetic_surgery";
     public static final string_id SID_RADIAL_IMPLANT = new string_id(STF, "radial_implant");
     public static final string_id SID_RADIAL_IMPLANT_SELF = new string_id(STF, "radial_implant_self");
+    public static final string_id SID_RADIAL_REMOVE = new string_id(STF, "radial_remove");
+    public static final string_id SID_RADIAL_REMOVE_SELF = new string_id(STF, "radial_remove_self");
 
     public static final String SKILL_DOCTOR = "science_doctor_novice";
     public static final String SKILL_BIO_ENGINEER = "outdoors_bio_engineer_novice";
@@ -197,6 +199,43 @@ public class cybernetic_surgery extends script.base_script
     {
         obj_id inv = utils.getInventoryContainer(patient);
         return isIdValid(inv) && isIdValid(item) && getContainedBy(item) == inv;
+    }
+
+    /** An implantable part currently installed (worn) on the patient. */
+    public static boolean isInstalled(obj_id item, obj_id patient) throws InterruptedException
+    {
+        return isImplantablePart(item) && isIdValid(patient) && getContainedBy(item) == patient;
+    }
+
+    public static obj_id[] getInstalledParts(obj_id patient) throws InterruptedException
+    {
+        obj_id[] worn = getAllWornItems(patient, false);
+        Vector parts = new Vector();
+        if (worn != null)
+        {
+            for (obj_id item : worn)
+            {
+                if (isInstalled(item, patient) && !parts.contains(item))
+                {
+                    parts.addElement(item);
+                }
+            }
+        }
+        obj_id[] ret = new obj_id[parts.size()];
+        parts.toArray(ret);
+        return ret;
+    }
+
+    /** Implant: part in the main inventory. Remove: part installed on the patient. */
+    public static boolean isPartReady(obj_id item, obj_id patient, boolean remove) throws InterruptedException
+    {
+        return remove ? isInstalled(item, patient) : (isImplantablePart(item) && isInInventory(item, patient));
+    }
+
+    public static boolean hasInventoryRoom(obj_id patient) throws InterruptedException
+    {
+        obj_id inv = utils.getInventoryContainer(patient);
+        return isIdValid(inv) && getVolumeFree(inv) > 0;
     }
 
     public static boolean isBioLinkedToOther(obj_id item, obj_id patient) throws InterruptedException
@@ -358,6 +397,18 @@ public class cybernetic_surgery extends script.base_script
     /** Stage 1 (radial on the patient, run by the surgeon). Shows the patient their parts. */
     public static void requestImplant(obj_id surgeon, obj_id patient) throws InterruptedException
     {
+        requestSurgery(surgeon, patient, false);
+    }
+
+    /** Radial "Remove Cybernetic" on another player (player.base.base_player, SERVER_MENU8). */
+    public static void requestRemoval(obj_id surgeon, obj_id patient) throws InterruptedException
+    {
+        requestSurgery(surgeon, patient, true);
+    }
+
+    /** Stage 1. remove = false: implant a part from the patient's inventory; true: remove an installed part. */
+    public static void requestSurgery(obj_id surgeon, obj_id patient, boolean remove) throws InterruptedException
+    {
         if (!canOperate(surgeon, patient, true))
         {
             return;
@@ -367,11 +418,18 @@ public class cybernetic_surgery extends script.base_script
             msg(surgeon, "You are already performing a cybernetic surgery.");
             return;
         }
-        obj_id[] parts = getImplantableParts(patient);
+        obj_id[] parts = remove ? getInstalledParts(patient) : getImplantableParts(patient);
         boolean self = (surgeon == patient);
         if (parts.length == 0)
         {
-            msg(surgeon, self ? "You are not carrying a cybernetic part to implant." : getPlayerName(patient) + " is not carrying a cybernetic part to implant.");
+            if (remove)
+            {
+                msg(surgeon, self ? "You have no cybernetic parts installed." : getPlayerName(patient) + " has no cybernetic parts installed.");
+            }
+            else
+            {
+                msg(surgeon, self ? "You are not carrying a cybernetic part to implant." : getPlayerName(patient) + " is not carrying a cybernetic part to implant.");
+            }
             return;
         }
         String[] names = new String[parts.length];
@@ -390,8 +448,17 @@ public class cybernetic_surgery extends script.base_script
         utils.removeScriptVarTree(patient, SV_PATIENT);
         utils.setScriptVar(patient, SV_PATIENT + ".surgeon", surgeon);
         utils.setScriptVar(patient, SV_PATIENT + ".parts", parts);
+        utils.setScriptVar(patient, SV_PATIENT + ".remove", remove ? 1 : 0);
         String risk = "The surgery is invasive: if it fails, the part is damaged and the patient is badly hurt or knocked out. Larger parts carry more risk.";
-        String prompt = self ? "Choose the cybernetic part to implant in yourself. " + risk : getPlayerName(surgeon) + " offers to implant a cybernetic part. Choose the part from your inventory. " + risk;
+        String prompt;
+        if (remove)
+        {
+            prompt = self ? "Choose the installed cybernetic part to remove. " + risk : getPlayerName(surgeon) + " offers to remove a cybernetic part. Choose the installed part to remove. " + risk;
+        }
+        else
+        {
+            prompt = self ? "Choose the cybernetic part to implant in yourself. " + risk : getPlayerName(surgeon) + " offers to implant a cybernetic part. Choose the part from your inventory. " + risk;
+        }
         if (isWeakened(patient))
         {
             prompt += "\n\n" + WARN_WEAKENED;
@@ -400,9 +467,9 @@ public class cybernetic_surgery extends script.base_script
         sui.setPid(patient, pid, SV_PATIENT);
         if (!self)
         {
-            msg(surgeon, "Waiting for " + getPlayerName(patient) + " to choose a cybernetic part.");
+            msg(surgeon, "Waiting for " + getPlayerName(patient) + " to choose a cybernetic part" + (remove ? " to remove." : "."));
         }
-        CustomerServiceLog("cyborg", BUILD_TAG + " surgeon " + surgeon + " offered surgery to " + patient + " (" + parts.length + " parts)");
+        CustomerServiceLog("cyborg", BUILD_TAG + " surgeon " + surgeon + " offered " + (remove ? "removal" : "implant") + " surgery to " + patient + " (" + parts.length + " parts)");
     }
 
     /**
@@ -413,6 +480,17 @@ public class cybernetic_surgery extends script.base_script
      */
     public static void requestSelfImplant(obj_id surgeon, obj_id item) throws InterruptedException
     {
+        requestSelfSurgery(surgeon, item, false);
+    }
+
+    /** Radial "Remove from Yourself" on an installed part (cybernetic.cybernetic_item, SERVER_MENU8). */
+    public static void requestSelfRemoval(obj_id surgeon, obj_id item) throws InterruptedException
+    {
+        requestSelfSurgery(surgeon, item, true);
+    }
+
+    public static void requestSelfSurgery(obj_id surgeon, obj_id item, boolean remove) throws InterruptedException
+    {
         if (!canOperate(surgeon, surgeon, true))
         {
             return;
@@ -422,29 +500,43 @@ public class cybernetic_surgery extends script.base_script
             msg(surgeon, "You are already performing a cybernetic surgery.");
             return;
         }
-        if (!isImplantablePart(item) || !isInInventory(item, surgeon))
+        if (!isPartReady(item, surgeon, remove))
         {
-            msg(surgeon, "The part must be in your main inventory (not in a bag) to implant it.");
+            msg(surgeon, remove ? "That part is not installed on you." : "The part must be in your main inventory (not in a bag) to implant it.");
             return;
         }
-        CustomerServiceLog("cyborg", BUILD_TAG + " self-surgery requested by " + surgeon + " with item " + item);
-        patientChose(surgeon, surgeon, item);
+        CustomerServiceLog("cyborg", BUILD_TAG + " self-surgery (" + (remove ? "removal" : "implant") + ") requested by " + surgeon + " with item " + item);
+        patientChose(surgeon, surgeon, item, remove);
     }
 
     /** Stage 2 (patient picked a part). Asks the surgeon to confirm with the chance shown. */
     public static void patientChose(obj_id patient, obj_id surgeon, obj_id item) throws InterruptedException
+    {
+        patientChose(patient, surgeon, item, false);
+    }
+
+    public static void patientChose(obj_id patient, obj_id surgeon, obj_id item, boolean remove) throws InterruptedException
     {
         if (!canOperate(surgeon, patient, true))
         {
             msg(patient, "The surgery cannot take place right now.");
             return;
         }
-        if (!isImplantablePart(item) || !isInInventory(item, patient))
+        if (!isPartReady(item, patient, remove))
         {
-            msg(patient, "That part is no longer in your inventory.");
+            msg(patient, remove ? "That part is no longer installed." : "That part is no longer in your inventory.");
             return;
         }
-        if (isBioLinkedToOther(item, patient))
+        if (remove && !hasInventoryRoom(patient))
+        {
+            msg(patient, "Your inventory is full. Make room for the removed part first.");
+            if (surgeon != patient)
+            {
+                msg(surgeon, getPlayerName(patient) + " has no room in their inventory for the removed part.");
+            }
+            return;
+        }
+        if (!remove && isBioLinkedToOther(item, patient))
         {
             sendSystemMessage(patient, new string_id("ep3/cybernetic", "bio_link_mismatch"));
             msg(surgeon, "That part is bio-linked to someone else.");
@@ -467,9 +559,18 @@ public class cybernetic_surgery extends script.base_script
         }
         utils.setScriptVar(surgeon, SV_SURGEON + ".patient", patient);
         utils.setScriptVar(surgeon, SV_SURGEON + ".item", item);
+        utils.setScriptVar(surgeon, SV_SURGEON + ".remove", remove ? 1 : 0);
         int size = getPartSize(item);
-        String who = (surgeon == patient) ? "You are about to implant in yourself: " : getPlayerName(patient) + " asks you to implant: ";
-        String prompt = who + getItemLabel(item) + ".\n\nSuccess chance: " + chance + "%.\nOn failure the part loses " + FAIL_DAMAGE_MIN_PCT + "-" + FAIL_DAMAGE_MAX_PCT + "% condition and the patient loses " + FAIL_HEALTH_MIN_PCT + "-" + FAIL_HEALTH_MAX_PCT + "% health (" + (size <= 2 ? "usually at the low end for a part this small" : size >= 4 ? "often severe for a part this large" : "often moderate") + ").\nRisk that this surgery knocks the patient out: " + formatPct(getKnockoutRisk(surgeon, item, chance)) + ".";
+        String who;
+        if (remove)
+        {
+            who = (surgeon == patient) ? "You are about to remove from yourself: " : getPlayerName(patient) + " asks you to remove: ";
+        }
+        else
+        {
+            who = (surgeon == patient) ? "You are about to implant in yourself: " : getPlayerName(patient) + " asks you to implant: ";
+        }
+        String prompt = who + getItemLabel(item) + ".\n\nSuccess chance: " + chance + "%.\nOn failure the part " + (remove ? "stays installed and loses " : "loses ") + FAIL_DAMAGE_MIN_PCT + "-" + FAIL_DAMAGE_MAX_PCT + "% condition and the patient loses " + FAIL_HEALTH_MIN_PCT + "-" + FAIL_HEALTH_MAX_PCT + "% health (" + (size <= 2 ? "usually at the low end for a part this small" : size >= 4 ? "often severe for a part this large" : "often moderate") + ").\nRisk that this surgery knocks the patient out: " + formatPct(getKnockoutRisk(surgeon, item, chance)) + ".";
         if (isWeakened(patient))
         {
             prompt += "\n\n" + WARN_WEAKENED;
@@ -488,7 +589,8 @@ public class cybernetic_surgery extends script.base_script
     {
         obj_id patient = utils.getObjIdScriptVar(surgeon, SV_SURGEON + ".patient");
         obj_id item = utils.getObjIdScriptVar(surgeon, SV_SURGEON + ".item");
-        if (!canOperate(surgeon, patient, true) || !isImplantablePart(item) || !isInInventory(item, patient))
+        boolean remove = utils.getIntScriptVar(surgeon, SV_SURGEON + ".remove") == 1;
+        if (!canOperate(surgeon, patient, true) || !isPartReady(item, patient, remove))
         {
             msg(surgeon, "The surgery was cancelled.");
             utils.removeScriptVarTree(surgeon, SV_SURGEON);
@@ -504,24 +606,30 @@ public class cybernetic_surgery extends script.base_script
         if (surgeon == patient)
         {
             doAnimationAction(surgeon, "heal_self");
-            msg(surgeon, "You begin the cybernetic surgery on yourself. Stay out of combat.");
+            msg(surgeon, "You begin the cybernetic surgery on yourself" + (remove ? " to remove the part" : "") + ". Stay out of combat.");
         }
         else
         {
             faceTo(surgeon, patient);
             doAnimationAction(surgeon, "heal_other");
-            msg(surgeon, "You begin the cybernetic surgery on " + getPlayerName(patient) + ". Stay close and out of combat.");
+            msg(surgeon, "You begin the cybernetic surgery on " + getPlayerName(patient) + (remove ? " to remove the part" : "") + ". Stay close and out of combat.");
             msg(patient, getPlayerName(surgeon) + " begins the cybernetic surgery. Hold still.");
         }
         dictionary params = new dictionary();
         params.put("patient", patient);
         params.put("item", item);
         params.put("started", started);
+        params.put("remove", remove ? 1 : 0);
         messageTo(surgeon, "handleCyberSurgeryComplete", params, SURGERY_TIME, false);
     }
 
     /** Stage 4 (timer). Re-checks everything, rolls and applies the outcome. */
     public static void finishSurgery(obj_id surgeon, obj_id patient, obj_id item, int started) throws InterruptedException
+    {
+        finishSurgery(surgeon, patient, item, started, false);
+    }
+
+    public static void finishSurgery(obj_id surgeon, obj_id patient, obj_id item, int started, boolean remove) throws InterruptedException
     {
         if (!utils.hasScriptVar(surgeon, SV_SURGEON + ".started") || utils.getIntScriptVar(surgeon, SV_SURGEON + ".started") != started)
         {
@@ -537,12 +645,21 @@ public class cybernetic_surgery extends script.base_script
             }
             return;
         }
-        if (!isImplantablePart(item) || !isInInventory(item, patient))
+        if (!isPartReady(item, patient, remove))
         {
-            msg(surgeon, "The part is no longer in the patient's inventory. The surgery was cancelled.");
+            msg(surgeon, remove ? "The part is no longer installed. The surgery was cancelled." : "The part is no longer in the patient's inventory. The surgery was cancelled.");
             if (patient != surgeon)
             {
-                msg(patient, "The part is no longer in your inventory. The surgery was cancelled.");
+                msg(patient, remove ? "The part is no longer installed. The surgery was cancelled." : "The part is no longer in your inventory. The surgery was cancelled.");
+            }
+            return;
+        }
+        if (remove && !hasInventoryRoom(patient))
+        {
+            msg(surgeon, "There is no room in the patient's inventory for the part. The surgery was cancelled.");
+            if (patient != surgeon)
+            {
+                msg(patient, "Your inventory is full. The surgery was cancelled.");
             }
             return;
         }
@@ -552,10 +669,17 @@ public class cybernetic_surgery extends script.base_script
         int threshold = chance * 100;
         int roll = rand(1, 10000);
         String label = getItemLabel(item);
-        CustomerServiceLog("cyborg", BUILD_TAG + " surgeon " + surgeon + " patient " + patient + " item " + item + " (" + getTemplateName(item) + ") chance " + chance + " roll " + roll + "/10000");
+        CustomerServiceLog("cyborg", BUILD_TAG + " surgeon " + surgeon + " patient " + patient + " item " + item + " (" + getTemplateName(item) + ") " + (remove ? "REMOVE" : "IMPLANT") + " chance " + chance + " roll " + roll + "/10000");
         if (roll <= threshold)
         {
-            succeed(surgeon, patient, item, label);
+            if (remove)
+            {
+                succeedRemoval(surgeon, patient, item, label);
+            }
+            else
+            {
+                succeed(surgeon, patient, item, label);
+            }
         }
         else
         {
@@ -564,7 +688,43 @@ public class cybernetic_surgery extends script.base_script
             double severity = Math.pow(Math.max(0.0, Math.min(1.0, f)), m);
             CustomerServiceLog("cyborg", BUILD_TAG + " failure position " + Math.round(f * 100) + "%, skill exponent " + Math.round(m * 100) / 100.0 + " -> severity " + Math.round(severity * 100) + "%");
             fail(surgeon, patient, item, label, severity);
+            if (remove)
+            {
+                msg(patient, "The " + label + " is still installed.");
+            }
         }
+    }
+
+    /** Removal: same path as the hospital engineer (putIn by script; cybernetic_item strips the mods). */
+    public static void succeedRemoval(obj_id surgeon, obj_id patient, obj_id item, String label) throws InterruptedException
+    {
+        obj_id inv = utils.getInventoryContainer(patient);
+        if (!isIdValid(inv) || !putIn(item, inv))
+        {
+            msg(surgeon, "The surgery went well, but the part could not be moved to the inventory. Nothing was damaged.");
+            if (patient != surgeon)
+            {
+                msg(patient, "The part could not be moved to your inventory. It is still installed.");
+            }
+            CustomerServiceLog("cyborg", BUILD_TAG + " removal putIn failed for item " + item + " on " + patient);
+            return;
+        }
+        playClientEffectObj(patient, "clienteffect/cyborg_itm_uninstalled.cef", patient, "");
+        if (surgeon == patient)
+        {
+            msg(patient, "Surgery successful: you removed your " + label + ". It is in your inventory.");
+        }
+        else
+        {
+            msg(surgeon, "Surgery successful: " + label + " removed from " + getPlayerName(patient) + ".");
+            msg(patient, "Surgery successful: " + getPlayerName(surgeon) + " removed your " + label + ". It is in your inventory.");
+        }
+        int xpAmount = XP_PER_SIZE * getPartSize(item);
+        if (xpAmount > 0)
+        {
+            xp.grant(surgeon, getXpType(surgeon), xpAmount, true);
+        }
+        CustomerServiceLog("cyborg", BUILD_TAG + " success: item " + item + " removed from " + patient + " by " + surgeon);
     }
 
     public static void succeed(obj_id surgeon, obj_id patient, obj_id item, String label) throws InterruptedException
