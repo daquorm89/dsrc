@@ -145,6 +145,10 @@ public class loot extends script.base_script
         hasLoot |= setupLootItems(target);
         hasLoot |= addCollectionLoot(target);
         hasLoot |= addRareLoot(target);
+        if (!isInTutorialArea(target))
+        {
+            hasLoot |= slicing.addLockedCrateDrop(target);
+        }
         int niche = ai_lib.aiGetNiche(mobType);
         if (niche == NICHE_MONSTER || niche == NICHE_HERBIVORE || niche == NICHE_CARNIVORE || niche == NICHE_PREDATOR)
         {
