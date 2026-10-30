@@ -258,6 +258,11 @@ public class computer extends script.terminal.base.base_terminal
         int slicability = 0;
         if (!hasSkill(player, "class_smuggler_phase1_novice"))
         {
+            // Pre-CU: Slicing I (slice_terminals) and up; Slicing I = 3 .. Master = 7 (roll 1-8).
+            if (hasCommand(player, "slice_terminals"))
+            {
+                slicability = script.library.slicing.getPreCuSlicingLevel(player) + 1;
+            }
             return slicability;
         }
         else 

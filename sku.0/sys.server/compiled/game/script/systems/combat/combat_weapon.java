@@ -15,6 +15,10 @@ public class combat_weapon extends script.base_script
     public static final String PID_NAME = "wpConversion";
     public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info item) throws InterruptedException
     {
+        if (slicing.showSliceRadial(player, self, "weapon"))
+        {
+            item.addRootMenu(menu_info_types.SERVER_MENU6, new string_id("slicing/slicing", "slice"));
+        }
         if (!utils.isNestedWithinAPlayer(self))
         {
             return SCRIPT_CONTINUE;
@@ -56,6 +60,14 @@ public class combat_weapon extends script.base_script
     }
     public int OnObjectMenuSelect(obj_id self, obj_id player, int item) throws InterruptedException
     {
+        if (item == menu_info_types.SERVER_MENU6)
+        {
+            if (slicing.showSliceRadial(player, self, "weapon"))
+            {
+                slicing.startSlicing(player, self, "finishSlicing", "weapon");
+            }
+            return SCRIPT_CONTINUE;
+        }
         if (item == menu_info_types.SERVER_MENU5)
         {
             if (!utils.isNestedWithinAPlayer(self))
@@ -448,6 +460,12 @@ public class combat_weapon extends script.base_script
                 names[free] = utils.packStringId(new string_id("proc/proc", "proc_name"));
                 attribs[free++] = utils.packStringId(new string_id("ui_buff", procEffect));
             }
+        }
+        String sliceText = slicing.getSliceAttributeText(self);
+        if (sliceText != null && free >= 0 && free < names.length)
+        {
+            names[free] = "hacked1";
+            attribs[free++] = sliceText;
         }
         return SCRIPT_CONTINUE;
     }

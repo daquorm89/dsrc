@@ -1,6 +1,7 @@
 package script.item.container;
 
 import script.dictionary;
+import script.library.slicing;
 import script.obj_id;
 
 public class player_loot_crate extends script.item.container.locked_slicable
@@ -11,6 +12,13 @@ public class player_loot_crate extends script.item.container.locked_slicable
     public static final String LOOT_CRATE = "object/tangible/container/loot/loot_crate.iff";
     public int handleSlicingSuccess(obj_id self, dictionary params) throws InterruptedException
     {
+        obj_id slicer = (params != null) ? params.getObjId("player") : null;
+        if (slicing.PRECU_SLICING_ENABLED && isIdValid(slicer) && exists(slicer))
+        {
+            slicing.openLockedCrate(self, slicer);
+            destroyObject(self);
+            return SCRIPT_CONTINUE;
+        }
         obj_id myContainer = getContainedBy(self);
         obj_id lootCrate = null;
         if (isIdValid(myContainer))

@@ -28,7 +28,7 @@ public class locked_slicable extends script.base_script
     }
     public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
     {
-        if (hasSkill(player, "class_smuggler_phase1_novice") && hasObjVar(self, "slicing.locked"))
+        if (slicing.canSlice(player, "container") && hasObjVar(self, "slicing.locked"))
         {
             if (!hasObjVar(self, "loot_crate"))
             {
@@ -62,8 +62,14 @@ public class locked_slicable extends script.base_script
                     return SCRIPT_CONTINUE;
                 }
             }
-            if (!hasSkill(player, "class_smuggler_phase1_novice") || !hasObjVar(self, "slicing.locked"))
+            if (!slicing.canSlice(player, "container") || !hasObjVar(self, "slicing.locked"))
             {
+                return SCRIPT_CONTINUE;
+            }
+            obj_id slicerInv = utils.getInventoryContainer(player);
+            if (isIdValid(slicerInv) && getVolumeFree(slicerInv) < slicing.LOCKED_CRATE_ITEMS_MAX)
+            {
+                sendSystemMessage(player, "You need at least " + slicing.LOCKED_CRATE_ITEMS_MAX + " free inventory slots before slicing this container.", null);
                 return SCRIPT_CONTINUE;
             }
             if (!hasObjVar(self, "slicing.slicable"))
@@ -96,7 +102,9 @@ public class locked_slicable extends script.base_script
         {
             removeObjVar(self, "slicing.locked");
             sendSystemMessage(player, SID_SUCCESS);
-            messageTo(self, "handleSlicingSuccess", null, 0.0f, true);
+            dictionary d = new dictionary();
+            d.put("player", player);
+            messageTo(self, "handleSlicingSuccess", d, 0.0f, true);
         }
         else 
         {

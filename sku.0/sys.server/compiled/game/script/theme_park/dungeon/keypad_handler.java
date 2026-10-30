@@ -131,12 +131,7 @@ public class keypad_handler extends script.base_script
     }
     public boolean hasSlicingSkill(obj_id player) throws InterruptedException
     {
-        boolean hadIt = false;
-        if (hasSkill(player, "class_smuggler_phase1_novice"))
-        {
-            hadIt = true;
-        }
-        return hadIt;
+        return slicing.canSlice(player, "keypad");
     }
     public obj_id keyCardObjId(obj_id objPlayer, String strTemplate) throws InterruptedException
     {
