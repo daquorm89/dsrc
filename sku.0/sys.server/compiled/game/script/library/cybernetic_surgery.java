@@ -41,10 +41,11 @@ public class cybernetic_surgery extends script.base_script
     {
     }
 
-    public static final String BUILD_TAG = "[cybersurgery P24-6]";
+    public static final String BUILD_TAG = "[cybersurgery P24-7]";
     public static final String SCRIPT_NAME = "cybernetic.cybernetic_surgery";
     public static final String STF = "cybernetic_surgery";
     public static final string_id SID_RADIAL_IMPLANT = new string_id(STF, "radial_implant");
+    public static final string_id SID_RADIAL_IMPLANT_SELF = new string_id(STF, "radial_implant_self");
 
     public static final String SKILL_DOCTOR = "science_doctor_novice";
     public static final String SKILL_BIO_ENGINEER = "outdoors_bio_engineer_novice";
@@ -402,6 +403,32 @@ public class cybernetic_surgery extends script.base_script
             msg(surgeon, "Waiting for " + getPlayerName(patient) + " to choose a cybernetic part.");
         }
         CustomerServiceLog("cyborg", BUILD_TAG + " surgeon " + surgeon + " offered surgery to " + patient + " (" + parts.length + " parts)");
+    }
+
+    /**
+     * Self-surgery entry (radial "Implant in Yourself" on the part, cybernetic.cybernetic_item).
+     * The client never builds a radial menu for the player's own character
+     * (CuiRadialMenuManager::createMenu returns early), so self-surgery starts from the part.
+     * The part is already chosen, so this goes straight to the confirm window (stage 2).
+     */
+    public static void requestSelfImplant(obj_id surgeon, obj_id item) throws InterruptedException
+    {
+        if (!canOperate(surgeon, surgeon, true))
+        {
+            return;
+        }
+        if (isBusy(surgeon))
+        {
+            msg(surgeon, "You are already performing a cybernetic surgery.");
+            return;
+        }
+        if (!isImplantablePart(item) || !isInInventory(item, surgeon))
+        {
+            msg(surgeon, "The part must be in your main inventory (not in a bag) to implant it.");
+            return;
+        }
+        CustomerServiceLog("cyborg", BUILD_TAG + " self-surgery requested by " + surgeon + " with item " + item);
+        patientChose(surgeon, surgeon, item);
     }
 
     /** Stage 2 (patient picked a part). Asks the surgeon to confirm with the chance shown. */
