@@ -18,6 +18,13 @@ public class player_faction extends script.base_script
     public static final string_id SID_DUNGEON_NOCHANGE = new string_id("faction_recruiter", "dungeon_nochange");
     public static final String COLOR_REBELS = "\\" + colors_hex.COLOR_REBELS;
     public static final String COLOR_IMPERIALS = "\\" + colors_hex.COLOR_IMPERIALS;
+    // Self-service duty switching (PVPDUTY-1): /pvp [combatant|sf|leave|status|help].
+    // "/pvp" without arguments keeps the stock cycle (On Leave -> Combatant, Combatant <-> Special Forces).
+    public static final String PVP_DUTY_BUILD_TAG = "PVPDUTY-1";
+    public static final float DUTY_DELAY_LEAVE_TO_COMBATANT = 1.0f;
+    public static final float DUTY_DELAY_TO_SPECIAL_FORCES = 30.0f;
+    public static final float DUTY_DELAY_SF_TO_COMBATANT = 300.0f;
+    public static final float DUTY_DELAY_TO_ON_LEAVE = 300.0f;
     public int cmdPVP(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException
     {
         if (factions.isInAdhocPvpArea(self))
@@ -49,34 +56,148 @@ public class player_faction extends script.base_script
             sendSystemMessage(self, SID_NOT_ALIGNED);
             return SCRIPT_OVERRIDE;
         }
+        String arg = getDutyArgument(params);
+        if (arg.equals("help") || arg.equals("?"))
+        {
+            sendDutyHelp(self);
+            return SCRIPT_CONTINUE;
+        }
+        if (arg.equals("status"))
+        {
+            sendDutyStatus(self);
+            return SCRIPT_CONTINUE;
+        }
         if (factions.isPVPStatusChanging(self))
         {
             sendSystemMessage(self, SID_PVP_STATUS_CHANGING);
             return SCRIPT_OVERRIDE;
         }
         prose_package pp = new prose_package();
-        if (factions.isOnLeave(self))
+        if (arg.length() == 0)
         {
-            pp = prose.setStringId(pp, SID_ON_LEAVE_TO_COVERT);
-            commPlayer(self, self, pp, recruiter);
-            factions.goCovertWithDelay(self, 1.0f);
+            if (factions.isOnLeave(self))
+            {
+                pp = prose.setStringId(pp, SID_ON_LEAVE_TO_COVERT);
+                commPlayer(self, self, pp, recruiter);
+                factions.goCovertWithDelay(self, DUTY_DELAY_LEAVE_TO_COMBATANT);
+                return SCRIPT_CONTINUE;
+            }
+            if (pvpGetType(self) == PVPTYPE_DECLARED)
+            {
+                pp = prose.setStringId(pp, SID_OVERT_TO_COVERT);
+                commPlayer(self, self, pp, recruiter);
+                factions.goCovertWithDelay(self, DUTY_DELAY_SF_TO_COMBATANT);
+                return SCRIPT_CONTINUE;
+            }
+            if (pvpGetType(self) == PVPTYPE_COVERT)
+            {
+                pp = prose.setStringId(pp, SID_COVERT_TO_OVERT);
+                commPlayer(self, self, pp, recruiter);
+                factions.goOvertWithDelay(self, DUTY_DELAY_TO_SPECIAL_FORCES);
+                return SCRIPT_CONTINUE;
+            }
+            return SCRIPT_OVERRIDE;
+        }
+        boolean forceRanked = hasSkill(self, "force_rank_light_novice") || hasSkill(self, "force_rank_dark_novice");
+        if (arg.equals("combatant") || arg.equals("covert") || arg.equals("on") || arg.equals("duty"))
+        {
+            if (forceRanked)
+            {
+                sendSystemMessage(self, "As an Enclave member you must remain Special Forces.", null);
+                return SCRIPT_OVERRIDE;
+            }
+            if (factions.isOnLeave(self))
+            {
+                pp = prose.setStringId(pp, SID_ON_LEAVE_TO_COVERT);
+                commPlayer(self, self, pp, recruiter);
+                factions.goCovertWithDelay(self, DUTY_DELAY_LEAVE_TO_COMBATANT);
+                return SCRIPT_CONTINUE;
+            }
+            if (pvpGetType(self) == PVPTYPE_DECLARED)
+            {
+                pp = prose.setStringId(pp, SID_OVERT_TO_COVERT);
+                commPlayer(self, self, pp, recruiter);
+                factions.goCovertWithDelay(self, DUTY_DELAY_SF_TO_COMBATANT);
+                sendSystemMessage(self, "You will become a Combatant in " + (int)DUTY_DELAY_SF_TO_COMBATANT + " seconds.", null);
+                return SCRIPT_CONTINUE;
+            }
+            sendSystemMessage(self, "You are already a Combatant.", null);
             return SCRIPT_CONTINUE;
         }
-        if (pvpGetType(self) == PVPTYPE_DECLARED)
+        if (arg.equals("sf") || arg.equals("overt") || arg.equals("special") || arg.equals("specialforces"))
         {
-            pp = prose.setStringId(pp, SID_OVERT_TO_COVERT);
-            commPlayer(self, self, pp, recruiter);
-            factions.goCovertWithDelay(self, 300.0f);
-            return SCRIPT_CONTINUE;
-        }
-        if (pvpGetType(self) == PVPTYPE_COVERT)
-        {
+            if (pvpGetType(self) == PVPTYPE_DECLARED)
+            {
+                sendSystemMessage(self, "You are already Special Forces.", null);
+                return SCRIPT_CONTINUE;
+            }
             pp = prose.setStringId(pp, SID_COVERT_TO_OVERT);
             commPlayer(self, self, pp, recruiter);
-            factions.goOvertWithDelay(self, 30.0f);
+            factions.goOvertWithDelay(self, DUTY_DELAY_TO_SPECIAL_FORCES);
+            sendSystemMessage(self, "You will become Special Forces in " + (int)DUTY_DELAY_TO_SPECIAL_FORCES + " seconds.", null);
             return SCRIPT_CONTINUE;
         }
+        if (arg.equals("leave") || arg.equals("onleave") || arg.equals("off"))
+        {
+            if (forceRanked)
+            {
+                sendSystemMessage(self, "As an Enclave member you cannot go On Leave.", null);
+                return SCRIPT_OVERRIDE;
+            }
+            if (factions.isOnLeave(self))
+            {
+                sendSystemMessage(self, "You are already On Leave.", null);
+                return SCRIPT_CONTINUE;
+            }
+            if (!factions.canGoOnLeave(self))
+            {
+                sendSystemMessage(self, "You cannot go On Leave here.", null);
+                return SCRIPT_OVERRIDE;
+            }
+            factions.goOnLeaveWithDelay(self, DUTY_DELAY_TO_ON_LEAVE);
+            sendSystemMessage(self, "You will go On Leave in " + (int)DUTY_DELAY_TO_ON_LEAVE + " seconds. Until then you remain on duty.", null);
+            CustomerServiceLog("player_faction", "PLAYER-FACTION ALTERED|TIME:" + getGameTime() + "|PLAYER:" + self + "|PLAYER NAME:" + getName(self) + "|ZONE:" + getCurrentSceneName() + "|Player requested On Leave via /pvp [" + PVP_DUTY_BUILD_TAG + "]");
+            return SCRIPT_CONTINUE;
+        }
+        sendDutyHelp(self);
         return SCRIPT_OVERRIDE;
+    }
+    private static String getDutyArgument(String params) throws InterruptedException
+    {
+        if (params == null)
+        {
+            return "";
+        }
+        String arg = params.trim().toLowerCase();
+        int space = arg.indexOf(' ');
+        if (space > 0)
+        {
+            arg = arg.substring(0, space);
+        }
+        return arg;
+    }
+    private static void sendDutyHelp(obj_id self) throws InterruptedException
+    {
+        sendSystemMessage(self, "Faction duty: /pvp (toggle), /pvp combatant (" + (int)DUTY_DELAY_LEAVE_TO_COMBATANT + " s from On Leave, " + (int)DUTY_DELAY_SF_TO_COMBATANT + " s from Special Forces), /pvp sf (" + (int)DUTY_DELAY_TO_SPECIAL_FORCES + " s), /pvp leave (" + (int)DUTY_DELAY_TO_ON_LEAVE + " s), /pvp status.", null);
+    }
+    private static void sendDutyStatus(obj_id self) throws InterruptedException
+    {
+        String faction = factions.isRebel(self) ? "Rebel" : "Imperial";
+        String status;
+        if (factions.isOnLeave(self))
+        {
+            status = "On Leave";
+        }
+        else if (pvpGetType(self) == PVPTYPE_DECLARED)
+        {
+            status = "Special Forces";
+        }
+        else
+        {
+            status = "Combatant";
+        }
+        String pending = factions.isPVPStatusChanging(self) ? " A status change is pending." : "";
+        sendSystemMessage(self, "You are a " + faction + " " + status + "." + pending, null);
     }
     public int OnPvpTypeChanged(obj_id self, int oldType, int newType) throws InterruptedException
     {
