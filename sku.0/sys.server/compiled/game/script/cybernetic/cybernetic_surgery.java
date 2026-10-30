@@ -21,6 +21,7 @@ public class cybernetic_surgery extends script.base_script
         String sv = script.library.cybernetic_surgery.SV_PATIENT;
         obj_id surgeon = utils.getObjIdScriptVar(self, sv + ".surgeon");
         obj_id[] parts = utils.getObjIdArrayScriptVar(self, sv + ".parts");
+        boolean remove = utils.getIntScriptVar(self, sv + ".remove") == 1;
         utils.removeScriptVarTree(self, sv);
         sui.removePid(self, sv);
         if (params == null || !isIdValid(surgeon) || parts == null || parts.length == 0)
@@ -37,7 +38,7 @@ public class cybernetic_surgery extends script.base_script
             }
             return SCRIPT_CONTINUE;
         }
-        script.library.cybernetic_surgery.patientChose(self, surgeon, parts[idx]);
+        script.library.cybernetic_surgery.patientChose(self, surgeon, parts[idx], remove);
         return SCRIPT_CONTINUE;
     }
 
@@ -73,7 +74,8 @@ public class cybernetic_surgery extends script.base_script
         obj_id patient = params.getObjId("patient");
         obj_id item = params.getObjId("item");
         int started = params.getInt("started");
-        script.library.cybernetic_surgery.finishSurgery(self, patient, item, started);
+        boolean remove = params.getInt("remove") == 1;
+        script.library.cybernetic_surgery.finishSurgery(self, patient, item, started, remove);
         return SCRIPT_CONTINUE;
     }
 }

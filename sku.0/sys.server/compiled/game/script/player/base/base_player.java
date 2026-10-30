@@ -1259,6 +1259,10 @@ public class base_player extends script.base_script
         {
             mi.addRootMenu(menu_info_types.SERVER_MENU7, cybernetic_surgery.SID_RADIAL_IMPLANT);
         }
+        if (isPlayer(player) && player != self && !isDead(self) && !isIncapacitated(self) && cybernetic_surgery.isSurgeon(player) && cybernetic_surgery.getInstalledParts(self).length > 0)
+        {
+            mi.addRootMenu(menu_info_types.SERVER_MENU8, cybernetic_surgery.SID_RADIAL_REMOVE);
+        }
         
         {
             obj_id listenTarget = getPerformanceListenTarget(player);
@@ -1301,6 +1305,10 @@ public class base_player extends script.base_script
         else if (item == menu_info_types.SERVER_MENU7)
         {
             cybernetic_surgery.requestImplant(player, self);
+        }
+        else if (item == menu_info_types.SERVER_MENU8)
+        {
+            cybernetic_surgery.requestRemoval(player, self);
         }
         else if (item == menu_info_types.SERVER_PERFORMANCE_LISTEN)
         {

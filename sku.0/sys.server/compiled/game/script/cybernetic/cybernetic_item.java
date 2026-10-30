@@ -105,6 +105,32 @@ public class cybernetic_item extends script.base_script
         }
         return SCRIPT_CONTINUE;
     }
+    // P24: self-surgery. The client has no radial menu on your own character, so a Doctor or
+    // Bio-Engineer starts it from the part in their main inventory.
+    public int OnObjectMenuRequest(obj_id self, obj_id player, script.menu_info mi) throws InterruptedException
+    {
+        if (script.library.cybernetic_surgery.isSurgeon(player) && script.library.cybernetic_surgery.isInInventory(self, player) && script.library.cybernetic_surgery.isImplantablePart(self))
+        {
+            mi.addRootMenu(script.menu_info_types.SERVER_MENU7, script.library.cybernetic_surgery.SID_RADIAL_IMPLANT_SELF);
+        }
+        else if (script.library.cybernetic_surgery.isSurgeon(player) && script.library.cybernetic_surgery.isInstalled(self, player))
+        {
+            mi.addRootMenu(script.menu_info_types.SERVER_MENU8, script.library.cybernetic_surgery.SID_RADIAL_REMOVE_SELF);
+        }
+        return SCRIPT_CONTINUE;
+    }
+    public int OnObjectMenuSelect(obj_id self, obj_id player, int item) throws InterruptedException
+    {
+        if (item == script.menu_info_types.SERVER_MENU7)
+        {
+            script.library.cybernetic_surgery.requestSelfImplant(player, self);
+        }
+        else if (item == script.menu_info_types.SERVER_MENU8)
+        {
+            script.library.cybernetic_surgery.requestSelfRemoval(player, self);
+        }
+        return SCRIPT_CONTINUE;
+    }
     public int OnGetAttributes(obj_id self, obj_id player, String[] names, String[] attribs) throws InterruptedException
     {
         int free = getFirstFreeIndex(names);
