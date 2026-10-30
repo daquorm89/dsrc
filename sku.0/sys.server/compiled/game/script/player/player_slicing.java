@@ -44,6 +44,18 @@ public class player_slicing extends script.base_script
         slicing.handleSlicingSelect(self, idx);
         return SCRIPT_CONTINUE;
     }
+    public int handlePreCuSlice(obj_id self, dictionary params) throws InterruptedException
+    {
+        int btn = sui.getIntButtonPressed(params);
+        int idx = sui.getListboxSelectedRow(params);
+        if (btn == sui.BP_CANCEL || idx < 0)
+        {
+            slicing.clearSlicing(self);
+            return SCRIPT_CONTINUE;
+        }
+        slicing.handlePreCuChoice(self, idx);
+        return SCRIPT_CONTINUE;
+    }
     public int handleApplySlice(obj_id self, dictionary params) throws InterruptedException
     {
         int idx = sui.getListboxSelectedRow(params);
