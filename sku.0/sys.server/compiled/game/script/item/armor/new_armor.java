@@ -1,8 +1,11 @@
 package script.item.armor;
 
 import script.dictionary;
+import script.menu_info;
+import script.menu_info_types;
 import script.library.armor;
 import script.library.prose;
+import script.library.slicing;
 import script.library.static_item;
 import script.library.utils;
 import script.obj_id;
@@ -289,6 +292,28 @@ public class new_armor extends script.base_script
             attribs[free++] = "" + tier;
             names[free] = "tooltip.tier";
             attribs[free++] = "" + tier;
+        }
+        String sliceText = slicing.getSliceAttributeText(self);
+        if (sliceText != null && free >= 0 && free < names.length)
+        {
+            names[free] = "hacked";
+            attribs[free++] = sliceText;
+        }
+        return SCRIPT_CONTINUE;
+    }
+    public int OnObjectMenuRequest(obj_id self, obj_id player, menu_info mi) throws InterruptedException
+    {
+        if (slicing.showSliceRadial(player, self, "armor"))
+        {
+            mi.addRootMenu(menu_info_types.SERVER_MENU6, new string_id("slicing/slicing", "slice"));
+        }
+        return SCRIPT_CONTINUE;
+    }
+    public int OnObjectMenuSelect(obj_id self, obj_id player, int item) throws InterruptedException
+    {
+        if (item == menu_info_types.SERVER_MENU6 && slicing.showSliceRadial(player, self, "armor"))
+        {
+            slicing.startSlicing(player, self, "finishSlicing", "armor");
         }
         return SCRIPT_CONTINUE;
     }
