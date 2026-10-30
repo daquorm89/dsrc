@@ -642,6 +642,15 @@ public class armor extends script.base_script
         if (penalties != null)
         {
             penalties = armor.reduceCertifiedArmorPenalties(player, armorCategory, penalties);
+            // Pre-CU encumbrance slice (P28): scale every penalty of this piece down.
+            float sliceFactor = slicing.getEncumbranceFactor(armorPiece);
+            if (sliceFactor < 1.0f)
+            {
+                for (int i = 0; i < penalties.length; i++)
+                {
+                    penalties[i] *= sliceFactor;
+                }
+            }
         }
         return penalties;
     }
