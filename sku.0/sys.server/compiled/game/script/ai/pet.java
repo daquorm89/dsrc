@@ -30,6 +30,15 @@ public class pet extends script.base_script
     public static final string_id SID_HELPER_DEFAULT_REMINDER = new string_id(MENU_FILE, "helper_default_reminder");
     public static final string_id SID_MUST_DISMOUNT = new string_id("pet/pet_menu", "must_dismount");
     public static final string_id PCOLOR = new string_id("sui", "set_primary_color");
+    // Stuck-pet leash: a pet that follows its master (plain follow or formation) but has
+    // fallen more than PET_LEASH_DISTANCE metres behind is treated as stuck and placed
+    // at the master's position, then resumes following. Checked every PET_LEASH_CHECK_SEC.
+    // Set PET_LEASH_ENABLED to false and rebuild ai/pet.java to switch it off.
+    public static final boolean PET_LEASH_ENABLED = true;
+    public static final float PET_LEASH_DISTANCE = 100.0f;
+    public static final float PET_LEASH_CHECK_SEC = 5.0f;
+    public static final String PET_LEASH_GEN = "pet.leash.gen";
+    public static final String PET_LEASH_BUILD_TAG = "PETLEASH-1";
     public int OnAttach(obj_id self) throws InterruptedException
     {
         if (pet_lib.getPetType(self) == pet_lib.PET_TYPE_FAMILIAR)
@@ -771,7 +780,119 @@ public class pet extends script.base_script
         {
             pet_lib.petFollow(self, master);
         }
+        startPetLeash(self);
         return SCRIPT_CONTINUE;
+    }
+    public void startPetLeash(obj_id self) throws InterruptedException
+    {
+        if (!PET_LEASH_ENABLED)
+        {
+            return;
+        }
+        // A new generation stops any older check loop (handleSetupPet can run more than once).
+        int gen = utils.getIntScriptVar(self, PET_LEASH_GEN) + 1;
+        utils.setScriptVar(self, PET_LEASH_GEN, gen);
+        dictionary params = new dictionary();
+        params.put("gen", gen);
+        messageTo(self, "handlePetLeashCheck", params, PET_LEASH_CHECK_SEC, false);
+    }
+    public int handlePetLeashCheck(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (!PET_LEASH_ENABLED || params == null)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (params.getInt("gen") != utils.getIntScriptVar(self, PET_LEASH_GEN))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        if (!isMob(self) || !pet_lib.hasMaster(self))
+        {
+            return SCRIPT_CONTINUE;
+        }
+        try
+        {
+            checkPetLeash(self);
+        }
+        catch (Throwable t)
+        {
+            LOG("pet_leash", "[" + PET_LEASH_BUILD_TAG + "] check failed for pet " + self + ": " + t);
+        }
+        messageTo(self, "handlePetLeashCheck", params, PET_LEASH_CHECK_SEC, false);
+        return SCRIPT_CONTINUE;
+    }
+    public boolean checkPetLeash(obj_id self) throws InterruptedException
+    {
+        if (isSpaceScene())
+        {
+            return false;
+        }
+        obj_id master = getMaster(self);
+        if (!isIdValid(master) || !exists(master) || !master.isLoaded() || isDead(master))
+        {
+            return false;
+        }
+        if (isDead(self) || isIncapacitated(self) || ai_lib.isAiDead(self))
+        {
+            return false;
+        }
+        // Ridden mounts are where their rider is; pets told to Stay or fighting are not lagging.
+        if (isIdValid(getRiderId(self)) || ai_lib.isInCombat(self) || utils.hasScriptVar(self, "ai.pet.staying"))
+        {
+            return false;
+        }
+        if (hasObjVar(self, "stationed.owner"))
+        {
+            return false;
+        }
+        boolean followsMaster = ai_lib.isFollowing(self) && master.equals(ai_lib.getFollowTarget(self));
+        boolean inFormation = hasObjVar(self, "ai.inFormation") && master.equals(getObjIdObjVar(self, "ai.inFormation"));
+        if (!followsMaster && !inFormation)
+        {
+            return false;
+        }
+        // Master inside a ship (POB interior or piloting): wait until the master is out.
+        obj_id top = getTopMostContainer(master);
+        if (isIdValid(top) && top != master && space_utils.isShip(top))
+        {
+            return false;
+        }
+        location petWorld = getWorldLocation(self);
+        location masterWorld = getWorldLocation(master);
+        if (petWorld == null || masterWorld == null || petWorld.area == null || !petWorld.area.equals(masterWorld.area))
+        {
+            return false;
+        }
+        float dist = getDistance(petWorld, masterWorld);
+        if (dist <= PET_LEASH_DISTANCE)
+        {
+            return false;
+        }
+        // Mounted master: use the mount's position (the rider is contained by the mount).
+        location dest;
+        if (isIdValid(top) && top != master && isMob(top))
+        {
+            dest = getLocation(top);
+        }
+        else
+        {
+            dest = getLocation(master);
+        }
+        if (dest == null)
+        {
+            return false;
+        }
+        setLocation(self, dest);
+        if (inFormation)
+        {
+            ai_lib.resumeFormationFollowing(self);
+        }
+        else
+        {
+            ai_lib.resumeFollow(self);
+        }
+        LOG("pet_leash", "[" + PET_LEASH_BUILD_TAG + "] pet " + self + " was " + dist + " m behind master " + master + ", moved to " + dest);
+        return true;
     }
     public int handleLostMaster(obj_id self, dictionary params) throws InterruptedException
     {
