@@ -26,6 +26,11 @@ public class enzyme_extractor extends script.base_script
             int returnCode = beast_lib.getEnzymeExtractionReturnCode(player, target);
             if (returnCode > -1)
             {
+                if (returnCode == beast_lib.ENZ_ERROR_NOT_BEAST_MASTER && beast_lib.PRECU_ENZYME_EXTRACTOR_ENABLED)
+                {
+                    sendSystemMessage(player, "Only a Bio-Engineer or Beast Master can use an enzyme extractor.", null);
+                    return SCRIPT_CONTINUE;
+                }
                 sendSystemMessage(player, beast_lib.ENZYME_EXTRACTION_ERRORS[returnCode]);
                 return SCRIPT_CONTINUE;
             }
