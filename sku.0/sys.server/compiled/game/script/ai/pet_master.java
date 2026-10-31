@@ -19,6 +19,16 @@ public class pet_master extends script.base_script
     public static final string_id SID_SYS_ENRAGE = new string_id("pet/pet_menu", "sys_enrage");
     public static final string_id SID_SYS_FAIL_ENRAGE = new string_id("pet/pet_menu", "sys_fail_enrage");
     public static final string_id SID_SYS_CANT_BUFF = new string_id("pet/pet_menu", "sys_cant_buff");
+    /** Waypoint of a loose (stationed) droid in this player's datapad, sent by the droid (see stationed_droid.updateOwnerWaypoint). */
+    public int handleStationedDroidWaypoint(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (params == null)
+        {
+            return SCRIPT_CONTINUE;
+        }
+        script.library.stationed_droid.applyOwnerWaypoint(self, params.getObjId("droid"), params.getLocation("loc"), params.getString("name"), params.getInt("remove") == 1);
+        return SCRIPT_CONTINUE;
+    }
     public int OnRemovedFromGroup(obj_id self, obj_id group) throws InterruptedException
     {
         if (!callable.hasAnyCallable(self))

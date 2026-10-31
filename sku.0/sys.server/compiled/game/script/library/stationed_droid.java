@@ -509,6 +509,143 @@ public class stationed_droid extends script.base_script
         }
     }
 
+    // ------------------------------------------------------------------
+    // Droid locator: a loose droid that stands in the WORLD keeps a waypoint in its owner's datapad so a droid placed "in the middle of
+    // nowhere" can be found again. The droid sends its position to the owner (ai.pet_master handler handleStationedDroidWaypoint, works across
+    // planets and for a not yet loaded owner), the waypoint is removed when the droid is picked up, stowed or destroyed.
+    // ------------------------------------------------------------------
+    public static final boolean DROID_WAYPOINTS = true;
+    public static final String OBJVAR_OWNER_WAYPOINTS = "stationed.wp";
+    public static final float WAYPOINT_MOVE_UPDATE_M = 8.0f;
+    public static final int WAYPOINT_RESEND_SEC = 60;
+    private static final String SV_WP_LOC = "stationed.wpLoc";
+    private static final String SV_WP_TIME = "stationed.wpTime";
+
+    private static String waypointName(obj_id droid) throws InterruptedException
+    {
+        String name = getName(droid);
+        if (name == null || name.length() == 0)
+        {
+            name = "droid";
+        }
+        int colon = name.lastIndexOf(':');
+        if (colon >= 0)
+        {
+            name = name.substring(colon + 1).replace('_', ' ');
+        }
+        return "Droid: " + name;
+    }
+
+    /** Droid side: tell the owner where this droid stands (world only; a droid in a ship or building has no useful world position). */
+    public static void updateOwnerWaypoint(obj_id droid) throws InterruptedException
+    {
+        if (!DROID_WAYPOINTS || !isStationed(droid) || isSpaceScene())
+        {
+            return;
+        }
+        obj_id owner = getLooseOwner(droid);
+        location loc = getLocation(droid);
+        if (!isIdValid(owner) || loc == null)
+        {
+            return;
+        }
+        if (isIdValid(loc.cell))
+        {
+            // standing in a ship or building: no world waypoint (take back one that was sent earlier)
+            if (utils.hasScriptVar(droid, SV_WP_LOC))
+            {
+                removeOwnerWaypoint(droid);
+            }
+            return;
+        }
+        int now = getGameTime();
+        location last = utils.hasScriptVar(droid, SV_WP_LOC) ? utils.getLocationScriptVar(droid, SV_WP_LOC) : null;
+        int lastTime = utils.hasScriptVar(droid, SV_WP_TIME) ? utils.getIntScriptVar(droid, SV_WP_TIME) : 0;
+        boolean moved = last == null || last.area == null || !last.area.equals(loc.area) || getDistance(last, loc) >= WAYPOINT_MOVE_UPDATE_M;
+        if (!moved && now - lastTime < WAYPOINT_RESEND_SEC)
+        {
+            return;
+        }
+        dictionary d = new dictionary();
+        d.put("droid", droid);
+        d.put("loc", loc);
+        d.put("name", waypointName(droid));
+        d.put("remove", 0);
+        messageTo(owner, "handleStationedDroidWaypoint", d, 0.0f, false);
+        utils.setScriptVar(droid, SV_WP_LOC, loc);
+        utils.setScriptVar(droid, SV_WP_TIME, now);
+    }
+
+    /** Droid side: take the waypoint away (picked up, stowed, destroyed, moved into a ship). Persistent so an offline owner gets it at login. */
+    public static void removeOwnerWaypoint(obj_id droid) throws InterruptedException
+    {
+        if (!DROID_WAYPOINTS)
+        {
+            return;
+        }
+        // Droids inside a ship or building only need this when they sent a waypoint before; droids standing in the world always do (the
+        // memory of having sent one is lost on a server restart, the waypoint in the datapad is not).
+        location here = getLocation(droid);
+        boolean inWorld = here != null && !isIdValid(here.cell);
+        if (!inWorld && !utils.hasScriptVar(droid, SV_WP_LOC))
+        {
+            return;
+        }
+        obj_id owner = getLooseOwner(droid);
+        if (isIdValid(owner))
+        {
+            dictionary d = new dictionary();
+            d.put("droid", droid);
+            d.put("remove", 1);
+            messageTo(owner, "handleStationedDroidWaypoint", d, 0.0f, true);
+        }
+        utils.removeScriptVar(droid, SV_WP_LOC);
+        utils.removeScriptVar(droid, SV_WP_TIME);
+    }
+
+    /** Owner side (runs where the owner is): create / move / remove the waypoint of one droid. */
+    public static void applyOwnerWaypoint(obj_id owner, obj_id droid, location loc, String name, boolean remove) throws InterruptedException
+    {
+        if (!isIdValid(owner) || !isIdValid(droid))
+        {
+            return;
+        }
+        String key = OBJVAR_OWNER_WAYPOINTS + "." + droid.getValue();
+        obj_id wp = hasObjVar(owner, key) ? getObjIdObjVar(owner, key) : null;
+        boolean alive = isIdValid(wp) && exists(wp);
+        if (remove)
+        {
+            if (alive)
+            {
+                destroyObject(wp);
+            }
+            if (hasObjVar(owner, key))
+            {
+                removeObjVar(owner, key);
+            }
+            return;
+        }
+        if (loc == null)
+        {
+            return;
+        }
+        if (alive)
+        {
+            setWaypointLocation(wp, loc);
+            setWaypointName(wp, name);
+            return;
+        }
+        wp = createWaypointInDatapad(owner, loc);
+        if (!isIdValid(wp))
+        {
+            return;
+        }
+        setWaypointName(wp, name);
+        setWaypointActive(wp, true);
+        setWaypointVisible(wp, true);
+        setObjVar(owner, key, wp);
+    }
+
     public static void applyMode(obj_id droid) throws InterruptedException
     {
         if (!isStationed(droid))
@@ -570,7 +707,7 @@ public class stationed_droid extends script.base_script
      */
     public static final boolean ROUTINE_NOTICES = false;
     /** Shown in every [droid] message so the chat log proves which build the server runs. Bump on every change. */
-    public static final String BUILD_TAG = "P18.21-2";
+    public static final String BUILD_TAG = "P18.22-1";
 
     public static void dbg(obj_id owner, String msg) throws InterruptedException
     {
