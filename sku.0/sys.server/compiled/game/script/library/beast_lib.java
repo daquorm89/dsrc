@@ -3434,9 +3434,14 @@ public class beast_lib extends script.base_script
             setObjVar(newEnzyme, "enzyme.trait", trait);
             return newEnzyme;
         }
-        int skillMod = getEnhancedSkillStatisticModifierUncapped(player, "expertise_bm_genetic_engineering");
+        int skillMod = getEnzymeExtractionSkillMod(player);
         float ge_mod = 1.0f + (skillMod / 1000.0f);
-        float levelDifference = (float)getLevel(target) / getLevel(player);
+        int playerLevel = getLevel(player);
+        if (playerLevel < 1)
+        {
+            playerLevel = 1; // Pre-CU skill-box characters can report level 0: avoid divide-by-zero / NaN purity
+        }
+        float levelDifference = (float)getLevel(target) / playerLevel;
         levelDifference = levelDifference > 1.0f ? 1.0f : levelDifference;
         float valuePerLevel = 0.02f;
         float levelAddedValue = getLevel(target) * valuePerLevel;
@@ -3475,9 +3480,42 @@ public class beast_lib extends script.base_script
         setObjVar(newEnzyme, "enzyme.trait", trait);
         return newEnzyme;
     }
+    // Pre-CU: enzyme extractor usable by Bio-Engineers (any Bio-Engineer box) as well as NGE Beast Masters.
+    // Narrow gate on purpose: isBeastMaster() is used by combat/buff/incubator code and is NOT changed.
+    // REVERT: set PRECU_ENZYME_EXTRACTOR_ENABLED = false (back to Beast Master only).
+    public static final boolean PRECU_ENZYME_EXTRACTOR_ENABLED = true;
+    public static final String PRECU_ENZYME_EXTRACTOR_SKILL = "outdoors_bio_engineer_novice";
+    public static final String PRECU_ENZYME_YIELD_MOD = "dna_harvesting";
+    public static final float PRECU_ENZYME_YIELD_SCALE = 1.25f; // master BE dna_harvesting 100 -> 125 = NGE genetic engineering max
+    public static final String PRECU_ENZYME_BUILD_TAG = "PRECU-ENZ-1";
+    public static boolean canUseEnzymeExtractor(obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(player))
+        {
+            return false;
+        }
+        if (isBeastMaster(player))
+        {
+            return true;
+        }
+        return PRECU_ENZYME_EXTRACTOR_ENABLED && hasSkill(player, PRECU_ENZYME_EXTRACTOR_SKILL);
+    }
+    public static int getEnzymeExtractionSkillMod(obj_id player) throws InterruptedException
+    {
+        int skillMod = getEnhancedSkillStatisticModifierUncapped(player, "expertise_bm_genetic_engineering");
+        if (PRECU_ENZYME_EXTRACTOR_ENABLED && hasSkill(player, PRECU_ENZYME_EXTRACTOR_SKILL))
+        {
+            int precuMod = (int)(getEnhancedSkillStatisticModifierUncapped(player, PRECU_ENZYME_YIELD_MOD) * PRECU_ENZYME_YIELD_SCALE);
+            if (precuMod > skillMod)
+            {
+                skillMod = precuMod;
+            }
+        }
+        return skillMod;
+    }
     public static int getEnzymeExtractionReturnCode(obj_id player, obj_id creatureCorpse) throws InterruptedException
     {
-        if (!isBeastMaster(player))
+        if (!canUseEnzymeExtractor(player))
         {
             return ENZ_ERROR_NOT_BEAST_MASTER;
         }
