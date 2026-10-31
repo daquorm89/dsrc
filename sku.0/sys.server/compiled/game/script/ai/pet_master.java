@@ -26,7 +26,21 @@ public class pet_master extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
+        if (!hasObjVar(self, "stationed.wpCleaned"))
+        {
+            // first message after the fix: remove the copies of the first locator version (in batches, see handleStationedWaypointCleanup)
+            setObjVar(self, "stationed.wpCleaned", 1);
+            messageTo(self, "handleStationedWaypointCleanup", null, 0.0f, true);
+        }
         script.library.stationed_droid.applyOwnerWaypoint(self, params.getObjId("droid"), params.getLocation("loc"), params.getString("name"), params.getInt("remove") == 1);
+        return SCRIPT_CONTINUE;
+    }
+    public int handleStationedWaypointCleanup(obj_id self, dictionary params) throws InterruptedException
+    {
+        if (script.library.stationed_droid.cleanupLegacyDroidWaypoints(self) > 0)
+        {
+            messageTo(self, "handleStationedWaypointCleanup", null, 2.0f, true);
+        }
         return SCRIPT_CONTINUE;
     }
     public int OnRemovedFromGroup(obj_id self, obj_id group) throws InterruptedException
