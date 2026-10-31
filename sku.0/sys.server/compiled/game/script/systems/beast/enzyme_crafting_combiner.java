@@ -15,11 +15,13 @@ public class enzyme_crafting_combiner extends script.systems.beast.enzyme_crafti
     {
         if (!isInValidOperatingLocation())
         {
+            sendLocationHint(player);
             return SCRIPT_CONTINUE;
         }
         obj_id structure = getTopMostContainer(self);
         if (!player_structure.isAdmin(structure, player))
         {
+            sendAdminHint(player);
             return SCRIPT_CONTINUE;
         }
         if (!beast_lib.canUseEnzymeExtractor(player))
@@ -28,6 +30,10 @@ public class enzyme_crafting_combiner extends script.systems.beast.enzyme_crafti
             return SCRIPT_CONTINUE;
         }
         completeAnyOperations();
+        if (!isInOperation() && !isReadyToOperate())
+        {
+            sendNotReadyHint(player);
+        }
         if (isInOperation())
         {
             int options = mi.addRootMenu(menu_info_types.ITEM_USE, new string_id("beast", "get_time_to_finish"));

@@ -44,6 +44,32 @@ public class enzyme_crafting_base extends script.base_script
     public static final String PROCESS_TRAITS = "system.enzyme_traits";
     public static final string_id ERROR_ON_START = new string_id("beast", "error_on_start");
     public static final string_id NOT_BEASTMASTER = new string_id("beast", "beast_master_use_only");
+    // Pre-CU: tell the player why Start is not offered (the radial otherwise shows nothing extra). Tag PRECU-ENZ-HINT
+    public void sendLocationHint(obj_id player) throws InterruptedException
+    {
+        sendSystemMessage(player, "This machine only works when placed inside a house. Drop it in a house room to use it.", null);
+    }
+    public void sendAdminHint(obj_id player) throws InterruptedException
+    {
+        sendSystemMessage(player, "You must be an admin of this house to use this machine.", null);
+    }
+    public void sendNotReadyHint(obj_id player) throws InterruptedException
+    {
+        switch (getMachineType())
+        {
+            case ITEM_CENTRIFUGE:
+            sendSystemMessage(player, "Not ready: Open the centrifuge and put in a centrifuge tray plus one unprocessed Type 3 enzyme, then use the radial again to Start.", null);
+            break;
+            case ITEM_PROCESSOR:
+            sendSystemMessage(player, "Not ready: Open the processor and put in a processor mold plus one unprocessed enzyme element (from the centrifuge), then use the radial again to Start.", null);
+            break;
+            case ITEM_COMBINER:
+            sendSystemMessage(player, "Not ready: Open the combiner and put in a combiner capsule plus all five different processed enzyme elements (from the processor), then use the radial again to Start.", null);
+            break;
+            default:
+            break;
+        }
+    }
     public void sendNotAllowedMessage(obj_id player) throws InterruptedException
     {
         // Pre-CU: Bio-Engineers may use the enzyme stations too (beast_lib.PRECU_ENZYME_EXTRACTOR_ENABLED).

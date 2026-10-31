@@ -3487,7 +3487,7 @@ public class beast_lib extends script.base_script
     public static final String PRECU_ENZYME_EXTRACTOR_SKILL = "outdoors_bio_engineer_novice";
     public static final String PRECU_ENZYME_YIELD_MOD = "dna_harvesting";
     public static final float PRECU_ENZYME_YIELD_SCALE = 1.25f; // master BE dna_harvesting 100 -> 125 = NGE genetic engineering max
-    public static final String PRECU_ENZYME_BUILD_TAG = "PRECU-ENZ-1";
+    public static final String PRECU_ENZYME_BUILD_TAG = "PRECU-ENZ-2";
     public static boolean canUseEnzymeExtractor(obj_id player) throws InterruptedException
     {
         if (!isIdValid(player))
@@ -3512,6 +3512,39 @@ public class beast_lib extends script.base_script
             }
         }
         return skillMod;
+    }
+    // Pre-CU: incubator usable by Bio-Engineers (same switch/skill as the enzyme extractor).
+    public static boolean canUseIncubator(obj_id player) throws InterruptedException
+    {
+        return canUseEnzymeExtractor(player);
+    }
+    // NGE expertise_bm_incubation_quality max 25 (%); master Bio-Engineer bio_engineer_experimentation 100 -> 25.
+    public static int getIncubationQualityMod(obj_id player) throws InterruptedException
+    {
+        int mod = getEnhancedSkillStatisticModifierUncapped(player, "expertise_bm_incubation_quality");
+        if (PRECU_ENZYME_EXTRACTOR_ENABLED && hasSkill(player, PRECU_ENZYME_EXTRACTOR_SKILL))
+        {
+            int precuMod = getEnhancedSkillStatisticModifierUncapped(player, "bio_engineer_experimentation") / 4;
+            if (precuMod > mod)
+            {
+                mod = precuMod;
+            }
+        }
+        return mod;
+    }
+    // NGE expertise_bm_incubation_time max 11 (hours); master Bio-Engineer bio_engineer_assembly 100 -> 11.
+    public static int getIncubationTimeMod(obj_id player) throws InterruptedException
+    {
+        int mod = (int)getSkillStatisticModifier(player, "expertise_bm_incubation_time");
+        if (PRECU_ENZYME_EXTRACTOR_ENABLED && hasSkill(player, PRECU_ENZYME_EXTRACTOR_SKILL))
+        {
+            int precuMod = (getSkillStatisticModifier(player, "bio_engineer_assembly") * 11) / 100;
+            if (precuMod > mod)
+            {
+                mod = precuMod;
+            }
+        }
+        return mod;
     }
     public static int getEnzymeExtractionReturnCode(obj_id player, obj_id creatureCorpse) throws InterruptedException
     {
