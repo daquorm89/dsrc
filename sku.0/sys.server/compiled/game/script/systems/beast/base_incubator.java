@@ -67,6 +67,19 @@ public class base_incubator extends script.base_script
         {
             incubator.checkIncubatorForMismatch(station, player);
         }
+        // Pre-CU: explain why "Terminal Management" is missing. Tag PRECU-INC-HINT
+        if (!beast_lib.canUseIncubator(player))
+        {
+            sendSystemMessage(player, "Only a Bio-Engineer or Beast Master can use an incubator.", null);
+        }
+        else if (!utils.isInHouseCellSpace(station))
+        {
+            sendSystemMessage(player, "The incubator only works when placed inside a house. Drop it in a house room to use it.", null);
+        }
+        else if (!player_structure.isAdmin(getTopMostContainer(station), player))
+        {
+            sendSystemMessage(player, "You must be an admin of this house to use the incubator.", null);
+        }
         if (beast_lib.canUseIncubator(player) && utils.isInHouseCellSpace(station))
         {
             obj_id structure = getTopMostContainer(station);
