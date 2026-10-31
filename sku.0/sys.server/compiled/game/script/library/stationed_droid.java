@@ -533,7 +533,17 @@ public class stationed_droid extends script.base_script
         {
             name = name.substring(colon + 1).replace('_', ' ');
         }
-        return "Droid: " + name;
+        return WP_PREFIX + name + waypointTag(droid);
+    }
+
+    private static final String WP_PREFIX = "Droid: ";
+    private static final String WP_TAG_OPEN = " (#";
+    public static final int WAYPOINT_CLEANUP_BATCH = 40;
+
+    /** Unique tag of a droid inside its waypoint name (the owner side finds the droid's waypoint by it; exists() is NOT usable for waypoints). */
+    private static String waypointTag(obj_id droid) throws InterruptedException
+    {
+        return WP_TAG_OPEN + (droid.getValue() % 1000000L) + ")";
     }
 
     /** Droid side: tell the owner where this droid stands (world only; a droid in a ship or building has no useful world position). */
@@ -603,25 +613,40 @@ public class stationed_droid extends script.base_script
         utils.removeScriptVar(droid, SV_WP_TIME);
     }
 
-    /** Owner side (runs where the owner is): create / move / remove the waypoint of one droid. */
+    /**
+     * Owner side (runs where the owner is): create / move / remove the waypoint of one droid. Waypoints are looked up by name in the datapad
+     * list (getWaypointsInDatapad); the first version used exists() on a stored waypoint id, which is false for waypoint objects, so every
+     * update created another copy. More than one waypoint for the same droid is cleaned up here.
+     */
     public static void applyOwnerWaypoint(obj_id owner, obj_id droid, location loc, String name, boolean remove) throws InterruptedException
     {
         if (!isIdValid(owner) || !isIdValid(droid))
         {
             return;
         }
-        String key = OBJVAR_OWNER_WAYPOINTS + "." + droid.getValue();
-        obj_id wp = hasObjVar(owner, key) ? getObjIdObjVar(owner, key) : null;
-        boolean alive = isIdValid(wp) && exists(wp);
+        String tag = waypointTag(droid);
+        java.util.List<obj_id> mine = new java.util.ArrayList<obj_id>();
+        obj_id[] all = getWaypointsInDatapad(owner);
+        if (all != null)
+        {
+            for (obj_id wp : all)
+            {
+                if (!isIdValid(wp))
+                {
+                    continue;
+                }
+                String n = getWaypointName(wp);
+                if (n != null && n.startsWith(WP_PREFIX) && n.endsWith(tag))
+                {
+                    mine.add(wp);
+                }
+            }
+        }
         if (remove)
         {
-            if (alive)
+            for (obj_id wp : mine)
             {
-                destroyObject(wp);
-            }
-            if (hasObjVar(owner, key))
-            {
-                removeObjVar(owner, key);
+                destroyWaypointInDatapad(wp, owner);
             }
             return;
         }
@@ -629,21 +654,68 @@ public class stationed_droid extends script.base_script
         {
             return;
         }
-        if (alive)
+        if (mine.isEmpty())
         {
-            setWaypointLocation(wp, loc);
-            setWaypointName(wp, name);
+            obj_id wp = createWaypointInDatapad(owner, loc);
+            if (isIdValid(wp))
+            {
+                setWaypointName(wp, name);
+                setWaypointActive(wp, true);
+                setWaypointVisible(wp, true);
+            }
             return;
         }
-        wp = createWaypointInDatapad(owner, loc);
-        if (!isIdValid(wp))
+        obj_id keep = mine.get(0);
+        setWaypointLocation(keep, loc);
+        setWaypointName(keep, name);
+        for (int i = 1; i < mine.size(); i++)
         {
-            return;
+            destroyWaypointInDatapad(mine.get(i), owner);
         }
-        setWaypointName(wp, name);
-        setWaypointActive(wp, true);
-        setWaypointVisible(wp, true);
-        setObjVar(owner, key, wp);
+    }
+
+    /**
+     * One-time cleanup of the copies made by the first locator version: waypoints named "Droid: ..." WITHOUT the "(#..)" tag. Removes at most
+     * WAYPOINT_CLEANUP_BATCH per call; returns how many are left, the caller repeats until 0.
+     */
+    public static int cleanupLegacyDroidWaypoints(obj_id owner) throws InterruptedException
+    {
+        if (!isIdValid(owner))
+        {
+            return 0;
+        }
+        obj_id[] all = getWaypointsInDatapad(owner);
+        int removed = 0;
+        int left = 0;
+        if (all != null)
+        {
+            for (obj_id wp : all)
+            {
+                if (!isIdValid(wp))
+                {
+                    continue;
+                }
+                String n = getWaypointName(wp);
+                if (n == null || !n.startsWith(WP_PREFIX) || n.indexOf(WP_TAG_OPEN) >= 0)
+                {
+                    continue;
+                }
+                if (removed < WAYPOINT_CLEANUP_BATCH)
+                {
+                    destroyWaypointInDatapad(wp, owner);
+                    removed++;
+                }
+                else
+                {
+                    left++;
+                }
+            }
+        }
+        if (left == 0 && hasObjVar(owner, OBJVAR_OWNER_WAYPOINTS))
+        {
+            removeObjVar(owner, OBJVAR_OWNER_WAYPOINTS);   // the id list of the first version, no longer used
+        }
+        return left;
     }
 
     public static void applyMode(obj_id droid) throws InterruptedException
@@ -707,7 +779,7 @@ public class stationed_droid extends script.base_script
      */
     public static final boolean ROUTINE_NOTICES = false;
     /** Shown in every [droid] message so the chat log proves which build the server runs. Bump on every change. */
-    public static final String BUILD_TAG = "P18.22-1";
+    public static final String BUILD_TAG = "P18.22-2";
 
     public static void dbg(obj_id owner, String msg) throws InterruptedException
     {
