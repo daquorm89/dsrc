@@ -1,5 +1,6 @@
 package script.systems.beast;
 
+import script.library.beast_lib;
 import script.library.hue;
 import script.library.utils;
 import script.obj_id;
@@ -43,6 +44,16 @@ public class enzyme_crafting_base extends script.base_script
     public static final String PROCESS_TRAITS = "system.enzyme_traits";
     public static final string_id ERROR_ON_START = new string_id("beast", "error_on_start");
     public static final string_id NOT_BEASTMASTER = new string_id("beast", "beast_master_use_only");
+    public void sendNotAllowedMessage(obj_id player) throws InterruptedException
+    {
+        // Pre-CU: Bio-Engineers may use the enzyme stations too (beast_lib.PRECU_ENZYME_EXTRACTOR_ENABLED).
+        if (beast_lib.PRECU_ENZYME_EXTRACTOR_ENABLED)
+        {
+            sendSystemMessage(player, "Only a Bio-Engineer or Beast Master can use this equipment.", null);
+            return;
+        }
+        sendSystemMessage(player, NOT_BEASTMASTER);
+    }
     public int OnAboutToBeTransferred(obj_id self, obj_id destContainer, obj_id transferer) throws InterruptedException
     {
         if (!canBeTransfered())
@@ -342,7 +353,7 @@ public class enzyme_crafting_base extends script.base_script
         float craftedPurity = (machinePurity + trayPurity) / 2.0f;
         float craftedMutagen = (machineMutagen + trayMutagen) / 2.0f;
         craftedPurity = craftedPurity > SINGLE_STAGE_CAP ? SINGLE_STAGE_CAP : craftedPurity;
-        int geneticEngineeringMod = getEnhancedSkillStatisticModifierUncapped(player, "expertise_bm_genetic_engineering");
+        int geneticEngineeringMod = beast_lib.getEnzymeExtractionSkillMod(player); // Pre-CU: Bio-Engineer dna_harvesting mapped onto the NGE scale
         float ge_mod = 1.0f + (geneticEngineeringMod / 100.0f);
         craftedPurity *= ge_mod;
         craftedMutagen *= ge_mod;
@@ -364,7 +375,7 @@ public class enzyme_crafting_base extends script.base_script
         float craftedPurity = (machinePurity + capsulePurity) / 2.0f;
         float craftedMutagen = (machineMutagen + capsuleMutagen) / 2.0f;
         craftedPurity = craftedPurity > SINGLE_STAGE_CAP ? SINGLE_STAGE_CAP : craftedPurity;
-        int geneticEngineeringMod = getEnhancedSkillStatisticModifierUncapped(player, "expertise_bm_genetic_engineering");
+        int geneticEngineeringMod = beast_lib.getEnzymeExtractionSkillMod(player); // Pre-CU: Bio-Engineer dna_harvesting mapped onto the NGE scale
         float ge_mod = 1 + (geneticEngineeringMod / 100.0f);
         craftedPurity *= ge_mod;
         craftedMutagen *= ge_mod;
@@ -386,7 +397,7 @@ public class enzyme_crafting_base extends script.base_script
         float craftedPurity = (machinePurity + moldPurity) / 2.0f;
         float craftedMutagen = (machineMutagen + moldMutagen) / 2.0f;
         craftedPurity = craftedPurity > SINGLE_STAGE_CAP ? SINGLE_STAGE_CAP : craftedPurity;
-        int geneticEngineeringMod = getEnhancedSkillStatisticModifierUncapped(player, "expertise_bm_genetic_engineering");
+        int geneticEngineeringMod = beast_lib.getEnzymeExtractionSkillMod(player); // Pre-CU: Bio-Engineer dna_harvesting mapped onto the NGE scale
         float ge_mod = 1 + (geneticEngineeringMod / 100.0f);
         craftedPurity *= ge_mod;
         craftedMutagen *= ge_mod;

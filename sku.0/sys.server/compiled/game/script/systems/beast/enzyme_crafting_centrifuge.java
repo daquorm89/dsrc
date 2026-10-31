@@ -22,9 +22,9 @@ public class enzyme_crafting_centrifuge extends script.systems.beast.enzyme_craf
         {
             return SCRIPT_CONTINUE;
         }
-        if (!beast_lib.isBeastMaster(player))
+        if (!beast_lib.canUseEnzymeExtractor(player))
         {
-            sendSystemMessage(player, NOT_BEASTMASTER);
+            sendNotAllowedMessage(player);
             return SCRIPT_CONTINUE;
         }
         completeAnyOperations();

@@ -22,9 +22,9 @@ public class enzyme_crafting_combiner extends script.systems.beast.enzyme_crafti
         {
             return SCRIPT_CONTINUE;
         }
-        if (!beast_lib.isBeastMaster(player))
+        if (!beast_lib.canUseEnzymeExtractor(player))
         {
-            sendSystemMessage(player, NOT_BEASTMASTER);
+            sendNotAllowedMessage(player);
             return SCRIPT_CONTINUE;
         }
         completeAnyOperations();
