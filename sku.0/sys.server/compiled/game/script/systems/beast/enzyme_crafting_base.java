@@ -47,11 +47,11 @@ public class enzyme_crafting_base extends script.base_script
     // Pre-CU: tell the player why Start is not offered (the radial otherwise shows nothing extra). Tag PRECU-ENZ-HINT
     public void sendLocationHint(obj_id player) throws InterruptedException
     {
-        sendSystemMessage(player, "This machine only works when placed inside a house. Drop it in a house room to use it.", null);
+        sendSystemMessage(player, "This machine only works when placed inside a house or a POB ship. Drop it in a room to use it.", null);
     }
     public void sendAdminHint(obj_id player) throws InterruptedException
     {
-        sendSystemMessage(player, "You must be an admin of this house to use this machine.", null);
+        sendSystemMessage(player, "You must be an admin of this house (or the owner of this ship) to use this machine.", null);
     }
     public void sendNotReadyHint(obj_id player) throws InterruptedException
     {
@@ -156,7 +156,7 @@ public class enzyme_crafting_base extends script.base_script
     }
     public boolean isInValidOperatingLocation() throws InterruptedException
     {
-        return utils.isInHouseCellSpace(getSelf());
+        return beast_lib.isValidBioStationLocation(getSelf()); // Pre-CU: house or POB ship room
     }
     public boolean containsItems() throws InterruptedException
     {

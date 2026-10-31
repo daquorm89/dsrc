@@ -35,7 +35,7 @@ public class base_incubator extends script.base_script
     public static final string_id SID_NO_TRIAL_ACCOUNTS = new string_id("incubator", "no_trial_accounts");
     public int OnInitialize(obj_id self) throws InterruptedException
     {
-        if (utils.isInHouseCellSpace(self))
+        if (beast_lib.isValidBioStationLocation(self))
         {
             createTriggerVolume("particle", 15.0f, true);
             messageTo(self, "refreshCurrentParticle", null, 5, false);
@@ -72,18 +72,17 @@ public class base_incubator extends script.base_script
         {
             sendSystemMessage(player, "Only a Bio-Engineer or Beast Master can use an incubator.", null);
         }
-        else if (!utils.isInHouseCellSpace(station))
+        else if (!beast_lib.isValidBioStationLocation(station))
         {
-            sendSystemMessage(player, "The incubator only works when placed inside a house. Drop it in a house room to use it.", null);
+            sendSystemMessage(player, "The incubator only works when placed inside a house or a POB ship. Drop it in a room to use it.", null);
         }
-        else if (!player_structure.isAdmin(getTopMostContainer(station), player))
+        else if (!beast_lib.canAdminBioStation(station, player))
         {
-            sendSystemMessage(player, "You must be an admin of this house to use the incubator.", null);
+            sendSystemMessage(player, "You must be an admin of this house (or the owner of this ship) to use the incubator.", null);
         }
-        if (beast_lib.canUseIncubator(player) && utils.isInHouseCellSpace(station))
+        if (beast_lib.canUseIncubator(player) && beast_lib.isValidBioStationLocation(station))
         {
-            obj_id structure = getTopMostContainer(station);
-            if (!player_structure.isAdmin(structure, player))
+            if (!beast_lib.canAdminBioStation(station, player))
             {
                 return SCRIPT_CONTINUE;
             }
@@ -137,10 +136,9 @@ public class base_incubator extends script.base_script
             return SCRIPT_CONTINUE;
         }
         obj_id station = self;
-        if (beast_lib.canUseIncubator(player) && utils.isInHouseCellSpace(station))
+        if (beast_lib.canUseIncubator(player) && beast_lib.isValidBioStationLocation(station))
         {
-            obj_id structure = getTopMostContainer(station);
-            if (!player_structure.isAdmin(structure, player))
+            if (!beast_lib.canAdminBioStation(station, player))
             {
                 return SCRIPT_CONTINUE;
             }
@@ -270,7 +268,7 @@ public class base_incubator extends script.base_script
     public int OnTransferred(obj_id self, obj_id sourceContainer, obj_id destContainer, obj_id transferer) throws InterruptedException
     {
         obj_id station = self;
-        if (utils.isInHouseCellSpace(station))
+        if (beast_lib.isValidBioStationLocation(station))
         {
             utils.setScriptVar(station, incubator.PARTICLE_LABEL_SCRIPT_VAR, incubator.PARTICLE_LABEL_DEFAULT);
             playClientEffectObj(station, incubator.PARTICLE_DEFAULT, station, incubator.PARTICLE_HARDPOINT_TWO, null, incubator.PARTICLE_LABEL_DEFAULT);

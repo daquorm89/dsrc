@@ -18,8 +18,7 @@ public class enzyme_crafting_combiner extends script.systems.beast.enzyme_crafti
             sendLocationHint(player);
             return SCRIPT_CONTINUE;
         }
-        obj_id structure = getTopMostContainer(self);
-        if (!player_structure.isAdmin(structure, player))
+        if (!beast_lib.canAdminBioStation(self, player))
         {
             sendAdminHint(player);
             return SCRIPT_CONTINUE;
