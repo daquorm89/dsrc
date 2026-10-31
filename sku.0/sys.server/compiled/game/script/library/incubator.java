@@ -618,7 +618,7 @@ public class incubator extends script.base_script
         if (isIdValid(player) && isIdValid(station))
         {
             int currentTime = getGameTime();
-            int expertiseModifier = (int)getSkillStatisticModifier(player, "expertise_bm_incubation_time");
+            int expertiseModifier = beast_lib.getIncubationTimeMod(player); // Pre-CU: Bio-Engineer assembly mapped
             float stationFunctionality = getFloatObjVar(station, STATION_FUNCTIONALITY_OBJVAR);
             int modifiedTime = currentTime + NEXT_SESSION_TIME;
             if (expertiseModifier > 0)
@@ -1393,7 +1393,7 @@ public class incubator extends script.base_script
             sendSystemMessage(player, SID_NOT_YOUR_INCUBATOR);
             return false;
         }
-        if (!beast_lib.isBeastMaster(player))
+        if (!beast_lib.canUseIncubator(player))
         {
             sendSystemMessage(player, beast_lib.SID_NOT_BEAST_MASTER);
             return false;
@@ -1571,7 +1571,7 @@ public class incubator extends script.base_script
             sendSystemMessage(player, SID_NOT_YOUR_INCUBATOR);
             return obj_id.NULL_ID;
         }
-        if (!beast_lib.isBeastMaster(player))
+        if (!beast_lib.canUseIncubator(player))
         {
             sendSystemMessage(player, beast_lib.SID_NOT_BEAST_MASTER);
             return obj_id.NULL_ID;

@@ -67,7 +67,7 @@ public class base_incubator extends script.base_script
         {
             incubator.checkIncubatorForMismatch(station, player);
         }
-        if (beast_lib.isBeastMaster(player) && utils.isInHouseCellSpace(station))
+        if (beast_lib.canUseIncubator(player) && utils.isInHouseCellSpace(station))
         {
             obj_id structure = getTopMostContainer(station);
             if (!player_structure.isAdmin(structure, player))
@@ -124,7 +124,7 @@ public class base_incubator extends script.base_script
             return SCRIPT_CONTINUE;
         }
         obj_id station = self;
-        if (beast_lib.isBeastMaster(player) && utils.isInHouseCellSpace(station))
+        if (beast_lib.canUseIncubator(player) && utils.isInHouseCellSpace(station))
         {
             obj_id structure = getTopMostContainer(station);
             if (!player_structure.isAdmin(structure, player))
@@ -434,7 +434,7 @@ public class base_incubator extends script.base_script
                 }
             }
         }
-        if (beast_lib.isBeastMaster(player))
+        if (beast_lib.canUseIncubator(player))
         {
             names[idx] = "time_until_session";
             int playerTime = (getIntObjVar(player, incubator.NEXT_SESSION));
@@ -749,7 +749,7 @@ public class base_incubator extends script.base_script
             hashTemplate = getIntObjVar(station, incubator.STATION_DNA_CREATURE_TEMPLATE);
             template = incubator.convertHashTemplateToString(hashTemplate, station);
         }
-        int expertiseBonuse = getEnhancedSkillStatisticModifierUncapped(player, "expertise_bm_incubation_quality");
+        int expertiseBonuse = beast_lib.getIncubationQualityMod(player); // Pre-CU: Bio-Engineer experimentation mapped
         if (isGod(player))
         {
             sendSystemMessageTestingOnly(player, "Your expertiseBonuse is " + expertiseBonuse);
