@@ -132,6 +132,7 @@ public class stationed_droid extends script.base_script
         }
         utils.setScriptVar(self, "stationed.fastWatchUntil", getGameTime() + WATCH_FAST_WINDOW_SEC);
         script.library.stationed_droid.applyMode(self);
+        script.library.stationed_droid.updateOwnerWaypoint(self);
         // Restart the guard scan; the tick id makes any older scan chain stop itself.
         int tick = utils.getIntScriptVar(self, SCRIPTVAR_TICK) + 1;
         utils.setScriptVar(self, SCRIPTVAR_TICK, tick);
@@ -168,6 +169,7 @@ public class stationed_droid extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
+        script.library.stationed_droid.updateOwnerWaypoint(self);
         if (script.library.stationed_droid.recoverIfFallen(self))
         {
             messageTo(self, "handleApplyMode", null, 1, false);
@@ -630,6 +632,7 @@ public class stationed_droid extends script.base_script
 
     public int OnDestroy(obj_id self) throws InterruptedException
     {
+        script.library.stationed_droid.removeOwnerWaypoint(self);
         if (utils.hasScriptVar(self, "stored"))
         {
             // Normal pick up: PCD is already back in the datapad and the owner unregistered.
