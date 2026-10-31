@@ -3513,6 +3513,41 @@ public class beast_lib extends script.base_script
         }
         return skillMod;
     }
+    // Pre-CU: enzyme machines and incubator also work inside a POB ship interior (owner = admin).
+    // REVERT: set PRECU_BIO_STATIONS_IN_POB = false (house only again).
+    public static final boolean PRECU_BIO_STATIONS_IN_POB = true;
+    public static final String PRECU_BIO_POB_TAG = "PRECU-BIO-POB-1";
+    public static obj_id getBioStationPobShip(obj_id station) throws InterruptedException
+    {
+        if (!PRECU_BIO_STATIONS_IN_POB || !isIdValid(station) || utils.isNestedWithinAPlayer(station))
+        {
+            return null;
+        }
+        obj_id ship = space_transition.getContainingShip(station);
+        if (!isIdValid(ship) || !space_utils.isPobType(ship))
+        {
+            return null;
+        }
+        obj_id cell = getContainedBy(station);
+        if (!isIdValid(cell) || getContainedBy(cell) != ship)
+        {
+            return null; // must stand in a ship room, not inside another container
+        }
+        return ship;
+    }
+    public static boolean isValidBioStationLocation(obj_id station) throws InterruptedException
+    {
+        return utils.isInHouseCellSpace(station) || isIdValid(getBioStationPobShip(station));
+    }
+    public static boolean canAdminBioStation(obj_id station, obj_id player) throws InterruptedException
+    {
+        obj_id ship = getBioStationPobShip(station);
+        if (isIdValid(ship))
+        {
+            return isGod(player) || getOwner(ship) == player;
+        }
+        return player_structure.isAdmin(getTopMostContainer(station), player);
+    }
     // Pre-CU: incubator usable by Bio-Engineers (same switch/skill as the enzyme extractor).
     public static boolean canUseIncubator(obj_id player) throws InterruptedException
     {

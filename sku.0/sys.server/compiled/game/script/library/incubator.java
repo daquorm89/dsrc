@@ -868,7 +868,7 @@ public class incubator extends script.base_script
             {
                 destroyObject(stationContents[0]);
             }
-            if (utils.isInHouseCellSpace(station))
+            if (beast_lib.isValidBioStationLocation(station))
             {
                 messageTo(station, "refreshCurrentParticle", null, 0, false);
             }
