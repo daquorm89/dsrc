@@ -202,117 +202,16 @@ public class cybernetic extends script.base_script
         {
             return;
         }
+        // Cybernetics sit in their own slots (cybernetic_arm_l/r, cybernetic_legs, cybernetic_torso),
+        // so no armor has to be taken off before the part is created.
         if (rand(0, 99) < 25)
         {
-            obj_id shoes = getObjectInSlot(player, "shoes");
-            if (isIdValid(shoes))
-            {
-                if (canPutIn(shoes, inv) != 0)
-                {
-                    CustomerServiceLog("Death", "Player(" + player + ") was supposed to receive Cybernetics, but we were unable to unequip his Shoes(" + shoes + ").");
-                    return;
-                }
-            }
-            obj_id pants1 = getObjectInSlot(player, "pants1");
-            if (isIdValid(pants1))
-            {
-                if (canPutIn(pants1, inv) != 0)
-                {
-                    CustomerServiceLog("Death", "Player(" + player + ") was supposed to receive Cybernetics, but we were unable to unequip his Pants1(" + pants1 + ").");
-                    return;
-                }
-            }
-            obj_id pants2 = getObjectInSlot(player, "pants2");
-            if (isIdValid(pants2))
-            {
-                if (canPutIn(pants2, inv) != 0)
-                {
-                    CustomerServiceLog("Death", "Player(" + player + ") was supposed to receive Cybernetics, but we were unable to unequip his Pants2(" + pants2 + ").");
-                    return;
-                }
-            }
-            if (isIdValid(shoes))
-            {
-                if (!putIn(shoes, inv))
-                {
-                    CustomerServiceLog("Death", "Player(" + player + ") was supposed to receive Cybernetics, but we failed the second check to un-equip his Shoes(" + shoes + ").");
-                    return;
-                }
-            }
-            if (isIdValid(pants1))
-            {
-                if (!putIn(pants1, inv))
-                {
-                    CustomerServiceLog("Death", "Player(" + player + ") was supposed to receive Cybernetics, but we failed the second check to un-equip his Pants1(" + pants1 + ").");
-                    return;
-                }
-            }
-            if (isIdValid(pants2))
-            {
-                if (!putIn(pants2, inv))
-                {
-                    CustomerServiceLog("Death", "Player(" + player + ") was supposed to receive Cybernetics, but we failed the second check to un-equip his Pants2(" + pants2 + ").");
-                    return;
-                }
-            }
             obj_id newCybernetic = createObject(CYBORG_LEGS, player, "");
             CustomerServiceLog("Death", "Player(" + player + ") just received Cyborg Legs(" + newCybernetic + ")");
         }
         else 
         {
-            String BracerUpperName = "bracer_upper_l";
-            String BracerLowerName = "bracer_lower_l";
             int rightArm = rand(0, 1);
-            if (rightArm == 1)
-            {
-                BracerUpperName = "bracer_upper_r";
-                BracerLowerName = "bracer_lower_r";
-            }
-            obj_id upperBracer = getObjectInSlot(player, BracerUpperName);
-            if (isIdValid(upperBracer))
-            {
-                if (canPutIn(upperBracer, inv) != 0)
-                {
-                    return;
-                }
-            }
-            obj_id lowerBracer = getObjectInSlot(player, BracerLowerName);
-            if (isIdValid(lowerBracer))
-            {
-                if (canPutIn(lowerBracer, inv) != 0)
-                {
-                    return;
-                }
-            }
-            obj_id chest2 = getObjectInSlot(player, "chest2");
-            if (isIdValid(chest2))
-            {
-                if (canPutIn(chest2, inv) != 0)
-                {
-                    return;
-                }
-            }
-            if (isIdValid(upperBracer))
-            {
-                if (!putIn(upperBracer, inv))
-                {
-                    return;
-                }
-            }
-            if (isIdValid(lowerBracer))
-            {
-                if (!putIn(lowerBracer, inv))
-                {
-                    return;
-                }
-            }
-            if (isIdValid(chest2))
-            {
-                if (!putIn(chest2, inv))
-                {
-                    return;
-                }
-            }
             obj_id newCybernetic = obj_id.NULL_ID;
             if (rightArm == 1)
             {
