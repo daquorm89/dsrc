@@ -4,9 +4,7 @@ form "ARGD"
 	{
 		chunk "ARG"
 		{
-			cstring "pants1"
-			cstring "pants2"
-			cstring "shoes"
+			cstring "cybernetic_legs"
 		}
 	}
 }

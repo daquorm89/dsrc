@@ -210,6 +210,13 @@ form "0006"
 		// Cybernetic Hand Slots
 		DEFINE_VISIBLE_SLOT("cybernetic_hand_l", PLAYER_CANNOT_MODIFY, "", 0, OWP_NO, EWP_NO)
 		DEFINE_VISIBLE_SLOT("cybernetic_hand_r", PLAYER_CANNOT_MODIFY, "", 0, OWP_NO, EWP_NO)
+
+		// Dedicated cybernetic body slots: cybernetics no longer occupy armor slots (bicep/bracer/chest/pants/shoes).
+		// Hardpoint and combat-bone values copy the armor slots these parts used to sit in, so limb hits still find them.
+		DEFINE_VISIBLE_SLOT("cybernetic_arm_l",  PLAYER_CANNOT_MODIFY, "hp_bracer_l", CSB_leftArm,                OWP_NO, EWP_NO)
+		DEFINE_VISIBLE_SLOT("cybernetic_arm_r",  PLAYER_CANNOT_MODIFY, "hp_bracer_r", CSB_rightArm,               OWP_NO, EWP_NO)
+		DEFINE_VISIBLE_SLOT("cybernetic_legs",   PLAYER_CANNOT_MODIFY, "hp_pants2",   CSB_rightLeg | CSB_leftLeg, OWP_NO, EWP_NO)
+		DEFINE_VISIBLE_SLOT("cybernetic_torso",  PLAYER_CANNOT_MODIFY, "hp_chest2",   CSB_body,                   OWP_NO, EWP_NO)
 	}
 }
 
