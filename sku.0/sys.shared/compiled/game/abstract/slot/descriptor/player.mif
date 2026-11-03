@@ -49,6 +49,10 @@ form "SLTD"
 			cstring "appearance_inventory"
 			cstring "cybernetic_hand_l"
 			cstring "cybernetic_hand_r"
+			cstring "cybernetic_arm_l"
+			cstring "cybernetic_arm_r"
+			cstring "cybernetic_legs"
+			cstring "cybernetic_torso"
 		}
 	}
 }

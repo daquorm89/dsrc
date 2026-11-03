@@ -4,8 +4,7 @@ form "ARGD"
 	{
 		chunk "ARG"
 		{
-			cstring "bracer_lower_l"
-			cstring "bracer_upper_l"
+			cstring "cybernetic_arm_l"
 			cstring "cybernetic_hand_l"
 		}
 	}
