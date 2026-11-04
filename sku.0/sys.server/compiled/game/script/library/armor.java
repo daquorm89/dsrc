@@ -237,6 +237,18 @@ public class armor extends script.base_script
     public static final String SCRIPTVAR_CACHED_SPECIAL_PROTECTIONS = SCRIPTVAR_CACHED_BASE + "." + "specialProtection";
     public static final String SCRIPTVAR_CACHED_PENALTIES = SCRIPTVAR_CACHED_BASE + "." + "penalties";
     public static final String SCRIPTVAR_SPECIES_RESTRICTIONS = OBJVAR_ARMOR_BASE + "." + OBJVAR_SPECIES_RESTRICTIONS;
+    // PRECU-CYB-ARMOR-1: installed cybernetics count toward armor protection. They sit in their own slots
+    // (cybernetic_arm_l/r, cybernetic_legs, cybernetic_torso), no longer in the armor slots recalculateArmorForPlayer
+    // reads. Set CYBERNETICS_COUNT_FOR_ARMOR = false to stop counting them (and rebuild this file).
+    public static final boolean CYBERNETICS_COUNT_FOR_ARMOR = true;
+    public static final String PRECU_CYBERNETIC_ARMOR_TAG = "PRECU-CYB-ARMOR-1";
+    public static final String[] CYBERNETIC_ARMOR_SLOTS =
+    {
+        "cybernetic_torso",
+        "cybernetic_legs",
+        "cybernetic_arm_l",
+        "cybernetic_arm_r"
+    };
     public static final String[] PSG_STARTUP_EFFECTS = 
     {
         "appearance/pt_psg_on_mark_1.prt",
@@ -1369,6 +1381,29 @@ public class armor extends script.base_script
                 ((int) getFloatObjVar(mob, OBJVAR_ARMOR_BASE + "." + OBJVAR_GENERAL_PROTECTION) + (int) getSkillStatisticModifier(mob, "expertise_innate_protection_all"))
         );
     }
+    // Weight of an installed cybernetic in the armor average. Same weights as the armor slots the part used to
+    // fill: torso = chest2 (5), legs = pants2 (3), arm = bicep + upper bracer (1 + 1), forearm = upper bracer (1).
+    public static float getCyberneticArmorWeight(obj_id cybernetic) throws InterruptedException
+    {
+        int type = getGameObjectType(cybernetic);
+        if (isGameObjectTypeOf(type, GOT_cybernetic_torso))
+        {
+            return 5;
+        }
+        if (isGameObjectTypeOf(type, GOT_cybernetic_legs))
+        {
+            return 3;
+        }
+        if (isGameObjectTypeOf(type, GOT_cybernetic_forearm))
+        {
+            return 1;
+        }
+        if (isGameObjectTypeOf(type, GOT_cybernetic_arm))
+        {
+            return 2;
+        }
+        return 0;
+    }
     public static void recalculateArmorForPlayer(obj_id objPlayer) throws InterruptedException
     {
         if (!isPlayer(objPlayer) && isGameObjectTypeOf(getGameObjectType(objPlayer), GOT_creature))
@@ -1499,6 +1534,43 @@ public class armor extends script.base_script
                 fltGeneralProtection += fltWeight * fltArmorGeneralProtection;
             }
             fltTotal += fltWeight;
+        }
+        if (CYBERNETICS_COUNT_FOR_ARMOR)
+        {
+            // Installed cybernetics add their protection on top. fltTotal is not increased, so the divisor stays the
+            // weight of the armor slots.
+            for (String strCyberneticSlot : CYBERNETIC_ARMOR_SLOTS)
+            {
+                obj_id objCybernetic = getObjectInSlot(objPlayer, strCyberneticSlot);
+                if (!isIdValid(objCybernetic) || !isValidArmor(objCybernetic))
+                {
+                    continue;
+                }
+                fltWeight = getCyberneticArmorWeight(objCybernetic);
+                if (fltWeight <= 0)
+                {
+                    continue;
+                }
+                dictionary dctCyberneticSpecial = getArmorSpecialProtections(objCybernetic);
+                fltArmorGeneralProtection = utils.getIntScriptVar(objCybernetic, armor.SCRIPTVAR_CACHED_GENERAL_PROTECTION);
+                fltReduction = combat.getArmorDecayPercentage(objCybernetic);
+                fltArmorGeneralProtection = fltArmorGeneralProtection * fltReduction;
+                if (dctCyberneticSpecial != null)
+                {
+                    for (int intJ = 0; intJ < fltSpecialProts.length; intJ++)
+                    {
+                        if (armor.DATATABLE_SPECIAL_PROTECTIONS[intJ] != null)
+                        {
+                            fltSpecialProt = dctCyberneticSpecial.getFloat(armor.DATATABLE_SPECIAL_PROTECTIONS[intJ]);
+                            if (fltSpecialProt != 0)
+                            {
+                                fltSpecialProts[intJ] += fltWeight * fltSpecialProt;
+                            }
+                        }
+                    }
+                }
+                fltGeneralProtection += fltWeight * fltArmorGeneralProtection;
+            }
         }
         float fltTempProtection = 0;
         float fltGenericProtection = getSkillStatisticModifier(objPlayer, "expertise_overridable_protection_generic");
