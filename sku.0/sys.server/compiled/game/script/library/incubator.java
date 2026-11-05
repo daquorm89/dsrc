@@ -691,7 +691,7 @@ public class incubator extends script.base_script
             blog("BEAST_DNA", "invalid Ids");
             return obj_id.NULL_ID;
         }
-        if (!beast_lib.isBeastMaster(player))
+        if (!beast_lib.canHarvestDna(player)) // Pre-CU: Bio-Engineer or Beast Master (PRECU-DNA-1)
         {
             sendSystemMessage(player, beast_lib.SID_NOT_BEAST_MASTER);
             return obj_id.NULL_ID;
