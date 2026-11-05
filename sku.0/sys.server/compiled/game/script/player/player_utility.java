@@ -515,7 +515,7 @@ public class player_utility extends script.base_script
     }
     public int bm_collect_dna(obj_id self, obj_id target, String params, float defaultTime) throws InterruptedException
     {
-        if (!beast_lib.isBeastMaster(self))
+        if (!beast_lib.canHarvestDna(self)) // Pre-CU: Bio-Engineer or Beast Master (PRECU-DNA-1)
         {
             sendSystemMessage(self, SID_DNA_ONLY_BEAST_MASTER);
             return SCRIPT_OVERRIDE;

@@ -3553,6 +3553,12 @@ public class beast_lib extends script.base_script
     {
         return canUseEnzymeExtractor(player);
     }
+    // Pre-CU: DNA harvest (/bm_collect_dna) usable by Bio-Engineers (same switch/skill as the incubator). Tag PRECU-DNA-1
+    public static final String PRECU_DNA_BUILD_TAG = "PRECU-DNA-1";
+    public static boolean canHarvestDna(obj_id player) throws InterruptedException
+    {
+        return canUseEnzymeExtractor(player);
+    }
     // NGE expertise_bm_incubation_quality max 25 (%); master Bio-Engineer bio_engineer_experimentation 100 -> 25.
     public static int getIncubationQualityMod(obj_id player) throws InterruptedException
     {
