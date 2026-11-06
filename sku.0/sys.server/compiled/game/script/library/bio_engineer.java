@@ -659,7 +659,7 @@ public class bio_engineer extends script.base_script
         {
             levelMod = 0;
         }
-        float difficulty = ((skillMod / 1.5f) + 35) - (levelMod * (skillMod / 10));
+        float difficulty = ((skillMod / 1.5f) + 35) - (levelMod * (skillMod / 50)); // PRECU-DNA-2: gentler per-level penalty (was skill/10)
         if (difficulty > 85)
         {
             difficulty = 85;
