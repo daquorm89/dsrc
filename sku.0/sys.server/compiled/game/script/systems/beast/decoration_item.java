@@ -17,7 +17,7 @@ public class decoration_item extends script.base_script
     {
         if (utils.isNestedWithinAPlayer(self))
         {
-            if (beast_lib.isBeastMaster(player))
+            if (beast_lib.canUseIncubator(player))
             {
                 int management_root = mi.addRootMenu(menu_info_types.SERVER_MENU1, SID_CONVERT_PET_ITEM_TO_DNA);
             }
@@ -35,7 +35,7 @@ public class decoration_item extends script.base_script
         sendDirtyObjectMenuNotification(self);
         if (item == menu_info_types.SERVER_MENU1 && utils.isNestedWithinAPlayer(self))
         {
-            if (beast_lib.isBeastMaster(player))
+            if (beast_lib.canUseIncubator(player))
             {
                 int pid = sui.msgbox(self, player, "@" + SID_CONVERT_PROMPT, sui.YES_NO, "@" + SID_CONVERT_TITLE, "handlerSuiConvertPetItemToDna");
                 return SCRIPT_CONTINUE;
@@ -77,7 +77,7 @@ public class decoration_item extends script.base_script
         }
         obj_id player = sui.getPlayerId(params);
         obj_id petItem = self;
-        if (beast_lib.isBeastMaster(player))
+        if (beast_lib.canUseIncubator(player))
         {
             if (incubator.convertPetItemToDna(player, petItem))
             {
