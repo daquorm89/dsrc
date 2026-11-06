@@ -2104,7 +2104,7 @@ public class incubator extends script.base_script
         {
             return false;
         }
-        if (!beast_lib.isBeastMaster(player))
+        if (!beast_lib.canUseIncubator(player))
         {
             CustomerServiceLog("BeastPetConversion: ", "petItem (" + petItem + ")" + " was not converted into a dna object, because player " + getFirstName(player) + "(" + player + ") is not a beast master.");
             return false;
