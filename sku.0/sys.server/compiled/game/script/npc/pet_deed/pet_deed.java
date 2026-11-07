@@ -15,12 +15,15 @@ public class pet_deed extends script.base_script
     {
     }
     public static final String MENU_FILE = "pet/pet_menu";
-    public static final string_id SID_UNPACK = new string_id(MENU_FILE, "menu_unpack");
+    public static final string_id SID_UNPACK = new string_id(MENU_FILE, "ep3_unpack"); // "Generate Creature" (menu_unpack reads "Ready Droid Unit")
     // PRECU-DEED-1: creature pet deeds (bio-engineered or otherwise) can be unpacked into a datapad control device.
     // NGE removed this; only "convert to DNA" (Beast Master) was left. Switch off to get the NGE behaviour back.
     public static final boolean PRECU_DEED_UNPACK_ENABLED = true;
     // Growth stage a freshly unpacked pet starts at (1 = baby ... 10 = adult), same as a hatched egg.
     public static final int UNPACK_GROWTH_STAGE = 1;
+    // The "Extract DNA Core from Stuffed Pet" line is for stuffed pets (systems.beast.decoration_item), not deeds.
+    // Set to true to bring the NGE shortcut (deed -> DNA core in one step) back on the deed.
+    public static final boolean DEED_DNA_CONVERT_ENABLED = false;
     public static final string_id SID_CONVERT_PET_ITEM_TO_DNA = new string_id("incubator", "convert_pet_item_to_dna");
     public static final string_id SID_CONVERT_PROMPT = new string_id("incubator", "convert_pet_item_prompt");
     public static final string_id SID_CONVERT_TITLE = new string_id("incubator", "convert_pet_item_title");
@@ -45,7 +48,7 @@ public class pet_deed extends script.base_script
             {
                 mi.addRootMenu(menu_info_types.ITEM_USE, SID_UNPACK);
             }
-            if (beast_lib.canUseIncubator(player))
+            if (DEED_DNA_CONVERT_ENABLED && beast_lib.canUseIncubator(player))
             {
                 int management_root = mi.addRootMenu(menu_info_types.SERVER_MENU1, SID_CONVERT_PET_ITEM_TO_DNA);
             }
@@ -59,7 +62,7 @@ public class pet_deed extends script.base_script
             unpackDeed(self, player);
             return SCRIPT_CONTINUE;
         }
-        if (item == menu_info_types.SERVER_MENU1 && utils.isNestedWithinAPlayer(self))
+        if (DEED_DNA_CONVERT_ENABLED && item == menu_info_types.SERVER_MENU1 && utils.isNestedWithinAPlayer(self))
         {
             if (beast_lib.canUseIncubator(player))
             {
