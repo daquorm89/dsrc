@@ -1812,8 +1812,10 @@ public class ai extends script.base_script
             return SCRIPT_CONTINUE;
         }
         // Pre-CU: Tame on eligible wild babies (hasTamingMenuOption was never called)
-        if (hasScript(self, "ai.pet_advance") && pet_lib.hasTamingMenuOption(self, player)
-            && pet_lib.getChanceToTame(self, player) >= 15)
+        // No extra chance threshold here: hasTamingMenuOption already requires chance > 0 (the same test
+        // taming.cmdTame uses). The old ">= 15" gate hid Tame on every aggressive creature above table
+        // level ~53, even for a full Creature Handler line.
+        if (hasScript(self, "ai.pet_advance") && pet_lib.hasTamingMenuOption(self, player))
         {
             mi.addRootMenu(menu_info_types.PET_TAME, new string_id("pet/pet_menu", "menu_tame"));
         }
@@ -1870,7 +1872,7 @@ public class ai extends script.base_script
         {
             utils.removeScriptVar(player, "pet.tameLoopNum");
             utils.removeScriptVar(player, "pet.tameTarget");
-            sendSystemMessage(player, pet_lib.SID_SYS_CANT_TAME);
+            sendSystemMessage(player, "The taming attempt was interrupted.", null);
             return SCRIPT_CONTINUE;
         }
         float dist = getDistance(getLocation(player), getLocation(self));
@@ -1878,7 +1880,7 @@ public class ai extends script.base_script
         {
             utils.removeScriptVar(player, "pet.tameLoopNum");
             utils.removeScriptVar(player, "pet.tameTarget");
-            sendSystemMessage(player, pet_lib.SID_SYS_CANT_TAME);
+            sendSystemMessage(player, "You moved too far away from the creature. The taming attempt was interrupted.", null);
             return SCRIPT_CONTINUE;
         }
         if (phase < 3)
@@ -1901,7 +1903,7 @@ public class ai extends script.base_script
         utils.removeScriptVar(player, "pet.tameTarget");
         if (rand(1, 100) > chance)
         {
-            sendSystemMessage(player, pet_lib.SID_SYS_CANT_TAME);
+            sendSystemMessage(player, "The creature will not trust you yet. The taming attempt failed (" + chance + "% chance). You can try again.", null);
             return SCRIPT_CONTINUE;
         }
         int level = getLevel(self);
