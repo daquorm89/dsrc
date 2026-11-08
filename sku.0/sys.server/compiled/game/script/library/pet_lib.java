@@ -3346,6 +3346,62 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
         }
         return false;
     }
+    /**
+     * Why this player cannot tame this creature right now, as player-facing text, or null when
+     * taming is possible. Mirrors the checks of hasTamingMenuOption + getChanceToTame but has no
+     * side effects. Used by taming.cmdTame so a refused /tame says WHY, instead of the generic
+     * "You can't tame that" (which a plain failed roll also used to print).
+     */
+    public static String getTameRefusalReason(obj_id pet, obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(pet) || !exists(pet))
+        {
+            return "That creature is no longer there.";
+        }
+        if (!hasScript(pet, "ai.pet_advance"))
+        {
+            return "Only baby creatures can be tamed. This one is fully grown.";
+        }
+        if (pet_lib.hasMaster(pet))
+        {
+            return "That creature already belongs to someone.";
+        }
+        if (utils.hasScriptVar(player, "pet.tameLoopNum"))
+        {
+            return "You are already taming a creature.";
+        }
+        if (ai_lib.isAiDead(pet))
+        {
+            return "That creature is dead.";
+        }
+        if (ai_lib.isInCombat(pet))
+        {
+            return "That creature is in combat and cannot be tamed right now.";
+        }
+        if (!hasSkill(player, "outdoors_creaturehandler_novice"))
+        {
+            return "You need the Creature Handler skill to tame creatures.";
+        }
+        if (!ai_lib.isMonster(pet))
+        {
+            return "That creature cannot be tamed.";
+        }
+        final String creatureName = getCreatureName(pet);
+        final boolean aggro = (pet_lib.getPetType(pet) == pet_lib.PET_TYPE_AGGRO);
+        int tamingSkillMod = getEnhancedSkillStatisticModifier(player, aggro ? "tame_aggro" : "tame_non_aggro");
+        tamingSkillMod += getEnhancedSkillStatisticModifier(player, "tame_bonus");
+        if (tamingSkillMod <= 0)
+        {
+            return aggro ? "You have not learned how to tame aggressive creatures yet." : "You have not learned how to tame creatures yet.";
+        }
+        final int needed = getEffectiveTameLevel(create.calcCreatureLevel(creatureName));
+        final int have = getMaxTameLevel(player);
+        if (needed > have)
+        {
+            return "This creature is too strong for you to tame. It needs Tame Level " + needed + ", you have " + have + ".";
+        }
+        return null;
+    }
     public static int getChanceToTame(obj_id pet, obj_id player) throws InterruptedException
     {
         final String creatureName = getCreatureName(pet);
@@ -3441,6 +3497,14 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
     {
         return level > MAX_TAME_LEVEL_CAP ? MAX_TAME_LEVEL_CAP : level;
     }
+    /**
+     * Lowest tame chance (percent) for a handler whose tame level covers the creature.
+     * Was 5, which for aggressive creatures above table level ~53 (a full Creature Handler line has
+     * tame_aggro 50) left every attempt at 5 % and, together with the old ">= 15" gate in
+     * ai.ai.OnObjectMenuRequest, hid the Tame option completely. 15 is the value that gate used.
+     * REVERT: set to 5.
+     */
+    public static final int MIN_TAME_CHANCE = 15;
     public static int getChanceToTame(int level, int skillMod, int tameLevelSkillMod) throws InterruptedException
     {
         level = getEffectiveTameLevel(level);
@@ -3455,9 +3519,9 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
             level *= 1.5;
         }
         chance -= level;
-        if (chance < 5)
+        if (chance < MIN_TAME_CHANCE)
         {
-            chance = 5;
+            chance = MIN_TAME_CHANCE;
         }
         LOG("creature_taming", "tameChance = " + chance);
         return (int)chance;
