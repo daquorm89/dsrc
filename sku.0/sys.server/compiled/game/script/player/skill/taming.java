@@ -61,12 +61,15 @@ public class taming extends script.base_script
         {
             return SCRIPT_CONTINUE;
         }
-        // Pre-CU: only babies (ai.pet_advance from makeBaby)
-        if (!hasScript(target, "ai.pet_advance"))
+        // Pre-CU: only babies (ai.pet_advance from makeBaby). Say WHY a creature cannot be tamed
+        // instead of the generic "You can't tame that" (pet_lib.getTameRefusalReason).
+        String refusal = pet_lib.getTameRefusalReason(target, self);
+        if (refusal != null)
         {
-            sendSystemMessage(self, pet_lib.SID_SYS_CANT_TAME);
+            sendSystemMessage(self, refusal, null);
             return SCRIPT_CONTINUE;
         }
+        // Safety net: the reason helper found nothing, but the stock checks still refuse.
         if (!pet_lib.hasTamingMenuOption(target, self))
         {
             sendSystemMessage(self, pet_lib.SID_SYS_CANT_TAME);
@@ -78,6 +81,7 @@ public class taming extends script.base_script
             sendSystemMessage(self, pet_lib.SID_SYS_CANT_TAME);
             return SCRIPT_CONTINUE;
         }
+        sendSystemMessage(self, "You start to tame the creature. Chance of success: " + chance + "%.", null);
         // Clear a stuck flag from a previous attempt whose callback never ran
         if (utils.hasScriptVar(self, "pet.tameLoopNum"))
         {
