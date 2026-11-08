@@ -3212,13 +3212,41 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
     {
         return (hasObjVar(pet, "ai.pet.isRepairDroid"));
     }
+    /** A taming attempt lasts about 31 s (1 s + three 10 s phases); anything older is a stuck flag. */
+    public static final int TAME_ATTEMPT_MAX_SEC = 60;
+    /**
+     * True while the player really has a taming attempt running. The in-progress flag
+     * (script var pet.tameLoopNum) is cleared only by ai.ai.handleBeingTamed, which never runs if the
+     * baby is killed or despawns before its timer message fires; the flag then stayed until the
+     * player relogged and every later attempt was refused ("You can't tame that"). A flag whose
+     * target is gone, or that is older than TAME_ATTEMPT_MAX_SEC, is stale: it is cleared here.
+     */
+    public static boolean isTameAttemptActive(obj_id player) throws InterruptedException
+    {
+        if (!utils.hasScriptVar(player, "pet.tameLoopNum"))
+        {
+            return false;
+        }
+        obj_id target = utils.getObjIdScriptVar(player, "pet.tameTarget");
+        boolean targetGone = !isIdValid(target) || !exists(target);
+        boolean expired = !utils.hasScriptVar(player, "pet.tameStart")
+            || (getGameTime() - utils.getIntScriptVar(player, "pet.tameStart")) > TAME_ATTEMPT_MAX_SEC;
+        if (targetGone || expired)
+        {
+            utils.removeScriptVar(player, "pet.tameLoopNum");
+            utils.removeScriptVar(player, "pet.tameTarget");
+            utils.removeScriptVar(player, "pet.tameStart");
+            return false;
+        }
+        return true;
+    }
     public static boolean hasTamingMenuOption(obj_id pet, obj_id player) throws InterruptedException
     {
         if (pet_lib.hasMaster(pet))
         {
             return false;
         }
-        if (utils.hasScriptVar(player, "pet.tameLoopNum"))
+        if (isTameAttemptActive(player))
         {
             return false;
         }
@@ -3366,7 +3394,7 @@ public static obj_id makeControlDevice(obj_id master, obj_id pet) throws Interru
         {
             return "That creature already belongs to someone.";
         }
-        if (utils.hasScriptVar(player, "pet.tameLoopNum"))
+        if (isTameAttemptActive(player))
         {
             return "You are already taming a creature.";
         }
