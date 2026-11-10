@@ -46,11 +46,11 @@ public class beast_egg extends script.base_script
         }
         if (utils.isNestedWithinAPlayer(egg, false))
         {
-            if (beast_lib.isBeastMaster(player) && hasObjVar(egg, beast_lib.OBJVAR_BEAST_TYPE) && !incubator.isEggMountFlagged(egg))
+            if (beast_lib.canHatchBeast(player) && hasObjVar(egg, beast_lib.OBJVAR_BEAST_TYPE) && !incubator.isEggMountFlagged(egg))
             {
                 mi.addRootMenu(menu_info_types.ITEM_USE, SID_EGG_HATCH);
             }
-            if (incubator.isEggMountType(egg) && hasSkill(player, "expertise_bm_train_mount_1") && !incubator.isEggMountFlagged(egg))
+            if (incubator.isEggMountType(egg) && beast_lib.canConvertEggToMount(player) && !incubator.isEggMountFlagged(egg))
             {
                 mi.addRootMenu(menu_info_types.SERVER_MENU1, SID_MAKE_MOUNT);
             }
@@ -58,7 +58,7 @@ public class beast_egg extends script.base_script
             {
                 mi.addRootMenu(menu_info_types.SERVER_MENU1, SID_HATCH_MOUNT);
             }
-            if (beast_lib.isBeastMaster(player) && hasObjVar(egg, beast_lib.OBJVAR_BEAST_TYPE))
+            if (beast_lib.canHatchBeast(player) && hasObjVar(egg, beast_lib.OBJVAR_BEAST_TYPE))
             {
                 mi.addRootMenu(menu_info_types.SERVER_MENU2, SID_MAKE_HOLOPET);
             }
@@ -78,7 +78,7 @@ public class beast_egg extends script.base_script
         {
             if (item == menu_info_types.ITEM_USE && !incubator.isEggMountFlagged(egg))
             {
-                if (!beast_lib.isBeastMaster(player))
+                if (!beast_lib.canHatchBeast(player))
                 {
                     return SCRIPT_OVERRIDE;
                 }
@@ -90,7 +90,7 @@ public class beast_egg extends script.base_script
                     return SCRIPT_CONTINUE;
                 }
             }
-            if (item == menu_info_types.SERVER_MENU1 && hasSkill(player, "expertise_bm_train_mount_1") && !incubator.isEggMountFlagged(egg))
+            if (item == menu_info_types.SERVER_MENU1 && beast_lib.canConvertEggToMount(player) && !incubator.isEggMountFlagged(egg))
             {
                 if (!incubator.isEggMountType(egg))
                 {
@@ -120,7 +120,7 @@ public class beast_egg extends script.base_script
             }
             if (item == menu_info_types.SERVER_MENU2 && hasObjVar(egg, beast_lib.OBJVAR_BEAST_TYPE))
             {
-                if (!beast_lib.isBeastMaster(player))
+                if (!beast_lib.canHatchBeast(player))
                 {
                     return SCRIPT_CONTINUE;
                 }

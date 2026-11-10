@@ -454,7 +454,7 @@ public class beast_lib extends script.base_script
     }
     public static boolean hasActiveBeast(obj_id player) throws InterruptedException
     {
-        if (beast_lib.isBeastMaster(player))
+        if (beast_lib.canOwnBeast(player))
         {
             obj_id activePet = beast_lib.getBeastOnPlayer(player);
             if (isIdValid(activePet) && exists(activePet))
@@ -1533,7 +1533,7 @@ public class beast_lib extends script.base_script
             blog("createBeastFromBCD: Beast could not be made because the player is invalid.");
             return null;
         }
-        if (!isBeastMaster(player))
+        if (!canHatchBeast(player))
         {
             sendSystemMessage(player, SID_NOT_BEAST_MASTER);
             return null;
@@ -1658,11 +1658,11 @@ public class beast_lib extends script.base_script
         }
         addSkillModModifier(beast, "slope_move", "slope_move", 50, -1, false, false);
         updateBeastHappiness(bcd, beast);
-        int expertiseRegen = getEnhancedSkillStatisticModifierUncapped(getMaster(beast), "expertise_bm_pet_regen");
-        int expertiseHealth = getEnhancedSkillStatisticModifierUncapped(getMaster(beast), "expertise_bm_pet_health");
-        int expertiseAttackSpeed = getEnhancedSkillStatisticModifierUncapped(getMaster(beast), "expertise_bm_pet_attack_speed");
-        int expertiseArmor = getEnhancedSkillStatisticModifierUncapped(getMaster(beast), "expertise_bm_pet_armor");
-        int expertiseDamage = getEnhancedSkillStatisticModifierUncapped(getMaster(beast), "expertise_bm_pet_damage");
+        int expertiseRegen = getBeastExpertiseMod(getMaster(beast), "expertise_bm_pet_regen");
+        int expertiseHealth = getBeastExpertiseMod(getMaster(beast), "expertise_bm_pet_health");
+        int expertiseAttackSpeed = getBeastExpertiseMod(getMaster(beast), "expertise_bm_pet_attack_speed");
+        int expertiseArmor = getBeastExpertiseMod(getMaster(beast), "expertise_bm_pet_armor");
+        int expertiseDamage = getBeastExpertiseMod(getMaster(beast), "expertise_bm_pet_damage");
         float incubationArmorBonus = utils.getFloatScriptVar(beast, OBJVAR_INCREASE_ARMOR);
         float incubationDamageBonus = utils.getFloatScriptVar(beast, OBJVAR_INCREASE_DPS);
         float incubationHealthBonus = utils.getFloatScriptVar(beast, OBJVAR_INCREASE_HEALTH);
@@ -3559,6 +3559,56 @@ public class beast_lib extends script.base_script
     {
         return canUseEnzymeExtractor(player);
     }
+    // Pre-CU: hatching an incubated egg and calling the hatched beast usable by Bio-Engineers (same rule/switch as the
+    // incubator). Output side of P29.6. Beast Master combat/ability code is NOT changed. Tag PRECU-HATCH-1
+    // REVERT: set PRECU_ENZYME_EXTRACTOR_ENABLED = false (Beast Master only again).
+    public static final String PRECU_HATCH_BUILD_TAG = "PRECU-HATCH-1";
+    public static boolean canHatchBeast(obj_id player) throws InterruptedException
+    {
+        return canOwnBeast(player);
+    }
+    // Pre-CU: who may keep a beast around (follow-along plumbing: kill XP, group/stealth/buff handling, defensive assist,
+    // XP toggle, mount conversion). Bio-Engineer or Beast Master. Beast Master combat tuning is NOT touched.
+    public static boolean canOwnBeast(obj_id player) throws InterruptedException
+    {
+        return canUseIncubator(player);
+    }
+    // Pre-CU: egg -> mount conversion. Beast Masters keep the NGE skill; Bio-Engineers may convert too. The conversion itself
+    // (incubator.stampEggAsMount / convertEggToMount) has no Beast Master dependency.
+    public static boolean canConvertEggToMount(obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(player))
+        {
+            return false;
+        }
+        if (hasSkill(player, "expertise_bm_train_mount_1"))
+        {
+            return true;
+        }
+        return PRECU_ENZYME_EXTRACTOR_ENABLED && hasSkill(player, PRECU_ENZYME_EXTRACTOR_SKILL);
+    }
+    // Pre-CU: pet stat expertise (health / armor / damage / regen / attack speed). The NGE formula
+    // (getExpertiseStat) leaves a player with mod 0 at only 50 % of base stats, so a Bio-Engineer would get a half-strength
+    // beast. A Bio-Engineer gets (dna_harvesting + bio_engineer_experimentation) / 2, capped at 100 (master = 100 = full
+    // Beast Master value); the higher of NGE and Pre-CU value wins. Tag PRECU-BEAST-1
+    public static final String PRECU_BEAST_BUILD_TAG = "PRECU-BEAST-1";
+    public static int getBeastExpertiseMod(obj_id player, String ngeMod) throws InterruptedException
+    {
+        int mod = getEnhancedSkillStatisticModifierUncapped(player, ngeMod);
+        if (PRECU_ENZYME_EXTRACTOR_ENABLED && isIdValid(player) && hasSkill(player, PRECU_ENZYME_EXTRACTOR_SKILL))
+        {
+            int precuMod = (getEnhancedSkillStatisticModifierUncapped(player, PRECU_ENZYME_YIELD_MOD) + getEnhancedSkillStatisticModifierUncapped(player, "bio_engineer_experimentation")) / 2;
+            if (precuMod > 100)
+            {
+                precuMod = 100;
+            }
+            if (precuMod > mod)
+            {
+                mod = precuMod;
+            }
+        }
+        return mod;
+    }
     // NGE expertise_bm_incubation_quality max 25 (%); master Bio-Engineer bio_engineer_experimentation 100 -> 25.
     public static int getIncubationQualityMod(obj_id player) throws InterruptedException
     {
@@ -4209,7 +4259,7 @@ public class beast_lib extends script.base_script
             blog("updateBeastStats() missing entry in the " + BEASTS_STATS + " table for beastType: " + beastType + ".");
             return;
         }
-        int expertiseDamage = getEnhancedSkillStatisticModifierUncapped(getMaster(beast), "expertise_bm_pet_damage");
+        int expertiseDamage = getBeastExpertiseMod(getMaster(beast), "expertise_bm_pet_damage");
         float incubationDamageBonus = utils.getFloatScriptVar(beast, OBJVAR_INCREASE_DPS);
         int intMinDamage = (int)beastStatsDict.getInt("MinDmg");
         int intMaxDamage = (int)beastStatsDict.getInt("MaxDmg");

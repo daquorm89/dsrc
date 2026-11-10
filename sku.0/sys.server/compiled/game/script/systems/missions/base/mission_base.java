@@ -159,7 +159,7 @@ public class mission_base extends script.base_script
             float divisor = missions.alterMissionPayoutDivisorDaily(objPlayer);
             intReward = intReward / (int)divisor;
             if (missions.canEarnDailyMissionXp(objPlayer) && missions.isDestroyMission(objMissionData)){
-                if (beast_lib.isBeastMaster(objPlayer) && beast_lib.hasActiveBeast(objPlayer)) {
+                if (beast_lib.canOwnBeast(objPlayer) && beast_lib.hasActiveBeast(objPlayer)) {
                     dictionary returnDict = new dictionary();
                     returnDict.addInt("xpAmount", xp.getMissionXpAmount(objPlayer, intPlayerDifficulty) / 2);
                     beast_lib.incrementBeastExperience(beast_lib.getBeastOnPlayer(objPlayer), returnDict);

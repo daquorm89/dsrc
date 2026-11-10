@@ -1056,7 +1056,7 @@ public class buff extends script.base_script
         {
             utils.setScriptVar(target, "groupBuff." + buffList[i], owner);
             applyBuff(target, owner, buffList[i], durList[i], strList[i]);
-            if (beast_lib.isBeastMaster(target))
+            if (beast_lib.canOwnBeast(target))
             {
                 obj_id beast = beast_lib.getBeastOnPlayer(target);
                 if (isIdValid(beast) && !isIdNull(beast))
@@ -1083,7 +1083,7 @@ public class buff extends script.base_script
             if (owner != target) {
                 _removeBuff(target, aBuffList);
                 utils.removeScriptVar(target, "groupBuff." + aBuffList);
-                if (beast_lib.isBeastMaster(target)) {
+                if (beast_lib.canOwnBeast(target)) {
                     beast = beast_lib.getBeastOnPlayer(target);
                     if (isIdValid(beast) && !isIdNull(beast)) {
                         _removeBuff(beast, aBuffList);
