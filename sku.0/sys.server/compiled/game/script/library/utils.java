@@ -6773,7 +6773,7 @@ public class utils extends script.base_script
     {
         if (storeBeast)
         {
-            if (beast_lib.isBeastMaster(player))
+            if (beast_lib.canOwnBeast(player))
             {
                 beast_lib.storeBeasts(player);
             }

@@ -77,7 +77,7 @@ public class group extends script.base_script
         {
             return true;
         }
-        if (beast_lib.isBeastMaster(target1))
+        if (beast_lib.canOwnBeast(target1))
         {
             obj_id beast = beast_lib.getBeastOnPlayer(target1);
             if (beast == target2)
@@ -85,7 +85,7 @@ public class group extends script.base_script
                 return true;
             }
         }
-        if (beast_lib.isBeastMaster(target2))
+        if (beast_lib.canOwnBeast(target2))
         {
             obj_id beast = beast_lib.getBeastOnPlayer(target2);
             if (beast == target1)

@@ -2843,7 +2843,7 @@ public class buff_handler extends script.base_script
             return SCRIPT_CONTINUE;
         }
         obj_id owner = utils.getObjIdScriptVar(self, var);
-        if (beast_lib.isBeastMaster(self))
+        if (beast_lib.canOwnBeast(self))
         {
             obj_id beast = beast_lib.getBeastOnPlayer(self);
             if (isIdValid(beast) && !isIdNull(beast) && !isDead(beast))

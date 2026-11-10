@@ -2403,7 +2403,7 @@ public class stealth extends script.base_script
     }
     public static obj_id makeBeastInvisible(obj_id player, String clientEffect) throws InterruptedException
     {
-        if (!isIdValid(player) || !exists(player) || !beast_lib.isBeastMaster(player))
+        if (!isIdValid(player) || !exists(player) || !beast_lib.canOwnBeast(player))
         {
             return null;
         }
@@ -2460,7 +2460,7 @@ public class stealth extends script.base_script
     }
     public static void makeBeastVisible(obj_id player) throws InterruptedException
     {
-        if (!isIdValid(player) || !exists(player) || !beast_lib.isBeastMaster(player))
+        if (!isIdValid(player) || !exists(player) || !beast_lib.canOwnBeast(player))
         {
             return;
         }

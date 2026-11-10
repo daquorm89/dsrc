@@ -1075,7 +1075,7 @@ public class xp extends script.base_script
             {
                 int xpTotal = getRawCombatXP(killer, target);
                 xpTotal = applyGroupXpModifier(killer, xpTotal);
-                if (isPlayer(killer) && beast_lib.isBeastMaster(killer))
+                if (isPlayer(killer) && beast_lib.canOwnBeast(killer))
                 {
                     beast = beast_lib.getBeastOnPlayer(killer);
                     if (beast_lib.isValidBeast(beast) && getDistance(killer, beast) < MAX_DISTANCE && xpTotal > 1)

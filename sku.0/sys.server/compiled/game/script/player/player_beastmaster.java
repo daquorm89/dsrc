@@ -111,7 +111,7 @@ public class player_beastmaster extends script.base_script
     }
     public int OnEnteredCombat(obj_id self) throws InterruptedException
     {
-        if (!beast_lib.isBeastMaster(self))
+        if (!beast_lib.canOwnBeast(self))
         {
             return SCRIPT_CONTINUE;
         }
@@ -147,7 +147,7 @@ public class player_beastmaster extends script.base_script
     }
     public int OnDefenderCombatAction(obj_id self, obj_id attacker, obj_id weapon, int combatResult) throws InterruptedException
     {
-        if (!beast_lib.isBeastMaster(self))
+        if (!beast_lib.canOwnBeast(self))
         {
             return SCRIPT_CONTINUE;
         }

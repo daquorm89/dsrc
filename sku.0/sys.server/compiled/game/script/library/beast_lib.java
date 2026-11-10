@@ -454,7 +454,7 @@ public class beast_lib extends script.base_script
     }
     public static boolean hasActiveBeast(obj_id player) throws InterruptedException
     {
-        if (beast_lib.isBeastMaster(player))
+        if (beast_lib.canOwnBeast(player))
         {
             obj_id activePet = beast_lib.getBeastOnPlayer(player);
             if (isIdValid(activePet) && exists(activePet))

@@ -584,7 +584,7 @@ public class beast extends script.base_script
             return SCRIPT_CONTINUE;
         }
         int opt_menu = 0;
-        if (beast_lib.isBeastMaster(player))
+        if (beast_lib.canOwnBeast(player))
         {
             if (!beast_lib.getBeastCanLevel(self))
             {
