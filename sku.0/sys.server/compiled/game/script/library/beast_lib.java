@@ -1533,7 +1533,7 @@ public class beast_lib extends script.base_script
             blog("createBeastFromBCD: Beast could not be made because the player is invalid.");
             return null;
         }
-        if (!isBeastMaster(player))
+        if (!canHatchBeast(player))
         {
             sendSystemMessage(player, SID_NOT_BEAST_MASTER);
             return null;
@@ -3558,6 +3558,14 @@ public class beast_lib extends script.base_script
     public static boolean canHarvestDna(obj_id player) throws InterruptedException
     {
         return canUseEnzymeExtractor(player);
+    }
+    // Pre-CU: hatching an incubated egg and calling the hatched beast usable by Bio-Engineers (same rule/switch as the
+    // incubator). Output side of P29.6. Beast Master combat/ability code is NOT changed. Tag PRECU-HATCH-1
+    // REVERT: set PRECU_ENZYME_EXTRACTOR_ENABLED = false (Beast Master only again).
+    public static final String PRECU_HATCH_BUILD_TAG = "PRECU-HATCH-1";
+    public static boolean canHatchBeast(obj_id player) throws InterruptedException
+    {
+        return canUseIncubator(player);
     }
     // NGE expertise_bm_incubation_quality max 25 (%); master Bio-Engineer bio_engineer_experimentation 100 -> 25.
     public static int getIncubationQualityMod(obj_id player) throws InterruptedException
