@@ -3573,6 +3573,20 @@ public class beast_lib extends script.base_script
     {
         return canUseIncubator(player);
     }
+    // Pre-CU: egg -> mount conversion. Beast Masters keep the NGE skill; Bio-Engineers may convert too. The conversion itself
+    // (incubator.stampEggAsMount / convertEggToMount) has no Beast Master dependency.
+    public static boolean canConvertEggToMount(obj_id player) throws InterruptedException
+    {
+        if (!isIdValid(player))
+        {
+            return false;
+        }
+        if (hasSkill(player, "expertise_bm_train_mount_1"))
+        {
+            return true;
+        }
+        return PRECU_ENZYME_EXTRACTOR_ENABLED && hasSkill(player, PRECU_ENZYME_EXTRACTOR_SKILL);
+    }
     // Pre-CU: pet stat expertise (health / armor / damage / regen / attack speed). The NGE formula
     // (getExpertiseStat) leaves a player with mod 0 at only 50 % of base stats, so a Bio-Engineer would get a half-strength
     // beast. A Bio-Engineer gets (dna_harvesting + bio_engineer_experimentation) / 2, capped at 100 (master = 100 = full

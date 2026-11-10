@@ -50,7 +50,7 @@ public class beast_egg extends script.base_script
             {
                 mi.addRootMenu(menu_info_types.ITEM_USE, SID_EGG_HATCH);
             }
-            if (incubator.isEggMountType(egg) && hasSkill(player, "expertise_bm_train_mount_1") && !incubator.isEggMountFlagged(egg))
+            if (incubator.isEggMountType(egg) && beast_lib.canConvertEggToMount(player) && !incubator.isEggMountFlagged(egg))
             {
                 mi.addRootMenu(menu_info_types.SERVER_MENU1, SID_MAKE_MOUNT);
             }
@@ -90,7 +90,7 @@ public class beast_egg extends script.base_script
                     return SCRIPT_CONTINUE;
                 }
             }
-            if (item == menu_info_types.SERVER_MENU1 && hasSkill(player, "expertise_bm_train_mount_1") && !incubator.isEggMountFlagged(egg))
+            if (item == menu_info_types.SERVER_MENU1 && beast_lib.canConvertEggToMount(player) && !incubator.isEggMountFlagged(egg))
             {
                 if (!incubator.isEggMountType(egg))
                 {
