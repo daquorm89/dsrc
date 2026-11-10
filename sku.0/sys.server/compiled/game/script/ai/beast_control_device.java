@@ -75,7 +75,7 @@ public class beast_control_device extends script.base_script
                 sendSystemMessage(player, strSpam);
                 return SCRIPT_CONTINUE;
             }
-            if (!beast_lib.isBeastMaster(player))
+            if (!beast_lib.canHatchBeast(player))
             {
                 sendSystemMessage(player, beast_lib.SID_NOT_BEAST_MASTER);
                 return SCRIPT_CONTINUE;
