@@ -655,11 +655,11 @@ public class tcg extends script.base_script
         beast_lib.setBeastSkillBonuses(beast);
         setScale(beast, beast_lib.getBeastScaleByLevel(beast));
         addSkillModModifier(beast, "slope_move", "slope_move", 50, -1, false, false);
-        int expertiseRegen = getEnhancedSkillStatisticModifierUncapped(getMaster(beast), "expertise_bm_pet_regen");
-        int expertiseHealth = getEnhancedSkillStatisticModifierUncapped(getMaster(beast), "expertise_bm_pet_health");
-        int expertiseAttackSpeed = getEnhancedSkillStatisticModifierUncapped(getMaster(beast), "expertise_bm_pet_attack_speed");
-        int expertiseArmor = getEnhancedSkillStatisticModifierUncapped(getMaster(beast), "expertise_bm_pet_armor");
-        int expertiseDamage = getEnhancedSkillStatisticModifierUncapped(getMaster(beast), "expertise_bm_pet_damage");
+        int expertiseRegen = beast_lib.getBeastExpertiseMod(getMaster(beast), "expertise_bm_pet_regen");
+        int expertiseHealth = beast_lib.getBeastExpertiseMod(getMaster(beast), "expertise_bm_pet_health");
+        int expertiseAttackSpeed = beast_lib.getBeastExpertiseMod(getMaster(beast), "expertise_bm_pet_attack_speed");
+        int expertiseArmor = beast_lib.getBeastExpertiseMod(getMaster(beast), "expertise_bm_pet_armor");
+        int expertiseDamage = beast_lib.getBeastExpertiseMod(getMaster(beast), "expertise_bm_pet_damage");
         float incubationArmorBonus = utils.getFloatScriptVar(beast, beast_lib.OBJVAR_INCREASE_ARMOR);
         float incubationDamageBonus = utils.getFloatScriptVar(beast, beast_lib.OBJVAR_INCREASE_DPS);
         float incubationHealthBonus = utils.getFloatScriptVar(beast, beast_lib.OBJVAR_INCREASE_HEALTH);

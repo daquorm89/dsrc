@@ -72,7 +72,7 @@ public class creature_combat extends script.systems.combat.combat_base
             int expertiseRegen = 0;
             if (isIdValid(master) && exists(master))
             {
-                expertiseRegen = getEnhancedSkillStatisticModifierUncapped(master, "expertise_bm_pet_regen");
+                expertiseRegen = beast_lib.getBeastExpertiseMod(master, "expertise_bm_pet_regen");
             }
             if (expertiseRegen > 0)
             {
@@ -126,7 +126,7 @@ public class creature_combat extends script.systems.combat.combat_base
             int expertiseRegen = 0;
             if (isIdValid(master) && exists(master))
             {
-                expertiseRegen = getEnhancedSkillStatisticModifierUncapped(master, "expertise_bm_pet_regen");
+                expertiseRegen = beast_lib.getBeastExpertiseMod(master, "expertise_bm_pet_regen");
             }
             if (expertiseRegen > 0)
             {
